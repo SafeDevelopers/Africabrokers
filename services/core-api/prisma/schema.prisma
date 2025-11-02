@@ -1,0 +1,264 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["fieldReference"]
+}
+
+ datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  certified_broker
+  agency
+  individual_seller
+  inspector
+  regulator
+  admin
+  public
+}
+
+enum BrokerStatus {
+  draft
+  submitted
+  approved
+  suspended
+  revoked
+}
+
+enum VerificationStatus {
+  draft
+  pending
+  verified
+  rejected
+}
+
+enum PropertyType {
+  residential
+  commercial
+  land
+}
+
+enum ListingAvailability {
+  active
+  pending_review
+  suspended
+  closed
+}
+
+enum ComplaintStatus {
+  open
+  investigating
+  resolved
+  dismissed
+}
+
+enum ComplaintSeverity {
+  low
+  medium
+  high
+}
+
+enum ReviewDecision {
+  pending
+  approved
+  denied
+  needs_more_info
+}
+
+enum PaymentPurpose {
+  registration
+  renewal
+  listing_fee
+  fine
+}
+
+enum PaymentStatus {
+  pending
+  succeeded
+  failed
+  refunded
+}
+
+model Tenant {
+  id               String   @id @default(uuid())
+  key              String   @unique
+  name             String
+  domain           String?  @unique
+  brandConfig      Json
+  locales          String[]
+  currency         String
+  paymentConfig    Json
+  dataResidency    String?
+  active           Boolean  @default(true)
+  users            User[]
+  brokers          Broker[]
+  properties       Property[]
+  listings         Listing[]
+  kycReviews       KycReview[]
+  complaints       Complaint[]
+  qrCodes          QrCode[]
+  payments         Payment[]
+  auditLogs        AuditLog[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model User {
+  id             String    @id @default(uuid())
+  tenantId       String
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  authProviderId String    @unique
+  role           UserRole
+  phoneHash      String?
+  emailHash      String?
+  nationalIdHash String?
+  kycStatus      String?
+  mfaEnabled     Boolean   @default(false)
+  brokers        Broker[]
+  properties     Property[] @relation("PropertyOwner")
+  complaints     Complaint[] @relation("ComplaintReporter")
+  auditLogs      AuditLog[]
+  payments       Payment[]
+  kycReviews     KycReview[] @relation("KycReviewer")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Broker {
+  id                 String       @id @default(uuid())
+  tenantId           String
+  tenant             Tenant       @relation(fields: [tenantId], references: [id])
+  userId             String
+  user               User         @relation(fields: [userId], references: [id])
+  licenseNumber      String
+  licenseDocs        Json
+  businessDocs       Json?
+  status             BrokerStatus @default(draft)
+  qrCodeId           String?      @unique
+  qrCode             QrCode?      @relation("BrokerQr")
+  rating             Float?       @default(0)
+  strikeCount        Int          @default(0)
+  submittedAt        DateTime?
+  approvedAt         DateTime?
+  properties         Property[]
+  kycReviews         KycReview[]
+  complaints         Complaint[] @relation("ComplaintBroker")
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+}
+
+model Property {
+  id                     String             @id @default(uuid())
+  tenantId               String
+  tenant                 Tenant             @relation(fields: [tenantId], references: [id])
+  ownerUserId            String?
+  owner                  User?              @relation("PropertyOwner", fields: [ownerUserId], references: [id])
+  brokerId               String?
+  broker                 Broker?            @relation(fields: [brokerId], references: [id])
+  type                   PropertyType
+  address                Json
+  latitude               Float?
+  longitude              Float?
+  ownershipProofUrl      String?
+  verificationStatus     VerificationStatus @default(draft)
+  listings               Listing[]
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+}
+
+model Listing {
+  id                 String              @id @default(uuid())
+  tenantId           String
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  propertyId         String
+  property           Property            @relation(fields: [propertyId], references: [id])
+  priceAmount        Decimal             @db.Decimal(12,2)
+  priceCurrency      String
+  availabilityStatus ListingAvailability @default(pending_review)
+  channels           Json
+  featured           Boolean             @default(false)
+  fraudScore         Float?              @default(0)
+  publishedAt        DateTime?
+  complaints         Complaint[] @relation("ComplaintListing")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model KycReview {
+  id         String         @id @default(uuid())
+  tenantId   String
+  tenant     Tenant         @relation(fields: [tenantId], references: [id])
+  brokerId   String
+  broker     Broker         @relation(fields: [brokerId], references: [id])
+  reviewerId String?
+  reviewer   User?          @relation("KycReviewer", fields: [reviewerId], references: [id])
+  decision   ReviewDecision @default(pending)
+  notes      String?
+  decidedAt  DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
+model Complaint {
+  id              String            @id @default(uuid())
+  tenantId        String
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  reporterUserId  String
+  reporter        User              @relation("ComplaintReporter", fields: [reporterUserId], references: [id])
+  brokerId        String?
+  broker          Broker?           @relation("ComplaintBroker", fields: [brokerId], references: [id])
+  listingId       String?
+  listing         Listing?          @relation("ComplaintListing", fields: [listingId], references: [id])
+  category        String
+  severity        ComplaintSeverity @default(medium)
+  status          ComplaintStatus   @default(open)
+  resolutionNotes String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model QrCode {
+  id             String   @id @default(uuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  brokerId       String?  @unique
+  broker         Broker?  @relation("BrokerQr", fields: [brokerId], references: [id])
+  qrSvgUrl       String
+  status         String
+  lastReprintedAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Payment {
+  id         String         @id @default(uuid())
+  tenantId   String
+  tenant     Tenant         @relation(fields: [tenantId], references: [id])
+  payerUserId String
+  payer      User           @relation(fields: [payerUserId], references: [id])
+  purpose    PaymentPurpose
+  amount     Decimal        @db.Decimal(10,2)
+  currency   String
+  providerKey String
+  reference  String
+  status     PaymentStatus  @default(pending)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  actorUserId  String?
+  actor        User?    @relation(fields: [actorUserId], references: [id])
+  entity       String
+  entityId     String
+  action       String
+  before       Json?
+  after        Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+}

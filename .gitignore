@@ -1,0 +1,22 @@
+# Node / pnpm
+node_modules
+.pnpm-store
+.turbo
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs
+
+# Build outputs
+.next
+dist
+build
+coverage
+
+# macOS
+.DS_Store

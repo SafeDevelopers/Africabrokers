@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--color-neutral-background, #f8fafc);
+  color: var(--color-neutral-body, #1e293b);
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+}
+
+.text-title {
+  color: var(--color-neutral-title, #0f172a);
+}
+
+.text-body {
+  color: var(--color-neutral-body, #1e293b);
+}
+
+.bg-surface {
+  background-color: var(--color-neutral-surface, #ffffff);
+}

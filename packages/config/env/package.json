@@ -1,0 +1,13 @@
+{
+  "name": "@afribrok/env",
+  "version": "0.1.0",
+  "private": true,
+  "main": "server.ts",
+  "files": [
+    "**/*.ts",
+    "README.md"
+  ],
+  "dependencies": {
+    "zod": "^3.22.4"
+  }
+}

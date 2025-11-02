@@ -1,0 +1,52 @@
+{
+  "name": "ethiopia-addis",
+  "extends": "default",
+  "brand": {
+    "displayName": "AfriBrok Ethiopia — Addis Ababa",
+    "logo": "/brand/afribrok-logotype.svg",
+    "heroTagline": "Certified real estate trust for Addis Ababa."
+  },
+  "color": {
+    "primary": "#184C8C",
+    "secondary": "#0F9D58",
+    "accent": "#F9A825",
+    "neutral": {
+      "background": "#F8FAFC",
+      "surface": "#FFFFFF",
+      "border": "#CBD5F5",
+      "title": "#0F172A",
+      "body": "#1E293B"
+    }
+  },
+  "layout": {
+    "maxWidth": "1200px",
+    "sectionGap": "64px"
+  },
+  "components": {
+    "button": {
+      "primary": {
+        "background": "{color.primary}",
+        "foreground": "{color.primaryForeground}"
+      },
+      "secondary": {
+        "background": "{color.secondary}",
+        "foreground": "{color.secondaryForeground}"
+      }
+    },
+    "card": {
+      "background": "{color.neutral.surface}",
+      "shadow": "{shadows.card}",
+      "radius": "{radii.lg}"
+    },
+    "badge": {
+      "verified": {
+        "background": "#E6F4EA",
+        "foreground": "#0F9D58"
+      },
+      "warning": {
+        "background": "#FFF7E6",
+        "foreground": "#F59E0B"
+      }
+    }
+  }
+}

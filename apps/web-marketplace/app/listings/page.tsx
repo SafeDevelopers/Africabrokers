@@ -1,0 +1,801 @@
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ListingImage } from "../components/listing-image";
+import Dialog from "../components/Dialog";
+import {
+  listings,
+  getBrokerById,
+  type Listing,
+  type ListingPurpose,
+  type ListingStatus
+} from "../data/mock-data";
+
+type ViewMode = "grid" | "list";
+type PurposeFilter = ListingPurpose | "All";
+type StatusFilter = ListingStatus | "All";
+type PriceFilter = "any" | "under-10000" | "10000-30000" | "above-30000";
+type BedroomFilter = "any" | "1" | "2" | "3" | "4";
+type PropertyTypeFilter = "All" | string;
+
+const priceFilters: { label: string; value: PriceFilter }[] = [
+  { label: "Any price", value: "any" },
+  { label: "Under ETB 10,000", value: "under-10000" },
+  { label: "ETB 10,000 - 30,000", value: "10000-30000" },
+  { label: "Above ETB 30,000", value: "above-30000" }
+];
+
+const bedroomFilters: { label: string; value: BedroomFilter }[] = [
+  { label: "Any beds", value: "any" },
+  { label: "1+ beds", value: "1" },
+  { label: "2+ beds", value: "2" },
+  { label: "3+ beds", value: "3" },
+  { label: "4+ beds", value: "4" }
+];
+
+export default function ListingsPage() {
+  const [query, setQuery] = useState("");
+  const [purpose, setPurpose] = useState<PurposeFilter>("All");
+  const [status, setStatus] = useState<StatusFilter>("All");
+  const [priceRange, setPriceRange] = useState<PriceFilter>("any");
+  const [bedrooms, setBedrooms] = useState<BedroomFilter>("any");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [propertyType, setPropertyType] = useState<PropertyTypeFilter>("All");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [showMap, setShowMap] = useState(false);
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(12);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const initializingRef = useRef(true);
+  const [sortBy, setSortBy] = useState<
+    "default" | "newest" | "price-asc" | "price-desc" | "rating-desc"
+  >("default");
+  const [showCtaPopover, setShowCtaPopover] = useState(false);
+  const [showCtaModal, setShowCtaModal] = useState(false);
+  const [ctaModalRole, setCtaModalRole] = useState<string | null>(null);
+  const ctaButtonRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const firstPopoverItemRef = useRef<HTMLButtonElement | null>(null);
+  const continueButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const propertyTypes = useMemo(
+    () => ["All", ...Array.from(new Set(listings.map((listing) => listing.propertyType))).sort()],
+    []
+  );
+
+  // Initialize state from URL search params on mount
+  useEffect(() => {
+    if (!searchParams) return;
+    const q = searchParams.get("q") ?? "";
+    const p = (searchParams.get("purpose") as PurposeFilter) ?? "All";
+    const s = (searchParams.get("status") as StatusFilter) ?? "All";
+    const pr = (searchParams.get("price") as PriceFilter) ?? "any";
+    const bd = (searchParams.get("beds") as BedroomFilter) ?? "any";
+    const pt = (searchParams.get("type") as PropertyTypeFilter) ?? "All";
+    const min = searchParams.get("min") ?? "";
+    const max = searchParams.get("max") ?? "";
+    const sort = (searchParams.get("sort") as any) ?? "default";
+    const page = Number(searchParams.get("page") ?? "1") || 1;
+    const per = Number(searchParams.get("per") ?? "12") || 12;
+
+    // Only update if incoming values differ to avoid extra state updates
+    if (q !== query) setQuery(q);
+    if (p !== purpose) setPurpose(p);
+    if (s !== status) setStatus(s);
+    if (pr !== priceRange) setPriceRange(pr);
+    if (bd !== bedrooms) setBedrooms(bd);
+    if (pt !== propertyType) setPropertyType(pt);
+    if (min !== minPrice) setMinPrice(min);
+    if (max !== maxPrice) setMaxPrice(max);
+    if (sort !== sortBy) setSortBy(sort);
+    if (page !== currentPage) setCurrentPage(page);
+    if (per !== pageSize) setPageSize(per);
+
+    // mark initial sync complete
+    initializingRef.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const filteredListings = useMemo(() => {
+    return listings.filter((listing) => {
+      if (purpose !== "All" && listing.purpose !== purpose) {
+        return false;
+      }
+
+      if (status !== "All" && listing.status !== status) {
+        return false;
+      }
+
+      if (propertyType !== "All" && listing.propertyType !== propertyType) {
+        return false;
+      }
+
+      if (priceRange !== "any") {
+        if (priceRange === "under-10000" && listing.price >= 10000) return false;
+        if (priceRange === "10000-30000" && (listing.price < 10000 || listing.price > 30000)) {
+          return false;
+        }
+        if (priceRange === "above-30000" && listing.price <= 30000) return false;
+      }
+
+      if (minPrice) {
+        const min = Number(minPrice);
+        if (!Number.isNaN(min) && listing.price < min) return false;
+      }
+
+      if (maxPrice) {
+        const max = Number(maxPrice);
+        if (!Number.isNaN(max) && listing.price > max) return false;
+      }
+
+      if (bedrooms !== "any") {
+        const minBedrooms = Number(bedrooms);
+        if (listing.bedrooms === null || listing.bedrooms < minBedrooms) return false;
+      }
+
+      if (!query.trim()) return true;
+
+      const search = query.toLowerCase();
+      return (
+        listing.title.toLowerCase().includes(search) ||
+        listing.location.toLowerCase().includes(search)
+      );
+    });
+  }, [query, purpose, status, priceRange, bedrooms, propertyType, minPrice, maxPrice]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, purpose, status, priceRange, bedrooms, propertyType, minPrice, maxPrice]);
+
+  // Sync relevant state to URL (debounced/controlled via initializingRef)
+  useEffect(() => {
+    if (initializingRef.current) {
+      // skip syncing URL during initial param hydration
+      initializingRef.current = false;
+      return;
+    }
+
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (purpose && purpose !== "All") params.set("purpose", purpose);
+    if (status && status !== "All") params.set("status", status);
+    if (priceRange && priceRange !== "any") params.set("price", priceRange);
+    if (bedrooms && bedrooms !== "any") params.set("beds", bedrooms);
+    if (propertyType && propertyType !== "All") params.set("type", propertyType);
+    if (minPrice) params.set("min", minPrice);
+    if (maxPrice) params.set("max", maxPrice);
+    if (sortBy && sortBy !== "default") params.set("sort", sortBy);
+    if (pageSize && pageSize !== 12) params.set("per", String(pageSize));
+    if (currentPage && currentPage !== 1) params.set("page", String(currentPage));
+
+    const qs = params.toString();
+    const url = qs ? `${pathname}?${qs}` : pathname;
+    // replace to avoid pushing history on every change
+    router.replace(url);
+  }, [query, purpose, status, priceRange, bedrooms, propertyType, minPrice, maxPrice, sortBy, pageSize, currentPage, router, pathname]);
+
+  const sortedListings = useMemo(() => {
+    const arr = [...filteredListings];
+    switch (sortBy) {
+      case "price-asc":
+        return arr.sort((a, b) => a.price - b.price);
+      case "price-desc":
+        return arr.sort((a, b) => b.price - a.price);
+      case "rating-desc":
+        return arr.sort((a, b) => b.overallRating - a.overallRating);
+      case "newest":
+        // mock-data has no createdAt; keep original order as "newest"
+        return arr;
+      default:
+        return arr;
+    }
+  }, [filteredListings, sortBy]);
+
+  const totalListings = sortedListings.length;
+  const totalPages = Math.max(1, Math.ceil(totalListings / pageSize));
+  const paginatedListings = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedListings.slice(start, start + pageSize);
+  }, [sortedListings, currentPage, pageSize]);
+
+  // Pagination helpers: numbered pages
+  const getPageNumbers = (current: number, total: number, maxButtons = 5) => {
+    const half = Math.floor(maxButtons / 2);
+    let start = Math.max(1, current - half);
+    let end = Math.min(total, start + maxButtons - 1);
+    if (end - start + 1 < maxButtons) {
+      start = Math.max(1, end - maxButtons + 1);
+    }
+    const pages: number[] = [];
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  };
+
+  // Accessibility: handle outside click and keyboard for popover
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        if (showCtaModal) {
+          setShowCtaModal(false);
+          setCtaModalRole(null);
+          // restore focus
+          setTimeout(() => ctaButtonRef.current?.focus(), 0);
+        } else if (showCtaPopover) {
+          setShowCtaPopover(false);
+          setTimeout(() => ctaButtonRef.current?.focus(), 0);
+        }
+      }
+    }
+
+    function onClickOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      if (showCtaPopover && popoverRef.current && !popoverRef.current.contains(target) && !ctaButtonRef.current?.contains(target as Node)) {
+        setShowCtaPopover(false);
+      }
+    }
+
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onClickOutside);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onClickOutside);
+    };
+  }, [showCtaPopover, showCtaModal]);
+
+  // Focus management when popover opens
+  useEffect(() => {
+    if (showCtaPopover) {
+      // focus first interactive element in popover
+      setTimeout(() => firstPopoverItemRef.current?.focus(), 0);
+    }
+  }, [showCtaPopover]);
+
+  // Modal focus/trap is handled by the Dialog component
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-screen-2xl flex-col gap-4 px-6 py-10">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">Property Listings</h1>
+              <p className="text-sm text-slate-600">
+                Browse verified properties across Addis Ababa. Use filters to narrow your search.
+              </p>
+            </div>
+            <div className="relative">
+              <button
+                ref={ctaButtonRef}
+                id="list-cta-button"
+                type="button"
+                onClick={() => setShowCtaPopover((s) => !s)}
+                aria-haspopup="true"
+                aria-expanded={showCtaPopover}
+                className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-primary to-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:from-indigo-600 hover:to-primary"
+              >
+                List with AfriBrok →
+              </button>
+
+              {showCtaPopover && (
+                <div
+                  ref={popoverRef}
+                  role="menu"
+                  aria-labelledby="list-cta-button"
+                  tabIndex={-1}
+                  className="absolute right-0 mt-2 w-56 rounded-md border border-slate-200 bg-white p-3 shadow-lg"
+                >
+                  <p className="text-sm font-semibold text-slate-900">List as</p>
+                  <div className="mt-2 flex flex-col gap-2">
+                    <button
+                      ref={firstPopoverItemRef}
+                      role="menuitem"
+                      onClick={() => {
+                        setCtaModalRole("individual");
+                        setShowCtaModal(true);
+                      }}
+                      className="text-left text-sm"
+                    >
+                      Individual seller
+                    </button>
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setCtaModalRole("real-estate");
+                        setShowCtaModal(true);
+                      }}
+                      className="text-left text-sm"
+                    >
+                      Real-estate agency
+                    </button>
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setCtaModalRole("tenant");
+                        setShowCtaModal(true);
+                      }}
+                      className="text-left text-sm text-slate-500"
+                    >
+                      I just want to create an account
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-[2fr,repeat(5,minmax(0,1fr))]">
+            <label className="col-span-full lg:col-span-2">
+              <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                Search
+              </span>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search by neighborhood or keyword..."
+                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
+              />
+            </label>
+
+            <FilterSelect
+              label="Purpose"
+              value={purpose}
+              onChange={(value) => setPurpose(value as PurposeFilter)}
+              options={[
+                { label: "All", value: "All" },
+                { label: "Rent", value: "Rent" },
+                { label: "Sale", value: "Sale" }
+              ]}
+            />
+
+            <FilterSelect
+              label="Status"
+              value={status}
+              onChange={(value) => setStatus(value as StatusFilter)}
+              options={[
+                { label: "All", value: "All" },
+                { label: "Verified", value: "Verified" },
+                { label: "Pending", value: "Pending" }
+              ]}
+            />
+
+            <FilterSelect
+              label="Price Range"
+              value={priceRange}
+              onChange={(value) => setPriceRange(value as PriceFilter)}
+              options={priceFilters}
+            />
+
+            <FilterSelect
+              label="Bedrooms"
+              value={bedrooms}
+              onChange={(value) => setBedrooms(value as BedroomFilter)}
+              options={bedroomFilters}
+            />
+
+            <FilterSelect
+              label="Property type"
+              value={propertyType}
+              onChange={(value) => setPropertyType(value as PropertyTypeFilter)}
+              options={propertyTypes.map((type) => ({ label: type, value: type }))}
+            />
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                Price range (ETB)
+              </span>
+              <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10">
+                <input
+                  type="number"
+                  value={minPrice}
+                  onChange={(event) => setMinPrice(event.target.value)}
+                  placeholder="Min"
+                  className="w-full border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                />
+                <span className="text-xs text-slate-400">to</span>
+                <input
+                  type="number"
+                  value={maxPrice}
+                  onChange={(event) => setMaxPrice(event.target.value)}
+                  placeholder="Max"
+                  className="w-full border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                />
+              </div>
+            </label>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-screen-2xl px-6 py-10">
+          <div className="flex flex-wrap items-center gap-3 pb-4">
+          <p className="text-sm text-slate-600">
+            Showing <span className="font-semibold text-slate-900">{filteredListings.length}</span>{" "}
+            {filteredListings.length === 1 ? "property" : "properties"}
+          </p>
+          <div className="ml-auto flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-1">
+            <ToggleButton label="Grid view" active={viewMode === "grid"} onClick={() => setViewMode("grid")} />
+            <ToggleButton label="List view" active={viewMode === "list"} onClick={() => setViewMode("list")} />
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowMap((prev) => !prev)}
+            className="rounded-md border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100"
+          >
+            {showMap ? "Hide map" : "Show map"}
+          </button>
+          {/* Sort control (moved to top for visibility) */}
+          <div className="ml-2 flex items-center gap-2">
+            <label className="text-sm text-slate-600">Sort</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm"
+            >
+              <option value="default">Recommended</option>
+              <option value="newest">Newest</option>
+              <option value="price-asc">Price: Low → High</option>
+              <option value="price-desc">Price: High → Low</option>
+              <option value="rating-desc">Top rated</option>
+            </select>
+          </div>
+        </div>
+
+        {showMap ? <MapPreview listings={filteredListings} /> : null}
+        {filteredListings.length === 0 ? (
+          <EmptyState query={query} />
+        ) : viewMode === "grid" ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {paginatedListings.map((listing) => (
+              <ListingCard key={listing.id} listing={listing} variant="grid" />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-5">
+            {paginatedListings.map((listing) => (
+              <ListingCard key={listing.id} listing={listing} variant="list" />
+            ))}
+          </div>
+        )}
+        {/* Pagination controls */}
+        {filteredListings.length > 0 && (
+          <div className="mt-6 flex items-center justify-between">
+            <div className="text-sm text-slate-600">
+              Page {currentPage} of {totalPages} — Showing {Math.min((currentPage - 1) * pageSize + 1, totalListings)}-
+              {Math.min(currentPage * pageSize, totalListings)} of {totalListings} properties
+            </div>
+
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-slate-600">Per page</label>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm"
+              >
+                {[6, 12, 24, 48].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm disabled:opacity-50"
+              >
+                Prev
+              </button>
+              {/* Numbered pages */}
+              <div className="hidden items-center gap-1 md:flex">
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:opacity-50"
+                >
+                  First
+                </button>
+                {getPageNumbers(currentPage, totalPages).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setCurrentPage(p)}
+                    className={`rounded-md px-2 py-1 text-sm ${p === currentPage ? "bg-primary text-white" : "border border-slate-200 bg-white text-slate-700"}`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:opacity-50"
+                >
+                  Last
+                </button>
+              </div>
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* CTA popover modal for List with AfriBrok (uses accessible Dialog) */}
+      <Dialog
+        open={showCtaModal && !!ctaModalRole}
+        onClose={() => {
+          setShowCtaModal(false);
+          setCtaModalRole(null);
+          setShowCtaPopover(false);
+        }}
+        initialFocusRef={continueButtonRef}
+      >
+        <h3 id="cta-modal-title" className="text-lg font-semibold text-slate-900">Create a seller account</h3>
+        <p className="mt-2 text-sm text-slate-600">
+          {ctaModalRole === "real-estate"
+            ? "Register as a Real-estate Agency to manage team members, listings, and agency analytics."
+            : "Register as an Individual Seller to promote your property and access verification support."}
+        </p>
+
+        <div className="mt-4 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setShowCtaModal(false);
+            }}
+            className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            ref={continueButtonRef}
+            onClick={() => {
+              if (!ctaModalRole) return;
+              setShowCtaModal(false);
+              setShowCtaPopover(false);
+              router.push(`/auth/register?role=${encodeURIComponent(ctaModalRole)}`);
+            }}
+            className="rounded-md bg-gradient-to-r from-primary to-indigo-600 px-4 py-2 text-sm font-semibold text-white"
+          >
+            Continue
+          </button>
+        </div>
+      </Dialog>
+    </div>
+  );
+}
+
+type ToggleButtonProps = {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+};
+
+function ToggleButton({ label, active, onClick }: ToggleButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+        active ? "bg-primary text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+      }`}
+      aria-pressed={active}
+    >
+      {label}
+    </button>
+  );
+}
+
+type FilterSelectProps<T extends string> = {
+  label: string;
+  value: T;
+  onChange: (value: T) => void;
+  options: { label: string; value: T }[];
+};
+
+function FilterSelect<T extends string>({ label, value, onChange, options }: FilterSelectProps<T>) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value as T)}
+        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function ListingCard({ listing, variant }: { listing: Listing; variant: ViewMode }) {
+  const broker = getBrokerById(listing.brokerId);
+  const isVerified = listing.status === "Verified";
+  const purposeClasses =
+    listing.purpose === "Rent" ? "bg-blue-600 text-white" : "bg-amber-500 text-white";
+  const statusClasses = isVerified
+    ? "bg-white/90 text-green-800"
+    : "bg-white/90 text-amber-600";
+
+  const overlay = (
+    <>
+      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${purposeClasses}`}>
+        {listing.purpose}
+      </span>
+      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${statusClasses}`}>
+        {isVerified ? "✓ Verified broker" : "Pending verification"}
+      </span>
+      <span className="inline-flex items-center rounded-full bg-black/70 px-2 py-1 text-xs font-semibold text-white">
+        {listing.overallRating.toFixed(1)} ★
+      </span>
+    </>
+  );
+
+  if (variant === "list") {
+    return (
+      <article className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md md:flex-row">
+        <div className="md:w-72 md:flex-shrink-0">
+          <ListingImage listing={listing} overlay={overlay} className="aspect-[16/10]" />
+        </div>
+
+        <div className="flex flex-1 flex-col gap-4 p-5">
+          <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between md:gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">{listing.title}</h2>
+              <p className="text-sm text-slate-600">📍 {listing.location}</p>
+              <p className="text-xs text-slate-500">{listing.propertyType}</p>
+            </div>
+            <p className="text-base font-semibold text-primary md:text-lg">{listing.priceLabel}</p>
+          </div>
+
+          <p className="text-sm text-slate-600">{listing.description}</p>
+
+          <div className="flex flex-wrap gap-3 text-sm text-slate-600">
+            {typeof listing.bedrooms === "number" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
+                🛏️ {listing.bedrooms} beds
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
+              🚿 {listing.bathrooms} baths
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
+              📐 {listing.area}
+            </span>
+          </div>
+
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-slate-600">
+              <span className="font-medium">Broker:</span> {broker ? broker.name : "Unknown"}
+            </div>
+            <div className="flex items-center gap-3">
+              <Link href={`/brokers/${listing.brokerId}`} className="text-xs text-primary hover:underline">
+                View broker →
+              </Link>
+              <Link href={`/listings/${listing.id}`} className="text-sm font-semibold text-primary hover:underline">
+                View details →
+              </Link>
+              <button className="rounded-md bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/20">
+                Contact broker
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+    );
+  }
+
+  return (
+    <article className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+      <ListingImage listing={listing} overlay={overlay} />
+
+      <div className="flex flex-1 flex-col gap-4 p-5">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">{listing.title}</h2>
+          <p className="text-sm text-slate-600">📍 {listing.location}</p>
+          <p className="text-xs text-slate-500">{listing.propertyType}</p>
+        </div>
+
+        <div className="flex flex-wrap gap-3 text-sm text-slate-600">
+          {typeof listing.bedrooms === "number" && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
+              🛏️ {listing.bedrooms} beds
+            </span>
+          )}
+          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
+            🚿 {listing.bathrooms} baths
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
+            📐 {listing.area}
+          </span>
+        </div>
+
+        <div className="mt-auto flex items-end justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase text-slate-500">Price</p>
+            <p className="text-xl font-bold text-primary">{listing.priceLabel}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs uppercase text-slate-500">Broker</p>
+            <p className="text-sm font-semibold text-slate-900">
+              {broker ? broker.name : "Unknown"}
+            </p>
+            <Link href={`/brokers/${listing.brokerId}`} className="text-xs text-primary hover:underline">
+              View broker →
+            </Link>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Link href={`/listings/${listing.id}`} className="text-sm font-semibold text-primary hover:underline">
+            View details →
+          </Link>
+          <button className="rounded-md bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/20">
+            Contact broker
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function MapPreview({ listings }: { listings: Listing[] }) {
+  if (listings.length === 0) return null;
+  const [first] = listings;
+  const src = `https://www.google.com/maps?q=${first.latitude},${first.longitude}&hl=en&output=embed`;
+
+  return (
+    <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Map preview</p>
+          <p className="text-sm text-slate-600">
+            Centered on {first.title}. Interactive map controls will be available in the live integration.
+          </p>
+        </div>
+        <span className="text-xs text-slate-500">Powered by Google Maps embed</span>
+      </div>
+      <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+        <iframe
+          title="Listings map preview"
+          src={src}
+          width="100%"
+          height="320"
+          loading="lazy"
+          className="w-full"
+          allowFullScreen
+        />
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ query }: { query: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center">
+      <p className="text-lg font-semibold text-slate-900">No properties match your filters yet.</p>
+      <p className="mt-2 text-sm text-slate-600">
+        {query
+          ? "Try adjusting your keywords or removing some filters to see more results."
+          : "Modify the filters to explore other property types or price ranges."}
+      </p>
+    </div>
+  );
+}

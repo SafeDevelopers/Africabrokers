@@ -1,0 +1,22 @@
+{
+  "name": "afribrok",
+  "private": true,
+  "packageManager": "pnpm@8.15.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo clean",
+    "infra:up": "cd infrastructure/compose && docker-compose up -d",
+    "infra:down": "cd infrastructure/compose && docker-compose down",
+    "infra:logs": "cd infrastructure/compose && docker-compose logs -f",
+    "db:migrate": "cd services/core-api && pnpm prisma migrate dev",
+    "db:seed": "cd services/core-api && pnpm prisma db seed",
+    "db:studio": "cd services/core-api && pnpm prisma studio"
+  },
+  "devDependencies": {
+    "turbo": "^1.13.4"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@afribrok/design-tokens",
+  "version": "0.1.0",
+  "private": true,
+  "main": "tailwind-preset.js",
+  "types": null,
+  "files": [
+    "*.json",
+    "tenants/*.json",
+    "tailwind-preset.js",
+    "README.md"
+  ]
+}

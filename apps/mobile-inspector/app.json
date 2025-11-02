@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "AfriBrok Inspector",
+    "slug": "mobile-inspector",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "afribrokinspector",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "plugins": [
+      "expo-router",
+      "expo-barcode-scanner"
+    ],
+    "ios": {
+      "bundleIdentifier": "com.afribrok.inspector",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to scan QR codes for license verification."
+      }
+    },
+    "android": {
+      "package": "com.afribrok.inspector"
+    },
+    "web": {},
+    "extra": {
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      },
+      "apiBaseUrl": "http://localhost:4000"
+    }
+  }
+}
