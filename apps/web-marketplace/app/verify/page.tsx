@@ -1,40 +1,115 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import Link from "next/link";
-import { brokers, getListingsByBroker } from "../data/mock-data";
-
-const verificationCodes: Record<string, string> = {
-  "AFR-QR-156": "broker-1",
-  "AFR-QR-287": "broker-2",
-  "AFR-QR-402": "broker-3"
-};
+import { useRouter } from "next/navigation";
+import { CheckCircle, XCircle, AlertCircle, ShieldCheck, MapPin, Phone, Mail } from "lucide-react";
+import { getTenant } from "../../lib/tenant";
 
 type VerificationState =
   | { status: "idle" }
-  | { status: "success"; brokerId: string }
+  | { status: "loading" }
+  | { status: "success"; data: BrokerVerificationData }
   | { status: "error"; message: string };
 
+interface BrokerVerificationData {
+  valid: boolean;
+  broker?: {
+    id: string;
+    name: string;
+    company: string;
+    licenseNumber: string;
+    location: string;
+    verified: boolean;
+    rating: number;
+    specialties: string[];
+    phone: string;
+    email: string;
+    stats: {
+      activeListings: number;
+      closedDeals: number;
+      responseTime: string;
+    };
+  };
+  tenant?: {
+    name: string;
+    key: string;
+  };
+  verifiedAt?: string;
+  qrCodeId: string;
+}
+
 export default function VerifyPage() {
+  const router = useRouter();
   const [code, setCode] = useState("");
   const [state, setState] = useState<VerificationState>({ status: "idle" });
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const normalized = code.trim().toUpperCase();
-    if (!normalized) {
+  // Extract code from URL if it's a deep link (e.g., /verify/{code})
+  useEffect(() => {
+    const pathParts = window.location.pathname.split('/');
+    if (pathParts.length > 2 && pathParts[1] === 'verify') {
+      const urlCode = pathParts[2];
+      if (urlCode && urlCode !== 'page') {
+        setCode(urlCode);
+        handleVerify(urlCode);
+      }
+    }
+  }, []);
+
+  const handleVerify = async (qrCode?: string) => {
+    const codeToVerify = qrCode || code.trim().toUpperCase();
+    if (!codeToVerify) {
       setState({ status: "error", message: "Enter the code displayed on the broker's QR badge." });
       return;
     }
-    const brokerId = verificationCodes[normalized];
-    if (!brokerId) {
+
+    setState({ status: "loading" });
+
+    try {
+      const tenant = getTenant();
+      const apiBase = process.env.NEXT_PUBLIC_CORE_API_BASE_URL || "http://localhost:8080";
+      
+      const response = await fetch(`${apiBase}/v1/verify/${encodeURIComponent(codeToVerify)}`, {
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant": tenant,
+        },
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          setState({
+            status: "error",
+            message: "We couldn't find a broker with that code. Double-check and try again.",
+          });
+          return;
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data: BrokerVerificationData = await response.json();
+      
+      if (!data.valid || !data.broker) {
+        setState({
+          status: "error",
+          message: "This broker code is not valid or has been revoked.",
+        });
+        return;
+      }
+
+      setState({ status: "success", data });
+    } catch (error) {
       setState({
         status: "error",
-        message: "We couldn't find a broker with that code. Double-check and try again."
+        message: error instanceof Error ? error.message : "Failed to verify broker code. Please try again.",
       });
-      return;
     }
-    setState({ status: "success", brokerId });
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    handleVerify();
   };
 
   return (
@@ -54,7 +129,7 @@ export default function VerifyPage() {
             <p className="mt-1">
               Brokers without a valid code are not allowed to transact on AfriBrok. Report suspicious
               encounters at{" "}
-              <Link href="mailto:safety@afribrok.com" className="font-medium text-primary">
+              <Link href="mailto:safety@afribrok.com" className="font-medium text-indigo-600 hover:underline">
                 safety@afribrok.com
               </Link>
               .
@@ -72,7 +147,7 @@ export default function VerifyPage() {
                 Type the six-character code printed below the QR pattern. Letters are always uppercase.
               </p>
             </div>
-            <button className="rounded-lg border border-primary/40 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/10">
+            <button className="rounded-lg border border-indigo-500/40 px-4 py-2 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50">
               Launch camera scanner
             </button>
           </div>
@@ -87,7 +162,8 @@ export default function VerifyPage() {
                 value={code}
                 onChange={(event) => setCode(event.target.value.toUpperCase())}
                 placeholder="AFR-QR-156"
-                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-lg tracking-[0.35em] text-slate-900 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
+                disabled={state.status === "loading"}
+                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-lg tracking-[0.35em] text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 disabled:opacity-50"
                 aria-describedby="verifyCodeHelp"
               />
               <p id="verifyCodeHelp" className="text-xs text-slate-500">
@@ -97,9 +173,10 @@ export default function VerifyPage() {
 
             <button
               type="submit"
-              className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-primary/90"
+              disabled={state.status === "loading"}
+              className="w-full rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-50"
             >
-              Verify broker
+              {state.status === "loading" ? "Verifying..." : "Verify broker"}
             </button>
           </form>
 
@@ -108,87 +185,73 @@ export default function VerifyPage() {
 
         <aside className="lg:w-96">
           <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Recently verified brokers</h2>
-            <ul className="space-y-4 text-sm text-slate-700">
-              {brokers.map((broker) => (
-                <li key={broker.id} className="rounded-lg border border-slate-200 p-4">
-                  <div className="flex items-start justify-between">
-                    <span className="text-xl">{broker.avatar}</span>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        broker.verified
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-amber-100 text-amber-700"
-                      }`}
-                    >
-                      {broker.verified ? "Verified" : "Pending"}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm font-semibold text-slate-900">{broker.name}</p>
-                  <p className="text-xs text-slate-500">
-                    License #{broker.licenseNumber} · {broker.location}
-                  </p>
-                  <Link
-                    href={`/brokers/${broker.id}`}
-                    className="mt-3 inline-flex text-xs font-semibold text-primary hover:underline"
-                  >
-                    View profile →
-                  </Link>
-                </li>
-              ))}
+            <h2 className="text-lg font-semibold text-slate-900">About verification</h2>
+            <ul className="space-y-3 text-sm text-slate-700">
+              <li className="flex items-start gap-2">
+                <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <span>Verified brokers display an AfriBrok holographic seal on their badge</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <span>All licenses and credentials are confirmed before approval</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <span>Use the AfriBrok Inspector mobile app for instant scanning</span>
+              </li>
             </ul>
 
-            <div className="rounded-lg bg-primary/10 p-4 text-sm text-primary">
-              ✅ Verified brokers always display an AfriBrok holographic seal on their badge.
+            <div className="rounded-lg bg-indigo-50 p-4 text-sm text-indigo-700">
+              <p className="font-semibold mb-2">Scan with the AfriBrok mobile app</p>
+              <p className="mb-3 text-indigo-600">
+                Launch the AfriBrok Inspector app to scan QR badges instantly. The app cross-checks licenses,
+                confirms office addresses, and stores verification receipts.
+              </p>
+              <Link
+                href="/agents"
+                className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:underline"
+              >
+                Learn about becoming an agent →
+              </Link>
             </div>
           </div>
         </aside>
       </main>
-
-      <section className="mx-auto mt-10 max-w-screen-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="grid gap-4 md:grid-cols-[1.5fr,1fr] md:items-center">
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold text-slate-900">Scan with the AfriBrok mobile app</h2>
-            <p className="text-sm text-slate-600">
-              Launch the AfriBrok Inspector app to scan QR badges instantly. The app cross-checks licenses,
-              confirms office addresses, and stores verification receipts for your records.
-            </p>
-            <ul className="space-y-2 text-sm text-slate-600">
-              <li>• Works offline – scans sync once you reconnect</li>
-              <li>• Save verifications per property or team member</li>
-              <li>• Access tamper-proof history for audits</li>
-            </ul>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-            <p className="font-semibold text-slate-900">Coming soon to iOS & Android</p>
-            <p className="mt-1">
-              Request early access by emailing{" "}
-              <Link href="mailto:mobile@afribrok.com" className="font-medium text-primary">
-                mobile@afribrok.com
-              </Link>
-              .
-            </p>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
 
 function VerificationResult({
   state,
-  onReset
+  onReset,
 }: {
   state: VerificationState;
   onReset: () => void;
 }) {
-  if (state.status === "idle") return null;
+  if (state.status === "idle" || state.status === "loading") {
+    if (state.status === "loading") {
+      return (
+        <div className="mt-6 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-8">
+          <div className="text-center">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+            <p className="text-sm font-medium text-slate-700">Verifying broker code...</p>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }
 
   if (state.status === "error") {
     return (
       <div className="mt-6 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-        <p className="font-semibold">We couldn&apos;t verify this broker.</p>
-        <p className="mt-1">{state.message}</p>
+        <div className="flex items-start gap-3">
+          <XCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold">We couldn&apos;t verify this broker.</p>
+            <p className="mt-1">{state.message}</p>
+          </div>
+        </div>
         <button
           type="button"
           onClick={onReset}
@@ -200,63 +263,75 @@ function VerificationResult({
     );
   }
 
-  const brokerId = state.brokerId;
-  const broker = brokers.find((item) => item.id === brokerId);
-  if (!broker) return null;
-
-  const listings = getListingsByBroker(brokerId);
+  const { data } = state;
+  if (!data.broker) return null;
 
   return (
     <div className="mt-6 space-y-4 rounded-lg border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-base font-semibold text-emerald-900">
-            {broker.name} is verified on AfriBrok
-          </p>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle className="w-5 h-5 text-emerald-600" />
+            <p className="text-base font-semibold text-emerald-900">
+              {data.broker.name} is verified on AfriBrok
+            </p>
+          </div>
           <p className="text-xs text-emerald-700">
-            License #{broker.licenseNumber} · {broker.location}
+            License #{data.broker.licenseNumber} · {data.broker.location}
           </p>
         </div>
-        <span className="text-lg">{broker.avatar}</span>
+        <span className="text-2xl">{data.broker.verified ? "✓" : "⚠"}</span>
       </div>
 
       <div className="rounded-md border border-emerald-200 bg-white/80 p-4 text-emerald-700">
-        <p className="text-xs uppercase tracking-wide">Trusted specialties</p>
-        <p className="mt-1 text-sm">{broker.specialties.join(" · ")}</p>
-        <p className="mt-2 text-xs text-emerald-600">
-          Typical response time: {broker.stats.responseTime} · Rating {broker.stats.rating.toFixed(1)}
-        </p>
+        <p className="text-xs uppercase tracking-wide mb-1">Trusted specialties</p>
+        <p className="text-sm">{data.broker.specialties.join(" · ")}</p>
+        <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
+          <div>
+            <p className="font-semibold">{data.broker.stats.activeListings}</p>
+            <p className="text-emerald-600">Listings</p>
+          </div>
+          <div>
+            <p className="font-semibold">{data.broker.stats.closedDeals}</p>
+            <p className="text-emerald-600">Deals</p>
+          </div>
+          <div>
+            <p className="font-semibold">{data.broker.stats.responseTime}</p>
+            <p className="text-emerald-600">Response</p>
+          </div>
+        </div>
       </div>
 
-      <div>
-        <p className="text-xs uppercase tracking-wide text-emerald-700">Active listings</p>
-        <ul className="mt-2 space-y-1 text-sm">
-          {listings.slice(0, 3).map((listing) => (
-            <li key={listing.id} className="flex items-center justify-between gap-3">
-              <span>{listing.title}</span>
-              <Link href={`/listings/${listing.id}`} className="text-xs font-semibold text-primary">
-                View →
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 pt-2 border-t border-emerald-200">
         <Link
-          href={`/brokers/${broker.id}`}
-          className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-primary/90"
+          href={`tel:${data.broker.phone}`}
+          className="inline-flex items-center gap-2 rounded-md border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
         >
-          Contact broker
+          <Phone className="w-4 h-4" />
+          Call
         </Link>
-        <button
-          type="button"
-          onClick={onReset}
-          className="text-xs font-medium text-emerald-700 hover:underline"
+        <Link
+          href={`mailto:${data.broker.email}`}
+          className="inline-flex items-center gap-2 rounded-md border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
         >
-          Verify another code
-        </button>
+          <Mail className="w-4 h-4" />
+          Email
+        </Link>
+        <Link
+          href={`/brokers/${data.broker.id}`}
+          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+        >
+          View Profile
+        </Link>
       </div>
+
+      <button
+        type="button"
+        onClick={onReset}
+        className="text-xs font-medium text-emerald-700 hover:underline"
+      >
+        Verify another code
+      </button>
     </div>
   );
 }

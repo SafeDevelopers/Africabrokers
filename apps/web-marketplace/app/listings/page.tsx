@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ListingImage } from "../components/listing-image";
-import Dialog from "../components/Dialog";
 import {
   listings,
   getBrokerById,
@@ -56,13 +55,6 @@ export default function ListingsPage() {
   const [sortBy, setSortBy] = useState<
     "default" | "newest" | "price-asc" | "price-desc" | "rating-desc"
   >("default");
-  const [showCtaPopover, setShowCtaPopover] = useState(false);
-  const [showCtaModal, setShowCtaModal] = useState(false);
-  const [ctaModalRole, setCtaModalRole] = useState<string | null>(null);
-  const ctaButtonRef = useRef<HTMLButtonElement | null>(null);
-  const popoverRef = useRef<HTMLDivElement | null>(null);
-  const firstPopoverItemRef = useRef<HTMLButtonElement | null>(null);
-  const continueButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const propertyTypes = useMemo(
     () => ["All", ...Array.from(new Set(listings.map((listing) => listing.propertyType))).sort()],
@@ -72,7 +64,8 @@ export default function ListingsPage() {
   // Initialize state from URL search params on mount
   useEffect(() => {
     if (!searchParams) return;
-    const q = searchParams.get("q") ?? "";
+    // Support both 'query' (from landing page) and 'q' (legacy)
+    const urlQuery = searchParams.get("query") || searchParams.get("q") || "";
     const p = (searchParams.get("purpose") as PurposeFilter) ?? "All";
     const s = (searchParams.get("status") as StatusFilter) ?? "All";
     const pr = (searchParams.get("price") as PriceFilter) ?? "any";
@@ -85,7 +78,7 @@ export default function ListingsPage() {
     const per = Number(searchParams.get("per") ?? "12") || 12;
 
     // Only update if incoming values differ to avoid extra state updates
-    if (q !== query) setQuery(q);
+    if (urlQuery !== query) setQuery(urlQuery);
     if (p !== purpose) setPurpose(p);
     if (s !== status) setStatus(s);
     if (pr !== priceRange) setPriceRange(pr);
@@ -219,45 +212,7 @@ export default function ListingsPage() {
   };
 
   // Accessibility: handle outside click and keyboard for popover
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        if (showCtaModal) {
-          setShowCtaModal(false);
-          setCtaModalRole(null);
-          // restore focus
-          setTimeout(() => ctaButtonRef.current?.focus(), 0);
-        } else if (showCtaPopover) {
-          setShowCtaPopover(false);
-          setTimeout(() => ctaButtonRef.current?.focus(), 0);
-        }
-      }
-    }
 
-    function onClickOutside(e: MouseEvent) {
-      const target = e.target as Node;
-      if (showCtaPopover && popoverRef.current && !popoverRef.current.contains(target) && !ctaButtonRef.current?.contains(target as Node)) {
-        setShowCtaPopover(false);
-      }
-    }
-
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onClickOutside);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onClickOutside);
-    };
-  }, [showCtaPopover, showCtaModal]);
-
-  // Focus management when popover opens
-  useEffect(() => {
-    if (showCtaPopover) {
-      // focus first interactive element in popover
-      setTimeout(() => firstPopoverItemRef.current?.focus(), 0);
-    }
-  }, [showCtaPopover]);
-
-  // Modal focus/trap is handled by the Dialog component
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -269,64 +224,6 @@ export default function ListingsPage() {
               <p className="text-sm text-slate-600">
                 Browse verified properties across Addis Ababa. Use filters to narrow your search.
               </p>
-            </div>
-            <div className="relative">
-              <button
-                ref={ctaButtonRef}
-                id="list-cta-button"
-                type="button"
-                onClick={() => setShowCtaPopover((s) => !s)}
-                aria-haspopup="true"
-                aria-expanded={showCtaPopover}
-                className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-primary to-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:from-indigo-600 hover:to-primary"
-              >
-                List with AfriBrok →
-              </button>
-
-              {showCtaPopover && (
-                <div
-                  ref={popoverRef}
-                  role="menu"
-                  aria-labelledby="list-cta-button"
-                  tabIndex={-1}
-                  className="absolute right-0 mt-2 w-56 rounded-md border border-slate-200 bg-white p-3 shadow-lg"
-                >
-                  <p className="text-sm font-semibold text-slate-900">List as</p>
-                  <div className="mt-2 flex flex-col gap-2">
-                    <button
-                      ref={firstPopoverItemRef}
-                      role="menuitem"
-                      onClick={() => {
-                        setCtaModalRole("individual");
-                        setShowCtaModal(true);
-                      }}
-                      className="text-left text-sm"
-                    >
-                      Individual seller
-                    </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        setCtaModalRole("real-estate");
-                        setShowCtaModal(true);
-                      }}
-                      className="text-left text-sm"
-                    >
-                      Real-estate agency
-                    </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        setCtaModalRole("tenant");
-                        setShowCtaModal(true);
-                      }}
-                      className="text-left text-sm text-slate-500"
-                    >
-                      I just want to create an account
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -529,49 +426,6 @@ export default function ListingsPage() {
           </div>
         )}
       </main>
-
-      {/* CTA popover modal for List with AfriBrok (uses accessible Dialog) */}
-      <Dialog
-        open={showCtaModal && !!ctaModalRole}
-        onClose={() => {
-          setShowCtaModal(false);
-          setCtaModalRole(null);
-          setShowCtaPopover(false);
-        }}
-        initialFocusRef={continueButtonRef}
-      >
-        <h3 id="cta-modal-title" className="text-lg font-semibold text-slate-900">Create a seller account</h3>
-        <p className="mt-2 text-sm text-slate-600">
-          {ctaModalRole === "real-estate"
-            ? "Register as a Real-estate Agency to manage team members, listings, and agency analytics."
-            : "Register as an Individual Seller to promote your property and access verification support."}
-        </p>
-
-        <div className="mt-4 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              setShowCtaModal(false);
-            }}
-            className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            ref={continueButtonRef}
-            onClick={() => {
-              if (!ctaModalRole) return;
-              setShowCtaModal(false);
-              setShowCtaPopover(false);
-              router.push(`/auth/register?role=${encodeURIComponent(ctaModalRole)}`);
-            }}
-            className="rounded-md bg-gradient-to-r from-primary to-indigo-600 px-4 py-2 text-sm font-semibold text-white"
-          >
-            Continue
-          </button>
-        </div>
-      </Dialog>
     </div>
   );
 }

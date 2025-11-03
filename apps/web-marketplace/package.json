@@ -14,6 +14,7 @@
     "@afribrok/env": "workspace:*",
     "@afribrok/lib": "workspace:*",
     "@afribrok/ui": "workspace:*",
+    "lucide-react": "^0.552.0",
     "next": "14.1.0",
     "react": "18.2.0",
     "react-dom": "18.2.0"

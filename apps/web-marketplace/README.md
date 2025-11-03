@@ -1,6 +1,6 @@
 # Web Marketplace (Public Portal)
 
-Next.js app serving public listings, broker verification pages, and onboarding flows for Certified Brokers, Real-Estate Agencies, and Individual Sellers.
+Next.js app serving public listings, broker verification pages, and onboarding flows for Certified Brokers and Real-Estate Agencies.
 
 Milestone 1 scope:
 - Tenant-themed home with search and verified listing cards.

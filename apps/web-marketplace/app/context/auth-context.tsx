@@ -32,12 +32,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
       if (stored) {
         const parsed = JSON.parse(stored) as Partial<AuthUser>;
         if (parsed) {
-          setUser({
+          const restoredUser = {
             name: parsed.name ?? "",
             email: parsed.email ?? "",
             role: (parsed.role as UserRole) ?? "tenant",
             status: (parsed.status as ApprovalStatus) ?? "approved"
-          });
+          };
+          setUser(restoredUser);
+          
+          // Set cookies for middleware authentication when restoring from localStorage
+          if (restoredUser.role === "broker" || restoredUser.role === "real-estate") {
+            document.cookie = `afribrok-role=BROKER; path=/; max-age=86400; SameSite=Lax`;
+            document.cookie = `afribrok-user-id=${restoredUser.email}; path=/; max-age=86400; SameSite=Lax`;
+          }
         }
       }
     } catch (error) {
@@ -67,6 +74,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const logout = () => {
     setUser(null);
     persistUser(null);
+    
+    // Clear authentication cookies
+    if (typeof document !== "undefined") {
+      document.cookie.split(';').forEach((cookie) => {
+        const eqPos = cookie.indexOf('=');
+        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+        if (name.startsWith('afribrok-')) {
+          document.cookie = `${name}=;path=/;max-age=0`;
+        }
+      });
+    }
   };
 
   const value = useMemo(

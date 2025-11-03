@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Alert } from "react-native";
 import { useRouter } from "expo-router";
-import { BarCodeScanner } from "expo-barcode-scanner";
+import { CameraView, Camera } from "expo-camera";
 import { verifyByQr } from "../src/lib/api";
 import { addHistory } from "../src/lib/storage";
 
@@ -15,7 +15,7 @@ export default function ScanScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const { granted } = await BarCodeScanner.requestPermissionsAsync();
+        const { granted } = await Camera.requestCameraPermissionsAsync();
         setHasPermission(!!granted);
       } catch (e) {
         setHasPermission(false);
@@ -26,7 +26,7 @@ export default function ScanScreen() {
   const onScan = useCallback(async (payload: { data: string; type: string }) => {
     if (scanning || scannedOnceRef.current) return;
     // Process only real QR codes
-    if (payload.type !== BarCodeScanner.Constants.BarCodeType.qr) return;
+    if (payload.type !== "qr") return;
 
     setScanning(true);
     scannedOnceRef.current = true;
@@ -37,8 +37,11 @@ export default function ScanScreen() {
       const qrCodeId = match ? match[1] : payload.data;
 
       const resp = await verifyByQr(qrCodeId);
-      await addHistory(resp);
-      router.push({ pathname: "/result", params: { payload: JSON.stringify(resp) } });
+      await addHistory({ ...resp, qrCodeId });
+      
+      // Include qrCodeId in the payload for violation reporting
+      const payloadWithQrId = { ...resp, qrCodeId };
+      router.push({ pathname: "/result", params: { payload: JSON.stringify(payloadWithQrId) } });
     } catch (e: any) {
       Alert.alert("Verification failed", e?.response?.data?.message ?? "Invalid or unreachable code.");
       // Enable re-scan after error
@@ -57,15 +60,22 @@ export default function ScanScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <BarCodeScanner
-        onBarCodeScanned={onScan}
-        barCodeTypes={[BarCodeScanner.Constants.BarCodeType.qr]}
+      <CameraView
+        onBarcodeScanned={onScan}
+        barcodeScannerSettings={{
+          barcodeTypes: ["qr"],
+        }}
         style={{ flex: 1 }}
       />
       <View style={styles.overlay}>
-        <TouchableOpacity style={styles.btn} onPress={() => router.push("/history")}>
-          <Text style={styles.btnText}>History</Text>
-        </TouchableOpacity>
+        <View style={styles.overlayButtons}>
+          <TouchableOpacity style={styles.btn} onPress={() => router.push("/history")}>
+            <Text style={styles.btnText}>History</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.btn} onPress={() => router.push("/settings")}>
+            <Text style={styles.btnText}>Settings</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -74,6 +84,7 @@ export default function ScanScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
   overlay: { position: "absolute", bottom: 24, width: "100%", alignItems: "center" },
+  overlayButtons: { flexDirection: "row", gap: 12 },
   btn: { backgroundColor: "black", paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12, opacity: 0.85 },
   btnText: { color: "white", fontWeight: "600" }
 });

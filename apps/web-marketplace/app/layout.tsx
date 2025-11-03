@@ -4,14 +4,37 @@ import { SiteHeader } from "./components/site-header";
 import { AuthProvider } from "./context/auth-context";
 
 export const metadata: Metadata = {
-  title: "AfriBrok Marketplace",
-  description: "Verified real estate listings across AfriBrok tenants."
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  title: "AfriBrok Marketplace — Verified Properties & Trusted Brokers",
+  description: "Explore licensed listings and confirm broker status instantly. Connect with certified professionals for reliable property transactions.",
+  openGraph: {
+    title: "AfriBrok Marketplace — Verified Properties & Trusted Brokers",
+    description: "Explore licensed listings and confirm broker status instantly. Connect with certified professionals for reliable property transactions.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AfriBrok Marketplace",
+    description: "Verified real estate listings across AfriBrok tenants.",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-slate-50 text-slate-900">
+      <head>
+        {/* Preload critical font */}
+        <link
+          rel="preconnect"
+          href="https://fonts.googleapis.com"
+        />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+      </head>
+      <body className="bg-slate-50 text-slate-900" suppressHydrationWarning>
         <AuthProvider>
           <div className="flex min-h-screen flex-col">
             <SiteHeader />

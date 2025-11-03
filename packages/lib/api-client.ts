@@ -29,10 +29,21 @@ export class ApiClient {
   ): Promise<ApiResponse<T>> {
     const url = `${this.config.baseUrl}/v1${endpoint}`;
     
+    // Get tenant from cookie if not provided in config
+    let tenantId = this.config.tenantId;
+    if (!tenantId && typeof document !== 'undefined') {
+      const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+        const [key, value] = cookie.trim().split('=');
+        acc[key] = value;
+        return acc;
+      }, {} as Record<string, string>);
+      tenantId = cookies['afribrok-tenant'] || 'et-addis';
+    }
+    
     const headers = {
       'Content-Type': 'application/json',
       ...this.config.headers,
-      ...(this.config.tenantId && { 'x-tenant-id': this.config.tenantId }),
+      ...(tenantId && { 'X-Tenant': tenantId, 'x-tenant-id': tenantId }),
       ...options.headers,
     };
 
