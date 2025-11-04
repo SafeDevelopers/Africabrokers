@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReqContext } from '../tenancy/req-scope.interceptor';
 
 export interface CreateBrokerDto {
   licenseNumber: string;
@@ -24,14 +25,17 @@ export class BrokersService {
   constructor(private prisma: PrismaService) {}
 
   async createBroker(dto: CreateBrokerDto) {
-    // TODO: Get userId and tenantId from request context
-    const mockUserId = 'mock-user-id';
-    const mockTenantId = 'mock-tenant-id';
+    const tenantId = ReqContext.tenantId;
+    const userId = ReqContext.userId;
+
+    if (!tenantId || !userId) {
+      throw new UnauthorizedException('Authentication required to create broker profile');
+    }
 
     const broker = await this.prisma.broker.create({
       data: {
-        tenantId: mockTenantId,
-        userId: mockUserId,
+        tenantId,
+        userId,
         licenseNumber: dto.licenseNumber,
         licenseDocs: {
           businessName: dto.businessName
@@ -56,7 +60,22 @@ export class BrokersService {
   }
 
   async submitForReview(brokerId: string, dto: SubmitBrokerDto) {
-    const broker = await this.prisma.broker.update({
+    const tenantId = ReqContext.tenantId;
+    const userId = ReqContext.userId;
+
+    if (!tenantId || !userId) {
+      throw new UnauthorizedException('Authentication required');
+    }
+
+    const broker = await this.prisma.broker.findUnique({
+      where: { id: brokerId },
+    });
+
+    if (!broker || broker.tenantId !== tenantId || broker.userId !== userId) {
+      throw new ForbiddenException('You do not have permission to submit this broker');
+    }
+
+    const updatedBroker = await this.prisma.broker.update({
       where: { id: brokerId },
       data: {
         licenseDocs: dto.documentUrls,
@@ -68,8 +87,8 @@ export class BrokersService {
     // Create KYC review record
     await this.prisma.kycReview.create({
       data: {
-        tenantId: broker.tenantId,
-        brokerId: broker.id,
+        tenantId: updatedBroker.tenantId,
+        brokerId: updatedBroker.id,
         decision: 'pending'
       }
     });
@@ -78,9 +97,9 @@ export class BrokersService {
       success: true,
       message: 'Broker submitted for review',
       broker: {
-        id: broker.id,
-        status: broker.status,
-        submittedAt: broker.submittedAt
+        id: updatedBroker.id,
+        status: updatedBroker.status,
+        submittedAt: updatedBroker.submittedAt
       }
     };
   }
@@ -100,20 +119,35 @@ export class BrokersService {
     });
 
     if (!broker) {
-      throw new Error('Broker not found');
+      throw new NotFoundException('Broker not found');
+    }
+
+    const tenantId = ReqContext.tenantId;
+    if (tenantId && broker.tenantId !== tenantId) {
+      throw new ForbiddenException('Access denied');
     }
 
     return broker;
   }
 
   async requestDocumentUrls(brokerId: string) {
-    // TODO: Integrate with media-service for presigned URLs
+    const tenantId = ReqContext.tenantId;
+    const userId = ReqContext.userId;
+
+    if (!tenantId || !userId) {
+      throw new UnauthorizedException('Authentication required');
+    }
+
     const broker = await this.prisma.broker.findUnique({
       where: { id: brokerId }
     });
 
     if (!broker) {
-      throw new Error('Broker not found');
+      throw new NotFoundException('Broker not found');
+    }
+
+    if (broker.tenantId !== tenantId || broker.userId !== userId) {
+      throw new ForbiddenException('You do not have permission to access this broker');
     }
 
     return {

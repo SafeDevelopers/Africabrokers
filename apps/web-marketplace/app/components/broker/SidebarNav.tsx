@@ -20,17 +20,16 @@ import {
 import { useState } from "react";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/broker/dashboard", icon: LayoutDashboard },
   { name: "Listings", href: "/broker/listings", icon: Files },
-  { name: "New Listing", href: "/listings/new", icon: Plus },
-  { name: "Inquiries", href: "/inquiries", icon: Mail },
-  { name: "Analytics", href: "/analytics", icon: BarChart3 },
-  { name: "Billing", href: "/billing", icon: CreditCard },
-  { name: "Referrals", href: "/referral", icon: Share2 },
-  { name: "QR Codes", href: "/qr", icon: QrCode },
-  { name: "Documents", href: "/docs", icon: FileText },
-  { name: "Settings", href: "/settings", icon: Settings },
-  { name: "Profile", href: "/profile", icon: User },
+  { name: "New Listing", href: "/broker/listings/new", icon: Plus },
+  { name: "Inquiries", href: "/broker/inquiries", icon: Mail },
+  { name: "Analytics", href: "/broker/analytics", icon: BarChart3 },
+  { name: "Billing", href: "/broker/billing", icon: CreditCard },
+  { name: "Referrals", href: "/broker/referral", icon: Share2 },
+  { name: "QR Codes", href: "/broker/qr", icon: QrCode },
+  { name: "Documents", href: "/broker/docs", icon: FileText },
+  { name: "Settings", href: "/broker/settings", icon: Settings },
 ];
 
 export function SidebarNav() {
@@ -108,4 +107,3 @@ export function SidebarNav() {
     </>
   );
 }
-

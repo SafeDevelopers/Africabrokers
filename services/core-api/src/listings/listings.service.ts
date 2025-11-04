@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReqContext } from '../tenancy/req-scope.interceptor';
 
 export interface CreateListingDto {
   propertyId: string;
@@ -32,13 +33,40 @@ export class ListingsService {
   constructor(private prisma: PrismaService) {}
 
   async createListing(dto: CreateListingDto) {
-    // TODO: Get tenantId from request context
-    const mockTenantId = 'mock-tenant-id';
+    const tenantId = ReqContext.tenantId;
+    const userId = ReqContext.userId;
+
+    if (!tenantId || !userId) {
+      throw new UnauthorizedException('Authentication required to create listings');
+    }
+
+    const broker = await this.prisma.broker.findFirst({
+      where: {
+        tenantId,
+        userId,
+        status: {
+          in: ['approved', 'submitted'],
+        },
+      },
+    });
+
+    if (!broker) {
+      throw new ForbiddenException('Approved broker profile required to create listings');
+    }
+
+    const property = await this.prisma.property.findUnique({
+      where: { id: dto.propertyId },
+    });
+
+    if (!property || property.tenantId !== tenantId) {
+      throw new ForbiddenException('Property not found for current tenant');
+    }
 
     const listing = await this.prisma.listing.create({
       data: {
-        tenantId: mockTenantId,
+        tenantId,
         propertyId: dto.propertyId,
+        brokerId: broker.id,
         priceAmount: dto.priceAmount,
         priceCurrency: dto.priceCurrency,
         availabilityStatus: dto.availabilityStatus || 'pending_review',
@@ -172,7 +200,7 @@ export class ListingsService {
     });
 
     if (!listing) {
-      throw new Error('Listing not found');
+      throw new NotFoundException('Listing not found');
     }
 
     return {

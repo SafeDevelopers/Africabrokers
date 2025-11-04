@@ -1,4 +1,6 @@
+import { NotFoundException } from '@nestjs/common';
 import { BrokersService } from './brokers.service';
+import { ReqContext } from '../tenancy/req-scope.interceptor';
 
 describe('BrokersService', () => {
   const prisma = {
@@ -15,7 +17,16 @@ describe('BrokersService', () => {
   const service = new BrokersService(prisma as any);
 
   beforeEach(() => {
+    ReqContext.tenantId = 'tenant-1';
+    ReqContext.userId = 'user-1';
+    ReqContext.userRole = 'BROKER';
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    ReqContext.tenantId = null;
+    ReqContext.userId = null;
+    ReqContext.userRole = null;
   });
 
   it('creates a broker draft with document placeholders', async () => {
@@ -44,6 +55,12 @@ describe('BrokersService', () => {
   });
 
   it('submits a broker for review and queues KYC task', async () => {
+    prisma.broker.findUnique.mockResolvedValue({
+      id: 'broker-1',
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+    });
+
     prisma.broker.update.mockResolvedValue({
       id: 'broker-1',
       tenantId: 'tenant-1',
@@ -81,6 +98,6 @@ describe('BrokersService', () => {
   it('throws when broker cannot be found', async () => {
     prisma.broker.findUnique.mockResolvedValue(null);
 
-    await expect(service.getBrokerById('missing')).rejects.toThrow('Broker not found');
+    await expect(service.getBrokerById('missing')).rejects.toBeInstanceOf(NotFoundException);
   });
 });

@@ -8,7 +8,6 @@ import { KpiCards } from "../../components/broker/KpiCards";
 export default function BrokerDashboard() {
   const { user } = useAuth();
 
-  // Mock KPI data - replace with API calls
   const kpiData = {
     activeListings: 8,
     newLeads: 12,
@@ -23,11 +22,10 @@ export default function BrokerDashboard() {
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Welcome back, {user?.name || 'Broker'}
+          Welcome back, {user?.name || "Broker"}
         </p>
       </div>
 
-      {/* KPI Cards */}
       <section>
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
           At a glance
@@ -42,7 +40,6 @@ export default function BrokerDashboard() {
         />
       </section>
 
-      {/* Create Listing CTA */}
       <section>
         <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm text-center">
           <Plus className="w-12 h-12 text-slate-400 mx-auto mb-4" />
@@ -53,7 +50,7 @@ export default function BrokerDashboard() {
             Start listing properties to reach more buyers
           </p>
           <Link
-            href="/listings/new"
+            href="/broker/listings/new"
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90"
           >
             <Plus className="w-4 h-4" />
@@ -64,4 +61,3 @@ export default function BrokerDashboard() {
     </div>
   );
 }
-

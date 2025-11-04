@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 
 export class AuthCallbackDto {
@@ -10,9 +10,19 @@ export class RoleSelectionDto {
   role!: 'certified_broker' | 'agency' | 'individual_seller' | 'inspector' | 'regulator' | 'admin';
 }
 
+export class EmailLoginDto {
+  email!: string;
+  role?: string;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Post('login')
+  async login(@Body() dto: EmailLoginDto) {
+    return this.authService.loginWithEmail(dto);
+  }
 
   @Post('callback')
   async handleCallback(@Body() dto: AuthCallbackDto) {

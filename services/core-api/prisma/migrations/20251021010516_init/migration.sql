@@ -110,6 +110,7 @@ CREATE TABLE "Listing" (
     "priceCurrency" TEXT NOT NULL,
     "availabilityStatus" "ListingAvailability" NOT NULL DEFAULT 'pending_review',
     "channels" JSONB NOT NULL,
+    "attrs" JSONB,
     "featured" BOOLEAN NOT NULL DEFAULT false,
     "fraudScore" DOUBLE PRECISION DEFAULT 0,
     "publishedAt" TIMESTAMP(3),

@@ -26,10 +26,42 @@ export function middleware(request: NextRequest) {
     });
   }
   
-  // Allow access to signin and callback routes
-  if (pathname === '/signin' || pathname.startsWith('/auth/callback')) {
+  // Public routes that don't require authentication
+  const publicRoutes = [
+    '/signin',
+    '/broker/apply',
+    '/broker/pending',
+    '/sell',
+    '/listings',
+    '/verify',
+    '/agents',
+    '/about',
+    '/contact',
+  ];
+  
+  // Check if it's a public listing (viewing individual listings is public)
+  const isPublicListing = pathname.startsWith('/listings/') && pathname !== '/listings/new';
+  
+  // Check if it's a public verify route
+  const isPublicVerify = pathname.startsWith('/verify/');
+  
+  // Check if it's a public agents route (but not apply)
+  const isPublicAgents = pathname.startsWith('/agents/') && pathname !== '/agents/apply';
+  
+  // Allow access to public routes and auth callback routes
+  if (pathname === '/signin' || 
+      pathname.startsWith('/auth/callback') ||
+      publicRoutes.includes(pathname) ||
+      isPublicListing ||
+      isPublicVerify ||
+      isPublicAgents) {
+    // Set pathname header for layouts to use
+    response.headers.set('x-pathname', pathname);
     return response;
   }
+  
+  // Set pathname header for all routes
+  response.headers.set('x-pathname', pathname);
   
   // Role gate for broker routes - only BROKER role can access
   const brokerRoutes = [
