@@ -10,13 +10,14 @@ import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ReqContext } from '../tenancy/req-scope.interceptor';
+import { IdorGuard } from '../security/idor.guard';
 
 describe('AdminController - IDOR Protection', () => {
   let controller: AdminController;
   let service: AdminService;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    const moduleBuilder = Test.createTestingModule({
       controllers: [AdminController],
       providers: [
         {
@@ -28,7 +29,12 @@ describe('AdminController - IDOR Protection', () => {
           },
         },
       ],
-    }).compile();
+    });
+
+    const module: TestingModule = await moduleBuilder
+      .overrideGuard(IdorGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<AdminController>(AdminController);
     service = module.get<AdminService>(AdminService);
@@ -115,4 +121,3 @@ describe('AdminController - IDOR Protection', () => {
     });
   });
 });
-

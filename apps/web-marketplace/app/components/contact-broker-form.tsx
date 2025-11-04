@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { createInquiry } from "../../lib/inquiries";
 
 type ContactBrokerFormProps = {
+  listingId: string;
   listingTitle: string;
   brokerName?: string;
 };
 
-export function ContactBrokerForm({ listingTitle, brokerName }: ContactBrokerFormProps) {
+export function ContactBrokerForm({ listingId, listingTitle, brokerName }: ContactBrokerFormProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -15,8 +17,9 @@ export function ContactBrokerForm({ listingTitle, brokerName }: ContactBrokerFor
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
     setSuccess(false);
@@ -26,15 +29,38 @@ export function ContactBrokerForm({ listingTitle, brokerName }: ContactBrokerFor
       return;
     }
 
+    if (message.length > 2000) {
+      setError("Message must be 2000 characters or less.");
+      return;
+    }
+
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await createInquiry({
+        listingId,
+        fullName: name,
+        email,
+        phone: phone || undefined,
+        message,
+        captchaToken: captchaToken || undefined,
+      });
+      
       setSuccess(true);
       setName("");
       setEmail("");
       setPhone("");
       setMessage("");
-    }, 400);
+      setCaptchaToken(null);
+    } catch (err) {
+      console.error("Failed to submit inquiry:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to send inquiry. Please try again.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -84,9 +110,22 @@ export function ContactBrokerForm({ listingTitle, brokerName }: ContactBrokerFor
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             placeholder="Share move-in timelines, questions, or viewing availability."
+            maxLength={2000}
             className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
           />
+          <p className="mt-1 text-xs text-slate-500">
+            {message.length} / 2000 characters
+          </p>
         </label>
+
+        {/* hCaptcha/Turnstile placeholder */}
+        <div className="h-20 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center">
+          <p className="text-xs text-slate-500">
+            {/* TODO: Add hCaptcha or Cloudflare Turnstile widget */}
+            {/* Example: <Turnstile sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY} onVerify={setCaptchaToken} /> */}
+            Captcha verification (placeholder)
+          </p>
+        </div>
 
         {error ? <p className="text-sm font-medium text-rose-600">{error}</p> : null}
         {success ? (

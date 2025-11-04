@@ -15,10 +15,14 @@ import { AdminModule } from "../admin/admin.module";
 import { SuperAdminModule } from "../superadmin/superadmin.module";
 import { AuditModule } from "../audit/audit.module";
 import { SecurityModule } from "../security/security.module";
+import { BillingModule } from "../billing/billing.module";
+import { PublicModule } from "../public/public.module";
+import { InquiriesModule } from "../inquiries/inquiries.module";
 import { JwtAuthMiddleware } from "../auth/jwt-auth.middleware";
 import { RateLimitMiddleware } from "../security/rate-limit.middleware";
 import { CsrfMiddleware } from "../security/csrf.middleware";
 import { TenantContextMiddleware } from "../tenancy/tenant-context.middleware";
+import { InquiryRateLimitMiddleware } from "../inquiries/inquiry-rate-limit.middleware";
 import { ReqScopeInterceptor } from "../tenancy/req-scope.interceptor";
 import { RolesGuard } from "../tenancy/roles.guard";
 import { TenantGuard } from "../tenancy/tenant.guard";
@@ -41,6 +45,9 @@ import { TenantGuard } from "../tenancy/tenant.guard";
     SuperAdminModule,
     AuditModule,
     SecurityModule,
+    BillingModule,
+    PublicModule,
+    InquiriesModule,
   ],
   controllers: [AppController],
   providers: [
@@ -79,6 +86,11 @@ export class AppModule implements NestModule {
     consumer
       .apply(RateLimitMiddleware)
       .forRoutes('/v1/admin/*', '/v1/superadmin/*');
+    
+    // Apply rate limiting to public inquiries (after tenant context)
+    consumer
+      .apply(InquiryRateLimitMiddleware)
+      .forRoutes('/v1/public/inquiries');
     
     // Apply CSRF protection to admin POST/PUT/PATCH/DELETE (after rate limit)
     consumer

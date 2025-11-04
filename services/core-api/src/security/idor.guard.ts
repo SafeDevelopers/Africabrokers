@@ -78,7 +78,9 @@ export class IdorGuard implements CanActivate {
         License: 'license',
         User: 'user',
         AgentOffice: 'agentOffice',
-        InspectionEvent: 'inspectionEvent',
+        Inspection: 'inspection',
+        Broker: 'broker',
+        Inquiry: 'inquiry',
       };
 
       const modelName = modelMap[entityType];
@@ -103,4 +105,3 @@ export class IdorGuard implements CanActivate {
     }
   }
 }
-

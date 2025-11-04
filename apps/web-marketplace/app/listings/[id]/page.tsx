@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ListingImage } from "../../components/listing-image";
 import { ContactBrokerForm } from "../../components/contact-broker-form";
+import { BrokerCard } from "../../components/broker/BrokerCard";
+import { ScrollToContact } from "./scroll-to-contact";
 import {
   getListingById,
   getBrokerById,
@@ -30,6 +32,7 @@ export default function ListingDetailPage({ params }: ListingDetailPageProps) {
 
   return (
     <div className="bg-slate-50 pb-20">
+      <ScrollToContact />
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-screen-2xl flex-col gap-4 px-6 py-8">
           <nav className="text-xs text-slate-500">
@@ -176,7 +179,22 @@ export default function ListingDetailPage({ params }: ListingDetailPageProps) {
         </section>
 
         <aside className="w-full space-y-6 lg:w-96">
-          <ContactBrokerForm listingTitle={listing.title} brokerName={broker?.name} />
+          <div id="contact-form" className="scroll-mt-20">
+            <ContactBrokerForm 
+              listingId={listing.id} 
+              listingTitle={listing.title} 
+              brokerName={broker?.name} 
+            />
+          </div>
+          
+          {broker && (
+            <BrokerCard
+              name={broker.name}
+              email={broker.email}
+              phone={broker.phone}
+              avatar={broker.avatar}
+            />
+          )}
 
           <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">

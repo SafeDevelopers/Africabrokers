@@ -28,7 +28,7 @@ export class InspectionsService {
       where: { id: userId },
     });
 
-    if (!user || user.role !== 'inspector') {
+    if (!user || user.role !== 'INSPECTOR') {
       throw new UnauthorizedException('Only inspectors can create inspections');
     }
 
@@ -79,7 +79,10 @@ export class InspectionsService {
       where: { id: userId },
     });
 
-    if (!user || (user.role !== 'inspector' && user.role !== 'admin' && user.role !== 'regulator')) {
+    if (
+      !user ||
+      (user.role !== 'INSPECTOR' && user.role !== 'ADMIN' && user.role !== 'REGULATOR')
+    ) {
       throw new UnauthorizedException('Only inspectors, admins, and regulators can view inspections');
     }
 
@@ -89,7 +92,7 @@ export class InspectionsService {
     if (query.status) where.status = query.status;
 
     // If inspector, only show their own inspections unless admin/regulator
-    if (user.role === 'inspector') {
+    if (user.role === 'INSPECTOR') {
       where.inspectorUserId = userId;
     }
 
@@ -154,11 +157,10 @@ export class InspectionsService {
       where: { id: userId },
     });
 
-    if (!user || (user.role === 'inspector' && inspection.inspectorUserId !== userId)) {
+    if (!user || (user.role === 'INSPECTOR' && inspection.inspectorUserId !== userId)) {
       throw new UnauthorizedException('You do not have access to this inspection');
     }
 
     return inspection;
   }
 }
-

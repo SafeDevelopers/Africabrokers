@@ -33,7 +33,13 @@ export function middleware(request: NextRequest) {
 
   // Tenant admin routes (default /)
   if (!pathname.startsWith('/super')) {
-    // Check if user has valid role
+    // Block broker role - brokers must authenticate via marketplace
+    if (role === 'BROKER' || role === 'broker') {
+      const marketplaceUrl = process.env.NEXT_PUBLIC_MARKETPLACE_URL || "http://localhost:3000";
+      return NextResponse.redirect(`${marketplaceUrl}/signin`, 301);
+    }
+    
+    // Check if user has valid role (only admin roles allowed)
     if (!role || !['TENANT_ADMIN', 'AGENT', 'SUPER_ADMIN'].includes(role)) {
       // Super admin trying to access tenant routes should be redirected
       if (role === 'SUPER_ADMIN') {

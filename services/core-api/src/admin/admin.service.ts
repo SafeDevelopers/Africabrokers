@@ -27,17 +27,19 @@ export class AdminService {
       },
     });
 
+    type QrWithRelations = (typeof qrCodes)[number];
+
     // Map to the format expected by the frontend
     return {
-      items: qrCodes.map((qr) => ({
+      items: qrCodes.map((qr: QrWithRelations) => ({
         id: qr.id,
         tenantId: qr.tenantId,
         code: qr.id, // Use ID as code for now (you might want a separate code field)
-        status: qr.status.toUpperCase() === 'ACTIVE' ? 'ACTIVE' : 'REVOKED',
+        status: qr.status === 'active' ? 'ACTIVE' : 'REVOKED',
         createdAt: qr.createdAt.toISOString(),
         lastScanned: null, // TODO: Add scan tracking if needed
         scanCount: 0, // TODO: Add scan count tracking
-        subjectType: qr.brokerId ? ('BROKER' as const) : ('LISTING' as const),
+        subjectType: qr.broker ? ('BROKER' as const) : ('LISTING' as const),
         subject: qr.broker
           ? {
               id: qr.broker.id,
@@ -75,11 +77,11 @@ export class AdminService {
       id: qrCode.id,
       tenantId: qrCode.tenantId,
       code: qrCode.id,
-      subjectType: qrCode.brokerId ? ('BROKER' as const) : ('LISTING' as const),
-      subjectId: qrCode.brokerId || '',
+      subjectType: qrCode.broker ? ('BROKER' as const) : ('LISTING' as const),
+      subjectId: qrCode.broker?.id || '',
       createdAt: qrCode.createdAt.toISOString(),
       revokedAt: qrCode.status !== 'active' ? qrCode.updatedAt.toISOString() : null,
-      status: qrCode.status.toUpperCase() === 'ACTIVE' ? ('ACTIVE' as const) : ('REVOKED' as const),
+      status: qrCode.status === 'active' ? ('ACTIVE' as const) : ('REVOKED' as const),
       metaJson: {},
       subject: qrCode.broker
         ? {
@@ -180,4 +182,3 @@ export class AdminService {
     };
   }
 }
-

@@ -340,47 +340,47 @@ export class TenantScopedPrismaService {
     };
   }
 
-  // InspectionEvent model operations
-  get inspectionEvent() {
+  // Inspection model operations
+  get inspection() {
     return {
       findMany: (args?: any) => {
         if (args?.where) {
-          this.assertTenantScoped(args.where, 'inspectionEvent.findMany');
+          this.assertTenantScoped(args.where, 'inspection.findMany');
         }
-        return this.prisma.inspectionEvent.findMany({
+        return this.prisma.inspection.findMany({
           ...args,
           where: this.addTenantId(args?.where || {}),
         });
       },
       findFirst: (args?: any) => {
         if (args?.where) {
-          this.assertTenantScoped(args.where, 'inspectionEvent.findFirst');
+          this.assertTenantScoped(args.where, 'inspection.findFirst');
         }
-        return this.prisma.inspectionEvent.findFirst({
+        return this.prisma.inspection.findFirst({
           ...args,
           where: this.addTenantId(args?.where || {}),
         });
       },
-      findUnique: (args: any) => this.prisma.inspectionEvent.findUnique(args),
+      findUnique: (args: any) => this.prisma.inspection.findUnique(args),
       create: (args: any) =>
-        this.prisma.inspectionEvent.create({
+        this.prisma.inspection.create({
           ...args,
           data: { ...args.data, tenantId: this.tenantId },
         }),
       update: (args: any) => {
         if (args.where) {
-          this.assertTenantScoped(args.where, 'inspectionEvent.update');
+          this.assertTenantScoped(args.where, 'inspection.update');
         }
-        return this.prisma.inspectionEvent.update({
+        return this.prisma.inspection.update({
           ...args,
           where: this.addTenantId(args.where || {}),
         });
       },
       delete: (args: any) => {
         if (args.where) {
-          this.assertTenantScoped(args.where, 'inspectionEvent.delete');
+          this.assertTenantScoped(args.where, 'inspection.delete');
         }
-        return this.prisma.inspectionEvent.delete({
+        return this.prisma.inspection.delete({
           ...args,
           where: this.addTenantId(args.where || {}),
         });
@@ -441,4 +441,3 @@ export class TenantScopedPrismaService {
     return this.prisma.$transaction.bind(this.prisma);
   }
 }
-

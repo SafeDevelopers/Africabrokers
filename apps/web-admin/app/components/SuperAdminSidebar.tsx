@@ -40,6 +40,16 @@ const superAdminNavigation: NavItem[] = [
     icon: <Building2 className="w-5 h-5" />,
   },
   {
+    name: "Billing",
+    href: "/super/billing/providers",
+    icon: <CreditCard className="w-5 h-5" />,
+    children: [
+      { name: "Providers Registry", href: "/super/billing/providers", icon: <CreditCard className="w-4 h-4" /> },
+      { name: "Agency Plans", href: "/super/billing/plans", icon: <Package className="w-4 h-4" /> },
+      { name: "Subscriptions", href: "/super/billing/subscriptions", icon: <FileText className="w-4 h-4" /> },
+    ],
+  },
+  {
     name: "Platform Settings",
     href: "/super/settings",
     icon: <Settings className="w-5 h-5" />,

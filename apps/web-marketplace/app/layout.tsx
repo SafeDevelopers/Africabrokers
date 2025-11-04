@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SiteHeader } from "./components/site-header";
 import { AuthProvider } from "./context/auth-context";
@@ -17,6 +17,12 @@ export const metadata: Metadata = {
     title: "AfriBrok Marketplace",
     description: "Verified real estate listings across AfriBrok tenants.",
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

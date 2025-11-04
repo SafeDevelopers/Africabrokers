@@ -6,8 +6,10 @@ export class VerifyService {
   constructor(private prisma: PrismaService) {}
 
   async verifyQrCode(qrCodeId: string) {
-    const qrCode = await this.prisma.qrCode.findUnique({
-      where: { id: qrCodeId },
+    const qrCode = await this.prisma.qrCode.findFirst({
+      where: {
+        OR: [{ id: qrCodeId }, { code: qrCodeId }],
+      },
       include: {
         broker: {
           include: {
@@ -47,7 +49,7 @@ export class VerifyService {
         brandConfig: qrCode.tenant.brandConfig
       },
       verifiedAt: new Date(),
-      qrCodeId: qrCodeId
+      qrCodeId: qrCode.code
     };
   }
 }

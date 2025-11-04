@@ -7,7 +7,7 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { IdorGuard, RequireIdorProtection } from './idor.guard';
+import { IdorGuard } from './idor.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReqContext } from '../tenancy/req-scope.interceptor';
 
@@ -57,11 +57,14 @@ describe('IDOR Protection Tests', () => {
         params: { id: 'qr-code-1' },
       } as any;
 
+      const handler = () => undefined;
+      Reflect.defineMetadata('idorProtection', 'QrCode', handler);
+
       const mockContext = {
         switchToHttp: () => ({
           getRequest: () => mockRequest,
         }),
-        getHandler: () => RequireIdorProtection('QrCode'),
+        getHandler: () => handler,
       } as ExecutionContext;
 
       // Mock Prisma to return resource from same tenant
@@ -83,11 +86,14 @@ describe('IDOR Protection Tests', () => {
         params: { id: 'qr-code-from-tenant-b' },
       } as any;
 
+      const handler = () => undefined;
+      Reflect.defineMetadata('idorProtection', 'QrCode', handler);
+
       const mockContext = {
         switchToHttp: () => ({
           getRequest: () => mockRequest,
         }),
-        getHandler: () => RequireIdorProtection('QrCode'),
+        getHandler: () => handler,
       } as ExecutionContext;
 
       // Mock Prisma to return resource from different tenant (should not happen with Prisma extension)
@@ -106,11 +112,14 @@ describe('IDOR Protection Tests', () => {
         params: { id: 'qr-code-from-tenant-b' },
       } as any;
 
+      const handler = () => undefined;
+      Reflect.defineMetadata('idorProtection', 'QrCode', handler);
+
       const mockContext = {
         switchToHttp: () => ({
           getRequest: () => mockRequest,
         }),
-        getHandler: () => RequireIdorProtection('QrCode'),
+        getHandler: () => handler,
       } as ExecutionContext;
 
       const result = await guard.canActivate(mockContext);
@@ -129,11 +138,14 @@ describe('IDOR Protection Tests', () => {
         params: { id: 'listing-1' },
       } as any;
 
+      const handler = () => undefined;
+      Reflect.defineMetadata('idorProtection', 'Listing', handler);
+
       const mockContext = {
         switchToHttp: () => ({
           getRequest: () => mockRequest,
         }),
-        getHandler: () => RequireIdorProtection('Listing'),
+        getHandler: () => handler,
       } as ExecutionContext;
 
       prismaService.listing.findUnique = jest.fn().mockResolvedValue({
@@ -153,11 +165,14 @@ describe('IDOR Protection Tests', () => {
         params: { id: 'listing-from-tenant-b' },
       } as any;
 
+      const handler = () => undefined;
+      Reflect.defineMetadata('idorProtection', 'Listing', handler);
+
       const mockContext = {
         switchToHttp: () => ({
           getRequest: () => mockRequest,
         }),
-        getHandler: () => RequireIdorProtection('Listing'),
+        getHandler: () => handler,
       } as ExecutionContext;
 
       prismaService.listing.findUnique = jest.fn().mockResolvedValue(null);
@@ -203,4 +218,3 @@ export async function testIdorProtection(
     }
   }
 }
-

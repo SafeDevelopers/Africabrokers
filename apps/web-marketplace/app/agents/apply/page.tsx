@@ -13,6 +13,7 @@ interface ApplicationData {
   // Step 1: Organization
   organizationName: string;
   organizationType: string;
+  orgTypeNotes?: string;
   registrationNumber: string;
   country: string;
   city: string;
@@ -47,6 +48,7 @@ interface ApplicationData {
 const initialData: ApplicationData = {
   organizationName: "",
   organizationType: "",
+  orgTypeNotes: "",
   registrationNumber: "",
   country: "",
   city: "",
@@ -103,6 +105,8 @@ export default function AgentApplicationPage() {
       const payload = {
         organizationName: formData.organizationName,
         organizationType: formData.organizationType,
+        orgType: formData.organizationType || undefined,
+        orgTypeNotes: formData.orgTypeNotes || undefined,
         registrationNumber: formData.registrationNumber,
         country: formData.country,
         city: formData.city,
@@ -242,21 +246,32 @@ export default function AgentApplicationPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Organization Type *
+                    Organization Type
                   </label>
                   <select
-                    required
                     value={formData.organizationType}
                     onChange={(e) => updateFormData({ organizationType: e.target.value })}
                     className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
                   >
-                    <option value="">Select type</option>
-                    <option value="government-agency">Government Agency</option>
-                    <option value="regulatory-body">Regulatory Body</option>
-                    <option value="inspection-org">Licensed Inspection Organization</option>
-                    <option value="property-authority">Property Management Authority</option>
-                    <option value="municipal-office">Municipal or Regional Office</option>
+                    <option value="">Select type (optional)</option>
+                    <option value="Government / Public">Government / Public</option>
+                    <option value="Private / Association">Private / Association</option>
+                    <option value="Other (describe)">Other (describe)</option>
                   </select>
+                  {formData.organizationType === "Other (describe)" && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Please describe your organization type
+                      </label>
+                      <textarea
+                        value={formData.orgTypeNotes || ""}
+                        onChange={(e) => updateFormData({ orgTypeNotes: e.target.value })}
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                        rows={3}
+                        placeholder="Describe your organization type..."
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>

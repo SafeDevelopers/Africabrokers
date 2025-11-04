@@ -39,3 +39,7 @@ web-build
 *.app
 ios/
 android/
+
+# GitHub Workflows (exclude deploy.yml)
+.github/workflows/*.yml
+!.github/workflows/deploy.yml

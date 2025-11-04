@@ -98,13 +98,13 @@ export default function DashboardLanding() {
     <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-full">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="px-4 py-4 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-              <p className="text-sm text-gray-500">Ethiopia Property Management Platform</p>
+              <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">Dashboard Overview</h1>
+              <p className="text-xs text-gray-500 sm:text-sm">Ethiopia Property Management Platform</p>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <p className="text-sm font-medium text-gray-900">Welcome back!</p>
               <p className="text-xs text-gray-500">{currentTime}</p>
             </div>
@@ -112,35 +112,35 @@ export default function DashboardLanding() {
         </div>
       </header>
 
-      <main className="px-6 py-8">
+      <main className="px-4 py-6 sm:px-6 sm:py-8">
         <div className="space-y-8">
           {/* Welcome Section */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-8 text-white">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 sm:p-8 text-white">
             <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-3xl font-bold mb-2">Welcome to AfriBrok Admin</h2>
-                <p className="text-blue-100 text-lg">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-2xl font-bold mb-2 sm:text-3xl">Welcome to AfriBrok Admin</h2>
+                <p className="text-blue-100 text-base sm:text-lg">
                   Manage broker verifications, property listings, and platform operations
                 </p>
-                <div className="mt-4 flex items-center space-x-6 text-blue-100">
-                  <span className="flex items-center">
+                <div className="mt-4 flex flex-wrap items-center gap-4 sm:gap-6 text-blue-100">
+                  <span className="flex items-center text-sm sm:text-base">
                     <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
                     System Status: Online
                   </span>
-                  <span className="flex items-center">
+                  <span className="flex items-center text-sm sm:text-base">
                     <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
                     Database: Connected
                   </span>
                 </div>
               </div>
-              <div className="hidden lg:block">
+              <div className="hidden lg:block flex-shrink-0 ml-4">
                 <div className="text-6xl opacity-20">🏢</div>
               </div>
             </div>
           </div>
 
           {/* Key Metrics */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard
               title="Pending Brokers"
               value={loading ? "..." : stats.pendingBrokers.toString()}

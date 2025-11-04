@@ -122,8 +122,10 @@ export class ListingsService {
       this.prisma.listing.count({ where })
     ]);
 
+    type ListingWithRelations = (typeof listings)[number];
+
     return {
-      listings: listings.map(listing => ({
+      listings: listings.map((listing: ListingWithRelations) => ({
         id: listing.id,
         priceAmount: listing.priceAmount,
         priceCurrency: listing.priceCurrency,

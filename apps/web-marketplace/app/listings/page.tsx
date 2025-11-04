@@ -11,20 +11,13 @@ import {
   type ListingPurpose,
   type ListingStatus
 } from "../data/mock-data";
+import { Search, MapPin, Filter, Home, Building2, X, SlidersHorizontal, Grid3x3, List, ChevronDown } from "lucide-react";
 
 type ViewMode = "grid" | "list";
 type PurposeFilter = ListingPurpose | "All";
 type StatusFilter = ListingStatus | "All";
-type PriceFilter = "any" | "under-10000" | "10000-30000" | "above-30000";
 type BedroomFilter = "any" | "1" | "2" | "3" | "4";
 type PropertyTypeFilter = "All" | string;
-
-const priceFilters: { label: string; value: PriceFilter }[] = [
-  { label: "Any price", value: "any" },
-  { label: "Under ETB 10,000", value: "under-10000" },
-  { label: "ETB 10,000 - 30,000", value: "10000-30000" },
-  { label: "Above ETB 30,000", value: "above-30000" }
-];
 
 const bedroomFilters: { label: string; value: BedroomFilter }[] = [
   { label: "Any beds", value: "any" },
@@ -38,13 +31,13 @@ export default function ListingsPage() {
   const [query, setQuery] = useState("");
   const [purpose, setPurpose] = useState<PurposeFilter>("All");
   const [status, setStatus] = useState<StatusFilter>("All");
-  const [priceRange, setPriceRange] = useState<PriceFilter>("any");
   const [bedrooms, setBedrooms] = useState<BedroomFilter>("any");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [propertyType, setPropertyType] = useState<PropertyTypeFilter>("All");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [showMap, setShowMap] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(12);
@@ -57,7 +50,14 @@ export default function ListingsPage() {
   >("default");
 
   const propertyTypes = useMemo(
-    () => ["All", ...Array.from(new Set(listings.map((listing) => listing.propertyType))).sort()],
+    () => {
+      const types = Array.from(new Set(listings.map((listing) => listing.propertyType)));
+      // Add "Land" if not already present
+      if (!types.includes("Land")) {
+        types.push("Land");
+      }
+      return ["All", ...types.sort()];
+    },
     []
   );
 
@@ -68,7 +68,6 @@ export default function ListingsPage() {
     const urlQuery = searchParams.get("query") || searchParams.get("q") || "";
     const p = (searchParams.get("purpose") as PurposeFilter) ?? "All";
     const s = (searchParams.get("status") as StatusFilter) ?? "All";
-    const pr = (searchParams.get("price") as PriceFilter) ?? "any";
     const bd = (searchParams.get("beds") as BedroomFilter) ?? "any";
     const pt = (searchParams.get("type") as PropertyTypeFilter) ?? "All";
     const min = searchParams.get("min") ?? "";
@@ -81,7 +80,6 @@ export default function ListingsPage() {
     if (urlQuery !== query) setQuery(urlQuery);
     if (p !== purpose) setPurpose(p);
     if (s !== status) setStatus(s);
-    if (pr !== priceRange) setPriceRange(pr);
     if (bd !== bedrooms) setBedrooms(bd);
     if (pt !== propertyType) setPropertyType(pt);
     if (min !== minPrice) setMinPrice(min);
@@ -109,14 +107,6 @@ export default function ListingsPage() {
         return false;
       }
 
-      if (priceRange !== "any") {
-        if (priceRange === "under-10000" && listing.price >= 10000) return false;
-        if (priceRange === "10000-30000" && (listing.price < 10000 || listing.price > 30000)) {
-          return false;
-        }
-        if (priceRange === "above-30000" && listing.price <= 30000) return false;
-      }
-
       if (minPrice) {
         const min = Number(minPrice);
         if (!Number.isNaN(min) && listing.price < min) return false;
@@ -140,12 +130,12 @@ export default function ListingsPage() {
         listing.location.toLowerCase().includes(search)
       );
     });
-  }, [query, purpose, status, priceRange, bedrooms, propertyType, minPrice, maxPrice]);
+  }, [query, purpose, status, bedrooms, propertyType, minPrice, maxPrice]);
 
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [query, purpose, status, priceRange, bedrooms, propertyType, minPrice, maxPrice]);
+  }, [query, purpose, status, bedrooms, propertyType, minPrice, maxPrice]);
 
   // Sync relevant state to URL (debounced/controlled via initializingRef)
   useEffect(() => {
@@ -159,7 +149,6 @@ export default function ListingsPage() {
     if (query) params.set("q", query);
     if (purpose && purpose !== "All") params.set("purpose", purpose);
     if (status && status !== "All") params.set("status", status);
-    if (priceRange && priceRange !== "any") params.set("price", priceRange);
     if (bedrooms && bedrooms !== "any") params.set("beds", bedrooms);
     if (propertyType && propertyType !== "All") params.set("type", propertyType);
     if (minPrice) params.set("min", minPrice);
@@ -172,7 +161,7 @@ export default function ListingsPage() {
     const url = qs ? `${pathname}?${qs}` : pathname;
     // replace to avoid pushing history on every change
     router.replace(url);
-  }, [query, purpose, status, priceRange, bedrooms, propertyType, minPrice, maxPrice, sortBy, pageSize, currentPage, router, pathname]);
+  }, [query, purpose, status, bedrooms, propertyType, minPrice, maxPrice, sortBy, pageSize, currentPage, router, pathname]);
 
   const sortedListings = useMemo(() => {
     const arr = [...filteredListings];
@@ -214,32 +203,65 @@ export default function ListingsPage() {
   // Accessibility: handle outside click and keyboard for popover
 
 
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (purpose !== "All") count++;
+    if (status !== "All") count++;
+    if (bedrooms !== "any") count++;
+    if (propertyType !== "All") count++;
+    if (minPrice || maxPrice) count++;
+    return count;
+  }, [purpose, status, bedrooms, propertyType, minPrice, maxPrice]);
+
+  const clearFilters = () => {
+    setQuery("");
+    setPurpose("All");
+    setStatus("All");
+    setBedrooms("any");
+    setPropertyType("All");
+    setMinPrice("");
+    setMaxPrice("");
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-screen-2xl flex-col gap-4 px-6 py-10">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Property Listings</h1>
-              <p className="text-sm text-slate-600">
-                Browse verified properties across Addis Ababa. Use filters to narrow your search.
-              </p>
-            </div>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      {/* Hero Search Section */}
+      <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur-sm shadow-sm">
+        <div className="mx-auto max-w-screen-2xl px-4 py-6 sm:px-6 lg:py-8">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">Find Your Perfect Property</h1>
+            <p className="mt-2 text-sm text-slate-600 sm:text-base">
+              Browse verified properties across Addis Ababa. Use filters to narrow your search.
+            </p>
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-[2fr,repeat(5,minmax(0,1fr))]">
-            <label className="col-span-full lg:col-span-2">
-              <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-                Search
-              </span>
+          {/* Main Search Bar */}
+          <div className="relative mb-4">
+            <div className="relative flex items-center">
+              <Search className="absolute left-4 h-5 w-5 text-slate-400" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search by neighborhood or keyword..."
-                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
+                placeholder="Search by location, neighborhood, or keyword..."
+                className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-4 text-base text-slate-900 shadow-md transition-all placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
               />
-            </label>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="absolute right-3 flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-primary/90 hover:shadow-xl"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                <span className="hidden sm:inline">Filters</span>
+                {activeFiltersCount > 0 && (
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
 
+          {/* Quick Filters Bar */}
+          <div className="flex flex-wrap items-center gap-3">
             <FilterSelect
               label="Purpose"
               value={purpose}
@@ -249,6 +271,23 @@ export default function ListingsPage() {
                 { label: "Rent", value: "Rent" },
                 { label: "Sale", value: "Sale" }
               ]}
+              icon={<Home className="h-4 w-4" />}
+            />
+
+            <FilterSelect
+              label="Type"
+              value={propertyType}
+              onChange={(value) => setPropertyType(value as PropertyTypeFilter)}
+              options={propertyTypes.map((type) => ({ label: type, value: type }))}
+              icon={<Building2 className="h-4 w-4" />}
+            />
+
+            <FilterSelect
+              label="Bedrooms"
+              value={bedrooms}
+              onChange={(value) => setBedrooms(value as BedroomFilter)}
+              options={bedroomFilters}
+              icon={<Home className="h-4 w-4" />}
             />
 
             <FilterSelect
@@ -260,100 +299,144 @@ export default function ListingsPage() {
                 { label: "Verified", value: "Verified" },
                 { label: "Pending", value: "Pending" }
               ]}
+              icon={<MapPin className="h-4 w-4" />}
             />
 
-            <FilterSelect
-              label="Price Range"
-              value={priceRange}
-              onChange={(value) => setPriceRange(value as PriceFilter)}
-              options={priceFilters}
-            />
-
-            <FilterSelect
-              label="Bedrooms"
-              value={bedrooms}
-              onChange={(value) => setBedrooms(value as BedroomFilter)}
-              options={bedroomFilters}
-            />
-
-            <FilterSelect
-              label="Property type"
-              value={propertyType}
-              onChange={(value) => setPropertyType(value as PropertyTypeFilter)}
-              options={propertyTypes.map((type) => ({ label: type, value: type }))}
-            />
-
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-                Price range (ETB)
-              </span>
-              <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10">
-                <input
-                  type="number"
-                  value={minPrice}
-                  onChange={(event) => setMinPrice(event.target.value)}
-                  placeholder="Min"
-                  className="w-full border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                />
-                <span className="text-xs text-slate-400">to</span>
-                <input
-                  type="number"
-                  value={maxPrice}
-                  onChange={(event) => setMaxPrice(event.target.value)}
-                  placeholder="Max"
-                  className="w-full border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                />
-              </div>
-            </label>
+            {activeFiltersCount > 0 && (
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-2 rounded-lg border-2 border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition-all hover:bg-red-100 hover:border-red-300"
+              >
+                <X className="h-4 w-4" />
+                Clear All
+              </button>
+            )}
           </div>
+
+          {/* Expanded Filters Panel */}
+          {showFilters && (
+            <div className="mt-6 rounded-xl border-2 border-slate-200 bg-white p-6 shadow-lg">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-900">Advanced Filters</h3>
+                <button
+                  onClick={() => setShowFilters(false)}
+                  className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Price Range (ETB)
+                  </label>
+                  <div className="flex items-center gap-3 rounded-lg border-2 border-slate-200 bg-slate-50 px-4 py-3 shadow-sm transition-all focus-within:border-primary focus-within:bg-white focus-within:ring-4 focus-within:ring-primary/10">
+                    <input
+                      type="number"
+                      value={minPrice}
+                      onChange={(event) => setMinPrice(event.target.value)}
+                      placeholder="Min"
+                      className="w-full border-0 bg-transparent text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                    />
+                    <span className="text-sm font-medium text-slate-400">—</span>
+                    <input
+                      type="number"
+                      value={maxPrice}
+                      onChange={(event) => setMaxPrice(event.target.value)}
+                      placeholder="Max"
+                      className="w-full border-0 bg-transparent text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="mx-auto max-w-screen-2xl px-6 py-10">
-          <div className="flex flex-wrap items-center gap-3 pb-4">
-          <p className="text-sm text-slate-600">
-            Showing <span className="font-semibold text-slate-900">{filteredListings.length}</span>{" "}
-            {filteredListings.length === 1 ? "property" : "properties"}
-          </p>
-          <div className="ml-auto flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-1">
-            <ToggleButton label="Grid view" active={viewMode === "grid"} onClick={() => setViewMode("grid")} />
-            <ToggleButton label="List view" active={viewMode === "list"} onClick={() => setViewMode("list")} />
+      <main className="mx-auto max-w-screen-2xl px-4 py-6 sm:px-6 sm:py-8">
+        {/* Results Header */}
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <p className="text-sm font-medium text-slate-600">
+              Showing <span className="font-bold text-primary">{filteredListings.length}</span>{" "}
+              {filteredListings.length === 1 ? "property" : "properties"}
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowMap((prev) => !prev)}
-            className="rounded-md border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100"
-          >
-            {showMap ? "Hide map" : "Show map"}
-          </button>
-          {/* Sort control (moved to top for visibility) */}
-          <div className="ml-2 flex items-center gap-2">
-            <label className="text-sm text-slate-600">Sort</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm"
+          
+          <div className="flex flex-wrap items-center gap-3">
+            {/* View Toggle */}
+            <div className="flex items-center gap-1 rounded-lg border-2 border-slate-200 bg-white p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition-all ${
+                  viewMode === "grid"
+                    ? "bg-primary text-white shadow-md"
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <Grid3x3 className="h-4 w-4" />
+                <span className="hidden sm:inline">Grid</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition-all ${
+                  viewMode === "list"
+                    ? "bg-primary text-white shadow-md"
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <List className="h-4 w-4" />
+                <span className="hidden sm:inline">List</span>
+              </button>
+            </div>
+
+            {/* Map Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowMap((prev) => !prev)}
+              className={`flex items-center gap-2 rounded-lg border-2 px-4 py-2 text-sm font-semibold transition-all ${
+                showMap
+                  ? "border-primary bg-primary text-white shadow-md"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:shadow-sm"
+              }`}
             >
-              <option value="default">Recommended</option>
-              <option value="newest">Newest</option>
-              <option value="price-asc">Price: Low → High</option>
-              <option value="price-desc">Price: High → Low</option>
-              <option value="rating-desc">Top rated</option>
-            </select>
+              <MapPin className="h-4 w-4" />
+              <span className="hidden sm:inline">{showMap ? "Hide Map" : "Show Map"}</span>
+            </button>
+
+            {/* Sort */}
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="appearance-none rounded-lg border-2 border-slate-200 bg-white px-4 py-2 pr-10 text-sm font-semibold text-slate-700 shadow-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+              >
+                <option value="default">Recommended</option>
+                <option value="newest">Newest First</option>
+                <option value="price-asc">Price: Low → High</option>
+                <option value="price-desc">Price: High → Low</option>
+                <option value="rating-desc">Top Rated</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            </div>
           </div>
         </div>
 
-        {showMap ? <MapPreview listings={filteredListings} /> : null}
+        {showMap && <MapPreview listings={filteredListings} />}
+        
         {filteredListings.length === 0 ? (
           <EmptyState query={query} />
         ) : viewMode === "grid" ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {paginatedListings.map((listing) => (
               <ListingCard key={listing.id} listing={listing} variant="grid" />
             ))}
           </div>
         ) : (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4">
             {paginatedListings.map((listing) => (
               <ListingCard key={listing.id} listing={listing} variant="list" />
             ))}
@@ -361,67 +444,64 @@ export default function ListingsPage() {
         )}
         {/* Pagination controls */}
         {filteredListings.length > 0 && (
-          <div className="mt-6 flex items-center justify-between">
-            <div className="text-sm text-slate-600">
-              Page {currentPage} of {totalPages} — Showing {Math.min((currentPage - 1) * pageSize + 1, totalListings)}-
-              {Math.min(currentPage * pageSize, totalListings)} of {totalListings} properties
-            </div>
-
-            <div className="flex items-center gap-3">
-              <label className="text-sm text-slate-600">Per page</label>
-              <select
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm"
-              >
-                {[6, 12, 24, 48].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm disabled:opacity-50"
-              >
-                Prev
-              </button>
-              {/* Numbered pages */}
-              <div className="hidden items-center gap-1 md:flex">
-                <button
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:opacity-50"
-                >
-                  First
-                </button>
-                {getPageNumbers(currentPage, totalPages).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setCurrentPage(p)}
-                    className={`rounded-md px-2 py-1 text-sm ${p === currentPage ? "bg-primary text-white" : "border border-slate-200 bg-white text-slate-700"}`}
-                  >
-                    {p}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:opacity-50"
-                >
-                  Last
-                </button>
+          <div className="mt-8 rounded-xl border-2 border-slate-200 bg-white p-6 shadow-lg">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm font-medium text-slate-700">
+                Showing <span className="font-bold text-primary">{Math.min((currentPage - 1) * pageSize + 1, totalListings)}</span> -{" "}
+                <span className="font-bold text-primary">{Math.min(currentPage * pageSize, totalListings)}</span> of{" "}
+                <span className="font-bold text-primary">{totalListings}</span> properties
               </div>
 
-              <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm disabled:opacity-50"
-              >
-                Next
-              </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-semibold text-slate-700">Per page</label>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="appearance-none rounded-lg border-2 border-slate-200 bg-white px-3 py-2 pr-8 text-sm font-semibold text-slate-700 shadow-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                  >
+                    {[6, 12, 24, 48].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none -ml-6 h-4 w-4 text-slate-400" />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="min-h-[40px] rounded-lg border-2 border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-slate-200 hover:border-primary hover:bg-primary/5 hover:text-primary"
+                  >
+                    Prev
+                  </button>
+                  {/* Numbered pages */}
+                  <div className="hidden items-center gap-1 md:flex">
+                    {getPageNumbers(currentPage, totalPages).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p)}
+                        className={`min-h-[40px] min-w-[40px] rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
+                          p === currentPage
+                            ? "bg-primary text-white shadow-md"
+                            : "border-2 border-slate-200 bg-white text-slate-700 shadow-sm hover:border-primary hover:bg-primary/5 hover:text-primary"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="min-h-[40px] rounded-lg border-2 border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-slate-200 hover:border-primary hover:bg-primary/5 hover:text-primary"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -441,8 +521,10 @@ function ToggleButton({ label, active, onClick }: ToggleButtonProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-md px-3 py-1 text-xs font-medium transition ${
-        active ? "bg-primary text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+      className={`rounded-md px-4 py-2 text-sm font-semibold transition-all ${
+        active
+          ? "bg-primary text-white shadow-md"
+          : "text-slate-600 hover:bg-slate-50 hover:shadow-sm"
       }`}
       aria-pressed={active}
     >
@@ -456,25 +538,36 @@ type FilterSelectProps<T extends string> = {
   value: T;
   onChange: (value: T) => void;
   options: { label: string; value: T }[];
+  icon?: React.ReactNode;
 };
 
-function FilterSelect<T extends string>({ label, value, onChange, options }: FilterSelectProps<T>) {
+function FilterSelect<T extends string>({ label, value, onChange, options, icon }: FilterSelectProps<T>) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+    <label className="relative block min-w-[140px]">
+      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value as T)}
-        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <div className="relative">
+        {icon && (
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            {icon}
+          </span>
+        )}
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value as T)}
+          className={`w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 hover:border-slate-300 hover:shadow-md ${
+            icon ? "pl-10" : ""
+          }`}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      </div>
     </label>
   );
 }
@@ -504,109 +597,112 @@ function ListingCard({ listing, variant }: { listing: Listing; variant: ViewMode
 
   if (variant === "list") {
     return (
-      <article className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md md:flex-row">
-        <div className="md:w-72 md:flex-shrink-0">
-          <ListingImage listing={listing} overlay={overlay} className="aspect-[16/10]" />
-        </div>
-
-        <div className="flex flex-1 flex-col gap-4 p-5">
-          <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between md:gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">{listing.title}</h2>
-              <p className="text-sm text-slate-600">📍 {listing.location}</p>
-              <p className="text-xs text-slate-500">{listing.propertyType}</p>
-            </div>
-            <p className="text-base font-semibold text-primary md:text-lg">{listing.priceLabel}</p>
+      <Link href={`/listings/${listing.id}`}>
+        <article className="group flex flex-col overflow-hidden rounded-2xl border-2 border-slate-200 bg-white shadow-lg transition-all hover:-translate-y-1 hover:border-primary/30 hover:shadow-2xl md:flex-row">
+          <div className="md:w-80 md:flex-shrink-0">
+            <ListingImage listing={listing} overlay={overlay} className="aspect-[16/10]" />
           </div>
 
-          <p className="text-sm text-slate-600">{listing.description}</p>
+          <div className="flex flex-1 flex-col gap-4 p-6">
+            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between md:gap-4">
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-slate-900 transition-colors group-hover:text-primary">{listing.title}</h2>
+                <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-600">
+                  <MapPin className="h-4 w-4" />
+                  {listing.location}
+                </p>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-primary">{listing.propertyType}</p>
+              </div>
+              <p className="text-2xl font-bold text-primary md:text-3xl">{listing.priceLabel}</p>
+            </div>
 
-          <div className="flex flex-wrap gap-3 text-sm text-slate-600">
-            {typeof listing.bedrooms === "number" && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
-                🛏️ {listing.bedrooms} beds
+            <p className="line-clamp-2 text-sm leading-relaxed text-slate-600">{listing.description}</p>
+
+            <div className="flex flex-wrap gap-2">
+              {typeof listing.bedrooms === "number" && (
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
+                  🛏️ {listing.bedrooms}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
+                🚿 {listing.bathrooms}
               </span>
-            )}
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
-              🚿 {listing.bathrooms} baths
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
-              📐 {listing.area}
-            </span>
-          </div>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
+                📐 {listing.area}
+              </span>
+            </div>
 
-          <div className="mt-auto flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm text-slate-600">
-              <span className="font-medium">Broker:</span> {broker ? broker.name : "Unknown"}
-            </div>
-            <div className="flex items-center gap-3">
-              <Link href={`/brokers/${listing.brokerId}`} className="text-xs text-primary hover:underline">
-                View broker →
-              </Link>
-              <Link href={`/listings/${listing.id}`} className="text-sm font-semibold text-primary hover:underline">
-                View details →
-              </Link>
-              <button className="rounded-md bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/20">
-                Contact broker
-              </button>
+            <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+              <div className="text-sm text-slate-600">
+                <span className="font-semibold">Broker:</span> {broker ? broker.name : "Unknown"}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-primary group-hover:underline">View Details →</span>
+              </div>
             </div>
           </div>
-        </div>
-      </article>
+        </article>
+      </Link>
     );
   }
 
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
-      <ListingImage listing={listing} overlay={overlay} />
+    <Link href={`/listings/${listing.id}`}>
+      <article className="group flex h-full flex-col overflow-hidden rounded-2xl border-2 border-slate-200 bg-white shadow-lg transition-all hover:-translate-y-1 hover:border-primary/30 hover:shadow-2xl">
+        <ListingImage listing={listing} overlay={overlay} />
 
-      <div className="flex flex-1 flex-col gap-4 p-5">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">{listing.title}</h2>
-          <p className="text-sm text-slate-600">📍 {listing.location}</p>
-          <p className="text-xs text-slate-500">{listing.propertyType}</p>
-        </div>
-
-        <div className="flex flex-wrap gap-3 text-sm text-slate-600">
-          {typeof listing.bedrooms === "number" && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
-              🛏️ {listing.bedrooms} beds
-            </span>
-          )}
-          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
-            🚿 {listing.bathrooms} baths
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1">
-            📐 {listing.area}
-          </span>
-        </div>
-
-        <div className="mt-auto flex items-end justify-between gap-4">
+        <div className="flex flex-1 flex-col gap-4 p-5">
           <div>
-            <p className="text-xs uppercase text-slate-500">Price</p>
-            <p className="text-xl font-bold text-primary">{listing.priceLabel}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs uppercase text-slate-500">Broker</p>
-            <p className="text-sm font-semibold text-slate-900">
-              {broker ? broker.name : "Unknown"}
+            <h2 className="text-lg font-bold text-slate-900 transition-colors group-hover:text-primary">{listing.title}</h2>
+            <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-600">
+              <MapPin className="h-3.5 w-3.5" />
+              {listing.location}
             </p>
-            <Link href={`/brokers/${listing.brokerId}`} className="text-xs text-primary hover:underline">
-              View broker →
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-primary">{listing.propertyType}</p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {typeof listing.bedrooms === "number" && (
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                🛏️ {listing.bedrooms}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+              🚿 {listing.bathrooms}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+              📐 {listing.area}
+            </span>
+          </div>
+
+          <div className="mt-auto flex items-end justify-between gap-4 border-t border-slate-200 pt-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Price</p>
+              <p className="mt-1 text-2xl font-bold text-primary">{listing.priceLabel}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Broker</p>
+              <p className="mt-1 text-sm font-bold text-slate-900">
+                {broker ? broker.name : "Unknown"}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-semibold text-primary group-hover:underline">View Details →</span>
+            <Link
+              href={`/listings/${listing.id}#contact-form`}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+              className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white shadow-md transition-all hover:bg-primary/90 hover:shadow-lg"
+            >
+              Contact
             </Link>
           </div>
         </div>
-
-        <div className="flex items-center justify-between">
-          <Link href={`/listings/${listing.id}`} className="text-sm font-semibold text-primary hover:underline">
-            View details →
-          </Link>
-          <button className="rounded-md bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/20">
-            Contact broker
-          </button>
-        </div>
-      </div>
-    </article>
+      </article>
+    </Link>
   );
 }
 

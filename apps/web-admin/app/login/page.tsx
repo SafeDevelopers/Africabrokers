@@ -2,9 +2,9 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Building2, Users, LogIn, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Shield, Building2, LogIn, Eye, EyeOff, AlertCircle } from "lucide-react";
 
-type LoginRole = "SUPER_ADMIN" | "TENANT_ADMIN" | "BROKER";
+type LoginRole = "SUPER_ADMIN" | "TENANT_ADMIN";
 
 interface RoleOption {
   value: LoginRole;
@@ -28,12 +28,6 @@ const roleOptions: RoleOption[] = [
     description: "Tenant administrator account",
     icon: <Building2 className="w-6 h-6" />,
   },
-  {
-    value: "BROKER",
-    label: "Broker",
-    description: "Certified broker account",
-    icon: <Users className="w-6 h-6" />,
-  },
 ];
 
 // Demo credentials for testing
@@ -44,10 +38,6 @@ const DEMO_ACCOUNTS: Record<LoginRole, { email: string; password: string }> = {
   },
   TENANT_ADMIN: {
     email: "broker@afribrok.com",
-    password: "broker123",
-  },
-  BROKER: {
-    email: "broker@marketplace.com",
     password: "broker123",
   },
 };
@@ -117,71 +107,9 @@ export default function LoginPage() {
         console.log('Redirecting to tenant admin dashboard');
         setIsLoading(false);
         window.location.replace("/admin/dashboard");
-      } else if (selectedRole === "BROKER") {
-        console.log('=== BROKER LOGIN REDIRECT ===');
-        console.log('Login response data:', JSON.stringify(data, null, 2));
-        
-        // Redirect directly to marketplace broker dashboard
-        // The broker has already authenticated in the admin app
-        // Pass auth info via URL params (localStorage won't work cross-origin)
-        const marketplaceUrl = process.env.NEXT_PUBLIC_MARKETPLACE_URL || "http://localhost:3000";
-        const authToken = data?.token || `demo-token-${Date.now()}`;
-        const userId = data?.user?.id || 'demo-broker-001';
-        const tenantId = data?.tenantId || 'et-addis';
-        
-        console.log('Marketplace URL:', marketplaceUrl);
-        console.log('Auth token exists:', !!authToken);
-        console.log('User ID:', userId);
-        console.log('Tenant ID:', tenantId);
-        console.log('Email:', loginEmail);
-        
-        // Validate required data
-        if (!loginEmail || !userId || !authToken) {
-          console.error('Missing required broker auth data:', { loginEmail, userId, authToken });
-          throw new Error('Missing required authentication data for broker login');
-        }
-        
-        const params = new URLSearchParams({
-          role: 'BROKER',
-          email: loginEmail,
-          userId: userId,
-          tenantId: tenantId || 'et-addis',
-          token: authToken
-        });
-        
-        const redirectUrl = `${marketplaceUrl}/broker/dashboard?${params.toString()}`;
-        console.log('FULL REDIRECT URL:', redirectUrl);
-        console.log('URL length:', redirectUrl.length);
-        
-        // Don't set loading to false - keep it loading during redirect
-        // This prevents form reset
-        
-        // Force redirect immediately - use both methods for reliability
-        console.log('Attempting redirect NOW...');
-        
-        // Method 1: window.location.href (primary)
-        try {
-          window.location.href = redirectUrl;
-        } catch (redirectError) {
-          console.error('Redirect error:', redirectError);
-          // Method 2: window.location.replace (fallback)
-          window.location.replace(redirectUrl);
-        }
-        
-        // Method 3: If still on login page after delay, force redirect again
-        setTimeout(() => {
-          const currentUrl = window.location.href;
-          if (currentUrl.includes('/login') || currentUrl.includes('localhost:3001')) {
-            console.warn('Still on login page, forcing redirect again...');
-            window.location.replace(redirectUrl);
-          }
-        }, 1000);
-        
-        // Exit early - don't set loading to false yet (will happen on redirect)
-        return;
       } else {
         console.error('Invalid role selected:', selectedRole);
-        setError("Invalid role. Only SUPER_ADMIN, TENANT_ADMIN, or BROKER can log in.");
+        setError("Invalid role. Only SUPER_ADMIN or TENANT_ADMIN can log in here. Brokers should sign in at the marketplace.");
         setIsLoading(false);
       }
     } catch (err) {
@@ -190,14 +118,10 @@ export default function LoginPage() {
       setError(errorMessage);
       setIsLoading(false);
       
-      // If it's a broker login error, still try to redirect as fallback
-      if (selectedRole === "BROKER") {
-        console.warn('Broker login had error but attempting redirect anyway...');
+      // Broker login errors should redirect to marketplace
+      if (error && error.includes('broker')) {
         const marketplaceUrl = process.env.NEXT_PUBLIC_MARKETPLACE_URL || "http://localhost:3000";
-        const redirectUrl = `${marketplaceUrl}/broker/dashboard?role=BROKER&email=${encodeURIComponent(email || "broker@marketplace.com")}`;
-        setTimeout(() => {
-          window.location.href = redirectUrl;
-        }, 1000);
+        window.location.href = `${marketplaceUrl}/signin`;
       }
     }
   };

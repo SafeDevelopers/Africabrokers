@@ -26,11 +26,15 @@ const createTenantScopedClient = (baseClient: PrismaClient) => {
           'User',
           'AgentOffice',
           'BrokerApplication',
+          'Broker',
           'License',
+          'Property',
           'Listing',
           'QrCode',
-          'InspectionEvent',
+          'KycReview',
+          'Inspection',
           'AuditLog',
+          'Inquiry',
         ];
 
         // Skip tenant scoping for Tenant model and models without tenantId
@@ -124,8 +128,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     return this.extendedClient.qrCode;
   }
 
+  get broker() {
+    return this.extendedClient.broker;
+  }
+
+  get property() {
+    return this.extendedClient.property;
+  }
+
   get brokerApplication() {
     return this.extendedClient.brokerApplication;
+  }
+
+  get kycReview() {
+    return this.extendedClient.kycReview;
   }
 
   get license() {
@@ -136,31 +152,19 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     return this.extendedClient.agentOffice;
   }
 
-  get inspectionEvent() {
-    return this.extendedClient.inspectionEvent;
+  get inspection() {
+    return this.extendedClient.inspection;
   }
 
   get auditLog() {
     return this.extendedClient.auditLog;
   }
 
+  get inquiry() {
+    return this.extendedClient.inquiry;
+  }
+
   get tenant() {
     return this.extendedClient.tenant;
-  }
-
-  // Proxy $transaction to use extended client
-  get $transaction() {
-    return this.extendedClient.$transaction.bind(this.extendedClient);
-  }
-
-  // Keep base $connect and $disconnect for module lifecycle
-  // (they're called in onModuleInit/onModuleDestroy)
-
-  get $use() {
-    return this.extendedClient.$use.bind(this.extendedClient);
-  }
-
-  get $on() {
-    return this.extendedClient.$on.bind(this.extendedClient);
   }
 }

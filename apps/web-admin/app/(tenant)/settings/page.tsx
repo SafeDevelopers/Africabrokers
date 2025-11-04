@@ -12,6 +12,15 @@ interface PlatformSettings {
   smtpHost?: string;
   smtpPort?: number;
   smtpUser?: string;
+  // Contact Information
+  contactEmail?: string;
+  contactEmailSecondary?: string;
+  contactPhone?: string;
+  contactPhoneHours?: string;
+  contactAddress?: string;
+  contactCity?: string;
+  contactCountry?: string;
+  contactWhatsApp?: string;
 }
 
 const STORAGE_KEY = "afribrok:platform_settings:v1";
@@ -26,6 +35,15 @@ const defaultSettings: PlatformSettings = {
   smtpHost: "smtp.example.com",
   smtpPort: 587,
   smtpUser: "smtp-user",
+  // Contact Information defaults
+  contactEmail: "support@afribrok.et",
+  contactEmailSecondary: "info@afribrok.et",
+  contactPhone: "+251 11 123 4567",
+  contactPhoneHours: "Mon-Fri, 9am-5pm",
+  contactAddress: "Addis Ababa",
+  contactCity: "Addis Ababa",
+  contactCountry: "Ethiopia",
+  contactWhatsApp: "",
 };
 
 export default function PlatformSettingsPage() {
@@ -191,6 +209,108 @@ export default function PlatformSettingsPage() {
                       </div>
                     </div>
                   )}
+                </div>
+              </div>
+            </section>
+
+            <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900">Contact Information</h2>
+              <p className="text-sm text-gray-500 mt-1">Configure contact details displayed on the Contact Us page.</p>
+
+              <div className="mt-4 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Primary Email</label>
+                    <input
+                      type="email"
+                      value={settings.contactEmail || ""}
+                      onChange={(e) => update("contactEmail", e.target.value)}
+                      className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      placeholder="support@example.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Secondary Email (optional)</label>
+                    <input
+                      type="email"
+                      value={settings.contactEmailSecondary || ""}
+                      onChange={(e) => update("contactEmailSecondary", e.target.value)}
+                      className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      placeholder="info@example.com"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={settings.contactPhone || ""}
+                      onChange={(e) => update("contactPhone", e.target.value)}
+                      className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      placeholder="+251 11 123 4567"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Phone Hours</label>
+                    <input
+                      type="text"
+                      value={settings.contactPhoneHours || ""}
+                      onChange={(e) => update("contactPhoneHours", e.target.value)}
+                      className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Mon-Fri, 9am-5pm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">WhatsApp Number</label>
+                  <input
+                    type="tel"
+                    value={settings.contactWhatsApp || ""}
+                    onChange={(e) => update("contactWhatsApp", e.target.value)}
+                    className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    placeholder="+251 911 234 567"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Enter WhatsApp number with country code (e.g., +251 911 234 567)</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Address</label>
+                    <input
+                      type="text"
+                      value={settings.contactAddress || ""}
+                      onChange={(e) => update("contactAddress", e.target.value)}
+                      className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Street address"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">City</label>
+                    <input
+                      type="text"
+                      value={settings.contactCity || ""}
+                      onChange={(e) => update("contactCity", e.target.value)}
+                      className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Addis Ababa"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Country</label>
+                    <input
+                      type="text"
+                      value={settings.contactCountry || ""}
+                      onChange={(e) => update("contactCountry", e.target.value)}
+                      className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Ethiopia"
+                    />
+                  </div>
                 </div>
               </div>
             </section>

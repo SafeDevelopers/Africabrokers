@@ -4,7 +4,9 @@ import { AppModule } from "./app/app.module";
 
 async function bootstrap() {
   const port = process.env.PORT || 4000;
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true, // Enable raw body for webhook signature verification
+  });
   app.setGlobalPrefix("v1");
   
   // Enable CORS

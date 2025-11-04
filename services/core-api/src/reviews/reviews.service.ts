@@ -123,11 +123,14 @@ export class ReviewsService {
   private async generateQrCode(brokerId: string, tenantId: string) {
     const qrCode = await this.prisma.qrCode.create({
       data: {
-        tenantId: tenantId,
-        brokerId: brokerId,
+        tenantId,
+        code: brokerId,
         qrSvgUrl: `/qr-codes/${brokerId}.svg`,
-        status: 'active'
-      }
+        status: 'active',
+        metadata: {
+          brokerId,
+        },
+      },
     });
 
     // Link QR code to broker

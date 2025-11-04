@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
 
-type UserRole = "broker" | "real-estate" | "individual" | "tenant";
+type UserRole = "broker" | "tenant"; // tenant = agency/government
 type ApprovalStatus = "pending" | "approved";
 
 export type AuthUser = {
@@ -14,6 +14,7 @@ export type AuthUser = {
 
 type AuthContextValue = {
   user: AuthUser | null;
+  isLoading: boolean;
   login: (payload: AuthUser) => void;
   register: (payload: AuthUser) => void;
   logout: () => void;
@@ -24,9 +25,13 @@ const STORAGE_KEY = "afribrok-auth-user";
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+      setIsLoading(false);
+      return;
+    }
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -41,7 +46,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           setUser(restoredUser);
           
           // Set cookies for middleware authentication when restoring from localStorage
-          if (restoredUser.role === "broker" || restoredUser.role === "real-estate") {
+          if (restoredUser.role === "broker") {
             document.cookie = `afribrok-role=BROKER; path=/; max-age=86400; SameSite=Lax`;
             document.cookie = `afribrok-user-id=${restoredUser.email}; path=/; max-age=86400; SameSite=Lax`;
           }
@@ -49,6 +54,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
     } catch (error) {
       console.error("Failed to restore auth session", error);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -90,11 +97,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const value = useMemo(
     () => ({
       user,
+      isLoading,
       login,
       register,
       logout
     }),
-    [user]
+    [user, isLoading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

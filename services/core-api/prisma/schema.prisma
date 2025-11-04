@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["fieldReference"]
 }
 
@@ -39,57 +39,123 @@ enum LicenseStatus {
   PENDING
 }
 
-enum ListingStatus {
-  DRAFT
-  PENDING_REVIEW
-  PUBLISHED
-  FLAGGED
-  UNLISTED
-  EXPIRED
+enum BrokerStatus {
+  draft
+  submitted
+  approved
+  denied
+  suspended
 }
 
-enum QrCodeSubjectType {
-  BROKER
-  LISTING
+enum PropertyType {
+  residential
+  commercial
+  land
+}
+
+enum VerificationStatus {
+  draft
+  pending
+  verified
+  rejected
+}
+
+enum ListingAvailability {
+  active
+  pending_review
+  suspended
+  closed
+}
+
+enum ReviewDecision {
+  pending
+  approved
+  denied
+  needs_more_info
 }
 
 enum QrCodeStatus {
-  ACTIVE
-  REVOKED
+  active
+  revoked
 }
 
-enum InspectionEventType {
-  VERIFICATION
-  COMPLIANCE_CHECK
-  VIOLATION
-  OTHER
+enum InspectionStatus {
+  pending_sync
+  synced
+  archived
 }
 
-enum InspectionEventStatus {
-  OPEN
-  CLOSED
+enum PaymentProviderType {
+  STRIPE
+  TELEBIRR
+  MPESA
+  CASH
+}
+
+enum SubscriptionStatus {
+  active
+  canceled
+  past_due
+  trialing
+  unpaid
+}
+
+enum InvoiceStatus {
+  draft
+  open
+  paid
+  void
+  uncollectible
+}
+
+enum PaymentIntentStatus {
+  requires_payment_method
+  requires_confirmation
+  requires_action
+  processing
+  requires_capture
+  canceled
+  succeeded
+}
+
+enum DunningAction {
+  none
+  cancel
+  suspend
+  send_notice
 }
 
 // Models
 model Tenant {
-  id        String   @id @default(uuid())
-  slug      String   @unique
-  name      String
-  country   String
-  locales   Json     // Array of locale strings
-  policies  Json     // Tenant-specific policies
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  key         String   @unique
+  name        String
+  country     String
+  locales     Json
+  policies    Json
+  brandConfig Json?
+  currency    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // Relations
-  agentOffices         AgentOffice[]
-  users                User[]
-  brokerApplications   BrokerApplication[]
-  licenses             License[]
-  listings             Listing[]
-  qrCodes              QrCode[]
-  inspectionEvents     InspectionEvent[]
-  auditLogs            AuditLog[]
+  agentOffices       AgentOffice[]
+  users              User[]
+  brokers            Broker[]
+  brokerApplications BrokerApplication[]
+  licenses           License[]
+  properties         Property[]
+  listings           Listing[]
+  qrCodes            QrCode[]
+  kycReviews         KycReview[]
+  inspections        Inspection[]
+  auditLogs          AuditLog[]
+  paymentProviders   PaymentProvider[]
+  plans              Plan[]
+  subscriptions      Subscription[]
+  invoices           Invoice[]
+  paymentIntents     PaymentIntent[]
+  dunningRules       DunningRule[]
 
   @@index([slug])
 }
@@ -103,28 +169,30 @@ model AgentOffice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   users User[]
 
   @@index([tenantId])
 }
 
 model User {
-  id             String     @id @default(uuid())
+  id             String       @id @default(uuid())
   tenantId       String
-  tenant         Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  agentOfficeId String?
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agentOfficeId  String?
   agentOffice    AgentOffice? @relation(fields: [agentOfficeId], references: [id])
-  email          String     @unique
+  email          String       @unique
+  authProviderId String?
+  emailHash      String?
   role           UserRole
-  status         UserStatus @default(ACTIVE)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  status         UserStatus   @default(ACTIVE)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
-  // Relations
   brokerApplications BrokerApplication[]
+  brokers            Broker[]
   licenses           License[]
-  inspectionEvents   InspectionEvent[]
+  inspections        Inspection[]        @relation("InspectorInspections")
+  reviewsAuthored    KycReview[]         @relation("ReviewerReviews")
   auditLogs          AuditLog[]
 
   @@index([tenantId])
@@ -133,16 +201,18 @@ model User {
 }
 
 model BrokerApplication {
-  id         String                  @id @default(uuid())
-  tenantId   String
-  tenant     Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payload    Json                    // Application form data
-  status     BrokerApplicationStatus @default(SUBMITTED)
-  submittedAt DateTime                @default(now())
-  createdAt  DateTime                @default(now())
-  updatedAt  DateTime               @updatedAt
+  id           String                  @id @default(uuid())
+  tenantId     String
+  tenant       Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payload      Json
+  orgType      String? // Organization type: "Government / Public", "Private / Association", or "Other"
+  orgTypeNotes String? // Notes when orgType is "Other"
+  status       BrokerApplicationStatus @default(SUBMITTED)
+  submittedAt  DateTime                @default(now())
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
 
   @@index([tenantId])
   @@index([userId])
@@ -150,16 +220,16 @@ model BrokerApplication {
 }
 
 model License {
-  id            String        @id @default(uuid())
-  tenantId      String
-  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  brokerUserId  String
-  broker        User          @relation(fields: [brokerUserId], references: [id], onDelete: Cascade)
+  id           String        @id @default(uuid())
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brokerUserId String
+  broker       User          @relation(fields: [brokerUserId], references: [id], onDelete: Cascade)
   licenseNo    String
   issuedAt     DateTime
   expiresAt    DateTime?
   status       LicenseStatus @default(PENDING)
-  createdAt     DateTime      @default(now())
+  createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   @@index([tenantId])
@@ -168,80 +238,350 @@ model License {
   @@index([status])
 }
 
-model Listing {
-  id         String        @id @default(uuid())
-  tenantId   String
-  tenant     Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  ownerUserId String
-  category   String
-  attrs      Json          // Listing attributes (price, area, bedrooms, etc.)
-  status     ListingStatus @default(DRAFT)
-  publishedAt DateTime?
-  expiresAt   DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+model Broker {
+  id            String       @id @default(uuid())
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenseNumber String
+  licenseDocs   Json
+  businessDocs  Json?
+  status        BrokerStatus @default(draft)
+  rating        Float?       @default(0)
+  strikeCount   Int          @default(0)
+  submittedAt   DateTime?
+  approvedAt    DateTime?
+  qrCodeId      String?      @unique
+  qrCode        QrCode?      @relation("BrokerQrCode", fields: [qrCodeId], references: [id])
+  kycReviews    KycReview[]
+  properties    Property[]
+  listings      Listing[]
+  inspections   Inspection[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([tenantId, licenseNumber])
+  @@index([tenantId])
+  @@index([userId])
+}
+
+model Property {
+  id                 String             @id @default(uuid())
+  tenantId           String
+  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brokerId           String?
+  broker             Broker?            @relation(fields: [brokerId], references: [id])
+  type               PropertyType
+  address            Json
+  latitude           Float?
+  longitude          Float?
+  verificationStatus VerificationStatus @default(draft)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  listings           Listing[]
 
   @@index([tenantId])
-  @@index([ownerUserId])
-  @@index([status])
+  @@index([brokerId])
+}
+
+model Listing {
+  id                 String              @id @default(uuid())
+  tenantId           String
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  propertyId         String
+  property           Property            @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  brokerId           String?
+  broker             Broker?             @relation(fields: [brokerId], references: [id])
+  priceAmount        Decimal             @db.Decimal(12, 2)
+  priceCurrency      String
+  availabilityStatus ListingAvailability @default(pending_review)
+  channels           Json
+  attrs              Json?
+  featured           Boolean             @default(false)
+  fraudScore         Float?              @default(0)
+  publishedAt        DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([brokerId])
+  @@index([availabilityStatus])
   @@index([publishedAt])
 }
 
-model QrCode {
-  id             String           @id @default(uuid())
-  tenantId       String
-  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  code           String           @unique
-  subjectType    QrCodeSubjectType
-  subjectId      String
-  status         QrCodeStatus     @default(ACTIVE)
-  scanCount      Int              @default(0)
-  lastScannedAt  DateTime?
-  createdAt      DateTime         @default(now())
-  revokedAt      DateTime?
+model KycReview {
+  id         String         @id @default(uuid())
+  tenantId   String
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brokerId   String
+  broker     Broker         @relation(fields: [brokerId], references: [id], onDelete: Cascade)
+  reviewerId String?
+  reviewer   User?          @relation("ReviewerReviews", fields: [reviewerId], references: [id])
+  decision   ReviewDecision @default(pending)
+  notes      String?
+  decidedAt  DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
   @@index([tenantId])
-  @@index([code])
-  @@index([subjectType, subjectId])
+  @@index([brokerId])
+  @@index([decision])
+  @@index([reviewerId])
 }
 
-model InspectionEvent {
-  id         String                @id @default(uuid())
-  tenantId   String
-  tenant     Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  inspectorUserId String
-  inspector User                   @relation(fields: [inspectorUserId], references: [id], onDelete: Cascade)
-  subjectType String               // "BROKER" or "LISTING"
-  subjectId   String
-  type        InspectionEventType
-  notes       String?
-  geo         Json?                // { latitude, longitude }
-  photos      Json?                // Array of photo URLs
-  status      InspectionEventStatus @default(OPEN)
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+model QrCode {
+  id            String       @id @default(uuid())
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code          String       @unique
+  status        QrCodeStatus @default(active)
+  qrSvgUrl      String?
+  metadata      Json?
+  scanCount     Int          @default(0)
+  lastScannedAt DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  broker        Broker?      @relation("BrokerQrCode")
+  inspections   Inspection[]
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+model Inspection {
+  id                 String           @id @default(uuid())
+  tenantId           String
+  tenant             Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inspectorUserId    String
+  inspector          User             @relation("InspectorInspections", fields: [inspectorUserId], references: [id], onDelete: Cascade)
+  qrCodeId           String?
+  qrCode             QrCode?          @relation(fields: [qrCodeId], references: [id])
+  brokerId           String?
+  broker             Broker?          @relation(fields: [brokerId], references: [id])
+  verificationResult Json?
+  violationType      String?
+  violationNotes     String?
+  location           Json?
+  photos             Json?
+  status             InspectionStatus @default(synced)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
   @@index([tenantId])
   @@index([inspectorUserId])
-  @@index([subjectType, subjectId])
+  @@index([brokerId])
   @@index([status])
 }
 
 model AuditLog {
-  id         String   @id @default(uuid())
-  tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   actorUserId String?
-  actor      User?    @relation(fields: [actorUserId], references: [id])
-  entityType String
-  entityId   String
-  action     String
-  before     Json?
-  after      Json?
-  createdAt  DateTime @default(now())
+  actor       User?    @relation(fields: [actorUserId], references: [id])
+  entityType  String
+  entityId    String
+  action      String
+  before      Json?
+  after       Json?
+  createdAt   DateTime @default(now())
 
   @@index([tenantId])
   @@index([actorUserId])
   @@index([entityType, entityId])
   @@index([createdAt])
+}
+
+// Billing Models
+model PaymentProvider {
+  id         String              @id @default(uuid())
+  tenantId   String
+  tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  providerId String // e.g., "stripe", "telebirr", "mpesa", "cash"
+  type       PaymentProviderType
+  audience   String? // "broker", "tenant", "both", etc.
+  name       String
+  config     Json // Provider-specific configuration (API keys, endpoints, etc.)
+  isActive   Boolean             @default(true)
+  isDefault  Boolean             @default(false)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  plans          Plan[]
+  subscriptions  Subscription[]
+  paymentIntents PaymentIntent[]
+  invoices       Invoice[]
+
+  @@unique([tenantId, providerId])
+  @@index([tenantId])
+  @@index([providerId])
+  @@index([tenantId, providerId])
+}
+
+model Plan {
+  id              String          @id @default(uuid())
+  tenantId        String
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  providerId      String
+  provider        PaymentProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  audience        String? // "broker", "tenant", "both", etc.
+  planId          String // External plan ID from provider (e.g., Stripe plan ID)
+  name            String
+  description     String?
+  amount          Decimal         @db.Decimal(12, 2)
+  currency        String
+  interval        String // "month", "year", "one_time"
+  intervalCount   Int             @default(1)
+  trialPeriodDays Int?
+  isActive        Boolean         @default(true)
+  metadata        Json?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  subscriptions Subscription[]
+
+  @@unique([tenantId, planId])
+  @@index([tenantId])
+  @@index([providerId])
+  @@index([tenantId, planId])
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  tenantId           String
+  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  providerId         String
+  provider           PaymentProvider    @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  planId             String
+  plan               Plan               @relation(fields: [planId], references: [id], onDelete: Restrict)
+  audience           String? // "broker", "tenant", etc.
+  subscriberId       String // ID of the subscribed entity (broker ID, tenant ID, etc.)
+  subscriberType     String // "broker", "tenant", etc.
+  subscriptionId     String? // External subscription ID from provider
+  status             SubscriptionStatus @default(active)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean            @default(false)
+  canceledAt         DateTime?
+  trialStart         DateTime?
+  trialEnd           DateTime?
+  metadata           Json?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  invoices Invoice[]
+
+  @@index([tenantId])
+  @@index([providerId])
+  @@index([subscriberId, subscriberType])
+  @@index([status])
+  @@index([tenantId, subscriberId, subscriberType])
+}
+
+model Invoice {
+  id             String          @id @default(uuid())
+  tenantId       String
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  providerId     String
+  provider       PaymentProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  subscriptionId String?
+  subscription   Subscription?   @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  audience       String? // "broker", "tenant", etc.
+  customerId     String // ID of the customer (broker ID, tenant ID, etc.)
+  customerType   String // "broker", "tenant", etc.
+  invoiceId      String? // External invoice ID from provider
+  invoiceNumber  String // Internal invoice number
+  status         InvoiceStatus   @default(draft)
+  amount         Decimal         @db.Decimal(12, 2)
+  currency       String
+  paidAmount     Decimal?        @db.Decimal(12, 2)
+  dueDate        DateTime?
+  paidAt         DateTime?
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  paymentIntents PaymentIntent[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId])
+  @@index([providerId])
+  @@index([subscriptionId])
+  @@index([customerId, customerType])
+  @@index([status])
+  @@index([invoiceNumber])
+}
+
+model PaymentIntent {
+  id             String              @id @default(uuid())
+  tenantId       String
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  providerId     String
+  provider       PaymentProvider     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  invoiceId      String?
+  invoice        Invoice?            @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  audience       String? // "broker", "tenant", etc.
+  customerId     String // ID of the customer
+  customerType   String // "broker", "tenant", etc.
+  intentId       String? // External payment intent ID from provider
+  status         PaymentIntentStatus @default(requires_payment_method)
+  amount         Decimal             @db.Decimal(12, 2)
+  currency       String
+  capturedAmount Decimal?            @db.Decimal(12, 2)
+  refundedAmount Decimal?            @db.Decimal(12, 2)
+  metadata       Json?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([tenantId])
+  @@index([providerId])
+  @@index([invoiceId])
+  @@index([customerId, customerType])
+  @@index([status])
+  @@index([intentId])
+}
+
+model DunningRule {
+  id           String        @id @default(uuid())
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  audience     String? // "broker", "tenant", etc.
+  name         String
+  description  String?
+  daysAfterDue Int // Days after due date to trigger
+  action       DunningAction @default(send_notice)
+  maxAttempts  Int           @default(3)
+  isActive     Boolean       @default(true)
+  metadata     Json?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([tenantId])
+  @@index([audience])
+  @@index([isActive])
+}
+
+model Inquiry {
+  id             String    @id @default(uuid())
+  tenantId       String
+  listingId      String
+  brokerUserId   String
+  fullName       String
+  email          String
+  phone          String?
+  message        String    @db.Text
+  source         String
+  status         String    @default("NEW")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  lastBrokerView DateTime?
+  brokerNotes    String?   @db.Text
+
+  @@index([tenantId])
+  @@index([listingId])
+  @@index([brokerUserId])
+  @@index([tenantId, status])
+  @@index([brokerUserId, status])
 }

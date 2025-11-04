@@ -18,11 +18,11 @@ export function KpiCard({ label, value, change, changeType = "neutral", icon }: 
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
       <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 truncate">{label}</p>
+          <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-slate-900">{value}</p>
           {change && (
             <p className={`mt-1 text-xs font-medium ${changeColors[changeType]}`}>
               {changeType === "increase" && "↗ "}
@@ -48,7 +48,7 @@ interface KpiCardsProps {
 
 export function KpiCards({ activeListings, newLeads, views7d, saves = 0, inquiries = 0, scans7d }: KpiCardsProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+    <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6">
       <KpiCard
         label="Active Listings"
         value={activeListings}

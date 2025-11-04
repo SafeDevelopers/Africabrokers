@@ -1,8 +1,13 @@
 import { Injectable, NestMiddleware, ForbiddenException } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 
-// Extend Express Request to include tenantId (already declared in jwt-auth.middleware.ts)
-// This declaration is for TypeScript type checking
+declare global {
+  namespace Express {
+    interface Request {
+      tenantId?: string;
+    }
+  }
+}
 
 @Injectable()
 export class TenantContextMiddleware implements NestMiddleware {
@@ -38,4 +43,3 @@ export class TenantContextMiddleware implements NestMiddleware {
     next();
   }
 }
-

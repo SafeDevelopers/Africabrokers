@@ -56,14 +56,18 @@ export class SuperAdminService {
       this.prisma.brokerApplication.count({ where }),
     ]);
 
+    type ApplicationWithRelations = (typeof applications)[number];
+
     return {
-      items: applications.map((app) => ({
+      items: applications.map((app: ApplicationWithRelations) => ({
         id: app.id,
         tenantId: app.tenantId,
         userId: app.userId,
         status: app.status,
         submittedAt: app.submittedAt.toISOString(),
         payload: app.payload,
+        orgType: app.orgType,
+        orgTypeNotes: app.orgTypeNotes,
         user: app.user,
         tenant: app.tenant,
       })),
@@ -106,6 +110,8 @@ export class SuperAdminService {
       status: application.status,
       submittedAt: application.submittedAt.toISOString(),
       payload: application.payload,
+      orgType: application.orgType,
+      orgTypeNotes: application.orgTypeNotes,
       user: application.user,
       tenant: application.tenant,
     };
@@ -276,4 +282,3 @@ export class SuperAdminService {
     };
   }
 }
-

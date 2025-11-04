@@ -25,6 +25,9 @@ import {
   ScrollText,
   UserCheck,
   LogOut,
+  CreditCard,
+  Package,
+  DollarSign,
 } from "lucide-react";
 
 interface NavItem {
@@ -77,6 +80,16 @@ const tenantAdminNavigation: NavItem[] = [
     name: "User Management",
     href: "/users",
     icon: <User className="w-5 h-5" />
+  },
+  {
+    name: "Billing",
+    href: "/billing/payment-methods",
+    icon: <CreditCard className="w-5 h-5" />,
+    children: [
+      { name: "Payment Methods", href: "/billing/payment-methods", icon: <CreditCard className="w-4 h-4" /> },
+      { name: "Broker Plans", href: "/billing/plans", icon: <Package className="w-4 h-4" /> },
+      { name: "Invoices", href: "/billing/invoices", icon: <DollarSign className="w-4 h-4" /> },
+    ],
   },
   {
     name: "Settings",

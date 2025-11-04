@@ -15,13 +15,6 @@ const DEMO_ACCOUNTS: Record<string, { email: string; password: string; role: str
     userId: "demo-tenant-admin-001",
     tenantId: "et-addis",
   },
-  "broker@marketplace.com": {
-    email: "broker@marketplace.com",
-    password: "broker123",
-    role: "BROKER",
-    userId: "demo-broker-001",
-    tenantId: "et-addis",
-  },
 };
 
 export async function POST(request: NextRequest) {
@@ -36,10 +29,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only allow SUPER_ADMIN, TENANT_ADMIN, or BROKER roles
-    if (!["SUPER_ADMIN", "TENANT_ADMIN", "BROKER"].includes(role)) {
+    // Only allow SUPER_ADMIN or TENANT_ADMIN roles
+    // Brokers must authenticate via the marketplace
+    if (!["SUPER_ADMIN", "TENANT_ADMIN"].includes(role)) {
+      if (role === "BROKER") {
+        const marketplaceUrl = process.env.NEXT_PUBLIC_MARKETPLACE_URL || "http://localhost:3000";
+        return NextResponse.redirect(`${marketplaceUrl}/signin`, 301);
+      }
       return NextResponse.json(
-        { message: "Invalid role. Only SUPER_ADMIN, TENANT_ADMIN, or BROKER can log in." },
+        { message: "Invalid role. Only SUPER_ADMIN or TENANT_ADMIN can log in here. Brokers should sign in at the marketplace." },
         { status: 403 }
       );
     }

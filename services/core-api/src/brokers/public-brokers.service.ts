@@ -75,31 +75,36 @@ export class PublicBrokersService {
       this.prisma.user.count({ where }),
     ]);
 
-    // Transform to public-safe format and apply filters
-    let items = users
-      .map((user) => {
-        const application = user.brokerApplications[0];
-        const license = user.licenses[0];
-        const payload = application?.payload as any;
+    type BrokerUser = (typeof users)[number];
 
-        return {
-          id: user.id,
-          name: payload?.fullName || user.email.split('@')[0],
-          email: user.email,
-          phone: payload?.phone,
-          company: payload?.companyName || payload?.businessName,
-          city: payload?.city,
-          location: `${payload?.city || ''}, ${payload?.country || ''}`.trim(),
-          licenseNumber: license?.licenseNo || 'N/A',
-          verified: true, // All returned brokers are verified
-          rating: 0, // TODO: Calculate from reviews
-          activeListings: user.listings.length,
-          specialties: payload?.specialties || [],
-          languages: payload?.languages || [],
-          _payload: payload, // Keep for filtering
-        };
-      })
-      .filter((item) => {
+    const toPublicBroker = (user: BrokerUser) => {
+      const application = user.brokerApplications[0];
+      const license = user.licenses[0];
+      const payload = application?.payload as any;
+
+      return {
+        id: user.id,
+        name: payload?.fullName || user.email.split('@')[0],
+        email: user.email,
+        phone: payload?.phone,
+        company: payload?.companyName || payload?.businessName,
+        city: payload?.city,
+        location: `${payload?.city || ''}, ${payload?.country || ''}`.trim(),
+        licenseNumber: license?.licenseNo || 'N/A',
+        verified: true, // All returned brokers are verified
+        rating: 0, // TODO: Calculate from reviews
+        activeListings: user.listings.length,
+        specialties: payload?.specialties || [],
+        languages: payload?.languages || [],
+        _payload: payload, // Keep for filtering
+      };
+    };
+
+    type PublicBrokerItem = ReturnType<typeof toPublicBroker>;
+
+    let items: PublicBrokerItem[] = users
+      .map((user: BrokerUser) => toPublicBroker(user))
+      .filter((item: PublicBrokerItem) => {
         // Apply search filter (if not email search)
         if (search && !emailSearch) {
           const searchLower = search.toLowerCase();
@@ -119,7 +124,7 @@ export class PublicBrokersService {
         return true;
       })
       .slice(0, limit)
-      .map(({ _payload, ...item }) => item); // Remove _payload from final result
+      .map(({ _payload, ...item }: PublicBrokerItem) => item);
 
     // Recalculate total if filters were applied
     let total = totalCount;
@@ -194,7 +199,7 @@ export class PublicBrokersService {
     const payload = application?.payload as any;
 
     // Transform listings to public format
-    const listings = user.listings.map((listing) => {
+    const listings = user.listings.map((listing: (typeof user.listings)[number]) => {
       const attrs = listing.attrs as any;
       return {
         id: listing.id,
@@ -229,4 +234,3 @@ export class PublicBrokersService {
     };
   }
 }
-
