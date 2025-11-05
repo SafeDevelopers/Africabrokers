@@ -7,19 +7,30 @@
   
   # ---------- deps (monorepo-aware) ----------
   FROM base AS deps
+  # lockfiles + workspace manifest
   COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-  # add any package.json that Next build needs to resolve workspaces
-  COPY apps/web-admin/package.json ./apps/web-admin/
-  # (for marketplace, replace paths accordingly)
+  # Copy all package.json files needed for workspace resolution
+  COPY packages/config/env/package.json ./packages/config/env/
+  COPY packages/config/design-tokens/package.json ./packages/config/design-tokens/
+  COPY packages/lib/package.json ./packages/lib/
+  COPY packages/ui/package.json ./packages/ui/
+  COPY apps/web-marketplace/package.json ./apps/web-marketplace/
   RUN pnpm -w install --frozen-lockfile
   
   # ---------- build ----------
   FROM deps AS build
   COPY . .
-  # build the app you’re targeting:
-  RUN pnpm -w --filter @afribrok/web-admin build
-  # ensure public exists to make COPY robust
-  RUN mkdir -p /app/apps/web-admin/public
+  # Build dependencies first
+  WORKDIR /app
+  RUN pnpm --filter @afribrok/config... build || true
+  RUN pnpm --filter @afribrok/lib... build || true
+  RUN pnpm --filter @afribrok/ui... build || true
+  # Build the app
+  WORKDIR /app/apps/web-marketplace
+  ENV NEXT_TELEMETRY_DISABLED=1
+  RUN pnpm build
+  # Ensure public exists to make COPY robust even if empty
+  RUN mkdir -p /app/apps/web-marketplace/public
   
   # ---------- runtime ----------
   FROM node:20-alpine AS production
@@ -28,10 +39,10 @@
   ENV PORT=3000
   
   # Next.js standalone output
-  COPY --from=build /app/apps/web-admin/.next/standalone ./
-  COPY --from=build /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
-  COPY --from=build /app/apps/web-admin/public ./apps/web-admin/public
-  COPY --from=build /app/apps/web-admin/package.json ./apps/web-admin/
+  COPY --from=build /app/apps/web-marketplace/.next/standalone ./
+  COPY --from=build /app/apps/web-marketplace/.next/static ./apps/web-marketplace/.next/static
+  COPY --from=build /app/apps/web-marketplace/public ./apps/web-marketplace/public
+  COPY --from=build /app/apps/web-marketplace/package.json ./apps/web-marketplace/
   
   EXPOSE 3000
   CMD ["node", "server.js"]
