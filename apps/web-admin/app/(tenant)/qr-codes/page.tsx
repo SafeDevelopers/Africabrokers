@@ -37,7 +37,7 @@ const VERIFY_BASE = process.env.NEXT_PUBLIC_VERIFY_BASE_URL ?? "https://verify.a
 
 async function fetchQRCodes(signal?: AbortSignal): Promise<QrItem[]> {
   // Use API client with automatic X-Tenant header (client-side)
-  const { apiClient } = await import('../../../lib/api-client');
+  const { apiClient } = await import('@/lib/api-client');
   
   const data = await apiClient.get('/admin/qrcodes?limit=60', {
     includeTenant: true, // Include X-Tenant header for tenant admin
@@ -283,7 +283,7 @@ function QRCodeCard({ qr, svg }: { qr: QrItem; svg?: string }) {
 
   async function toggleStatus() {
     const next = qr.status === "ACTIVE" ? "revoke" : "activate";
-    const { apiClient } = await import('../../../../lib/api-client');
+    const { apiClient } = await import('@/lib/api-client');
     
     try {
       await apiClient.post(`/admin/qrcodes/${encodeURIComponent(qr.id)}/${next}`, undefined, {

@@ -81,7 +81,7 @@ export class WebhooksController {
     // Process webhook for each tenant that has this provider
     // In practice, webhooks are usually tenant-specific, but we handle multiple tenants
     const results = await Promise.allSettled(
-      providers.map(async (paymentProvider) => {
+      providers.map(async (paymentProvider: any) => {
         try {
           // Get adapter
           const adapter = this.providerRegistry.getAdapter(paymentProvider.type);

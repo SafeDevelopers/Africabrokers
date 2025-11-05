@@ -35,6 +35,7 @@ const createTenantScopedClient = (baseClient: PrismaClient) => {
           'Inspection',
           'AuditLog',
           'Inquiry',
+          'Lead',
         ];
 
         // Skip tenant scoping for Tenant model and models without tenantId
@@ -166,5 +167,41 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   get tenant() {
     return this.extendedClient.tenant;
+  }
+
+  get lead() {
+    return this.extendedClient.lead;
+  }
+
+  get platformSettings() {
+    return this.extendedClient.platformSettings;
+  }
+
+  get superSettingsAudit() {
+    return this.extendedClient.superSettingsAudit;
+  }
+
+  get tenantPolicy() {
+    return this.extendedClient.tenantPolicy;
+  }
+
+  get paymentProvider() {
+    return this.extendedClient.paymentProvider;
+  }
+
+  get plan() {
+    return this.extendedClient.plan;
+  }
+
+  get subscription() {
+    return this.extendedClient.subscription;
+  }
+
+  get invoice() {
+    return this.extendedClient.invoice;
+  }
+
+  get paymentIntent() {
+    return this.extendedClient.paymentIntent;
   }
 }

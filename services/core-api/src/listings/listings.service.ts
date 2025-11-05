@@ -1,6 +1,7 @@
-import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReqContext } from '../tenancy/req-scope.interceptor';
+import { PlatformSettingsHelper } from '../super-platform-settings/platform-settings.helper';
 
 export interface CreateListingDto {
   propertyId: string;
@@ -30,7 +31,10 @@ export interface InquiryDto {
 
 @Injectable()
 export class ListingsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private settingsHelper: PlatformSettingsHelper,
+  ) {}
 
   async createListing(dto: CreateListingDto) {
     const tenantId = ReqContext.tenantId;
@@ -62,6 +66,18 @@ export class ListingsService {
       throw new ForbiddenException('Property not found for current tenant');
     }
 
+    // Check if prePublish review is required according to settings (with tenant overrides)
+    const settings = await this.settingsHelper.getEffectiveSettings();
+    const prePublishRequired = settings.marketplace?.review?.prePublish ?? true;
+    
+    // If prePublish is required and user tries to publish directly, force pending_review
+    let finalStatus: 'active' | 'pending_review' = dto.availabilityStatus || 'pending_review';
+    if (prePublishRequired && dto.availabilityStatus === 'active') {
+      finalStatus = 'pending_review';
+    } else if (!prePublishRequired && !dto.availabilityStatus) {
+      finalStatus = 'active';
+    }
+
     const listing = await this.prisma.listing.create({
       data: {
         tenantId,
@@ -69,7 +85,7 @@ export class ListingsService {
         brokerId: broker.id,
         priceAmount: dto.priceAmount,
         priceCurrency: dto.priceCurrency,
-        availabilityStatus: dto.availabilityStatus || 'pending_review',
+        availabilityStatus: finalStatus,
         featured: dto.featured || false,
         channels: {
           website: true,
@@ -77,7 +93,7 @@ export class ListingsService {
           telegram: false
         },
         fraudScore: 0,
-        publishedAt: dto.availabilityStatus === 'active' ? new Date() : null
+        publishedAt: finalStatus === 'active' ? new Date() : null
       },
       include: {
         property: {

@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PlatformSettingsHelper } from '../super-platform-settings/platform-settings.helper';
 
 export interface PaginationQuery {
   page?: number;
@@ -15,7 +16,10 @@ export interface ReviewDecisionDto {
 
 @Injectable()
 export class ReviewsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private settingsHelper: PlatformSettingsHelper,
+  ) {}
 
   async getPendingReviews(query: PaginationQuery) {
     const page = query.page || 1;
@@ -87,18 +91,51 @@ export class ReviewsService {
         decidedAt: new Date()
       },
       include: {
-        broker: true
+        broker: {
+          include: {
+            user: true
+          }
+        }
       }
     });
 
     // Update broker status based on decision
     if (dto.decision === 'approved') {
+      // Validate license number pattern if pattern is configured (with tenant overrides)
+      const settings = await this.settingsHelper.getEffectiveSettings();
+      const licensePattern = settings.tenancy?.license?.pattern;
+      if (licensePattern) {
+        const patternRegex = new RegExp(licensePattern);
+        if (!patternRegex.test(review.broker.licenseNumber)) {
+          throw new BadRequestException(
+            `License number "${review.broker.licenseNumber}" does not match required pattern: ${licensePattern}`
+          );
+        }
+      }
+
       await this.prisma.broker.update({
         where: { id: review.brokerId },
         data: {
           status: 'approved',
           approvedAt: new Date()
         }
+      });
+
+      // Create license with expiry based on settings
+      const defaultExpiryMonths = settings.tenancy?.license?.defaultExpiryMonths ?? 12;
+      const issuedAt = new Date();
+      const expiresAt = new Date(issuedAt);
+      expiresAt.setMonth(expiresAt.getMonth() + defaultExpiryMonths);
+
+      await this.prisma.license.create({
+        data: {
+          tenantId: review.broker.tenantId,
+          brokerUserId: review.broker.userId,
+          licenseNo: review.broker.licenseNumber,
+          issuedAt,
+          expiresAt,
+          status: 'PENDING',
+        },
       });
 
       // Generate QR code

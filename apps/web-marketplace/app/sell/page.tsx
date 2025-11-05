@@ -1,9 +1,102 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Building2, ShieldCheck, CheckCircle2, ArrowRight, Mail, MessageSquare, Users, Phone, MapPin, Briefcase, LogIn } from "lucide-react";
 
+const STORAGE_KEY = "afribrok:platform_settings:v1";
+
+interface PlatformSettings {
+  enableSellPageLeads?: boolean;
+}
+
+function isSellPageLeadCaptureEnabled(): boolean {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return parsed.enableSellPageLeads === true;
+    }
+  } catch (err) {
+    // ignore parse errors
+  }
+  return false; // Default OFF
+}
+
 export default function SellPage() {
+  const [leadCaptureEnabled, setLeadCaptureEnabled] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    location: "",
+    category: "",
+    notes: "",
+  });
+
+  useEffect(() => {
+    setLeadCaptureEnabled(isSellPageLeadCaptureEnabled());
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_CORE_API_BASE_URL;
+      const tenantKey = process.env.NEXT_PUBLIC_TENANT_KEY;
+
+      if (!apiBaseUrl || !tenantKey) {
+        throw new Error("API configuration missing");
+      }
+
+      const response = await fetch(`${apiBaseUrl}/v1/public/leads/sell`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant": tenantKey,
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email || undefined,
+          location: formData.location || undefined,
+          category: formData.category || undefined,
+          notes: formData.notes || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to submit lead");
+      }
+
+      setSubmitted(true);
+      setFormData({
+        name: "",
+        phone: "",
+        email: "",
+        location: "",
+        category: "",
+        notes: "",
+      });
+    } catch (error) {
+      console.error("Error submitting lead:", error);
+      alert(error instanceof Error ? error.message : "Failed to submit. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
   const benefits = [
     {
       icon: ShieldCheck,
@@ -110,6 +203,152 @@ export default function SellPage() {
               To list your property on AfriBrok, you need to work with a certified broker. Brokers have access to the dashboard where they can create and manage listings. Here's how to get started:
             </p>
 
+            {/* Lead Capture Form - Only show if enabled */}
+            {leadCaptureEnabled && !submitted && (
+              <div className="mb-8 rounded-lg border border-primary/20 bg-primary/5 p-6">
+                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-primary">
+                  <MessageSquare className="h-5 w-5 text-primary" />
+                  {showForm ? "Submit your information" : "Get in touch"}
+                </h3>
+                {!showForm ? (
+                  <div>
+                    <p className="mb-4 text-sm text-slate-700">
+                      Fill out the form below and we'll connect you with a certified broker who can help you list your property.
+                    </p>
+                    <button
+                      onClick={() => setShowForm(true)}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90"
+                    >
+                      Get Started
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                      <label htmlFor="name" className="mb-1 block text-sm font-medium text-slate-700">
+                        Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        required
+                        value={formData.name}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="Your full name"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="phone" className="mb-1 block text-sm font-medium text-slate-700">
+                        Phone <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        required
+                        value={formData.phone}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="+251 911 234 567"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="your@email.com"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="location" className="mb-1 block text-sm font-medium text-slate-700">
+                        Location
+                      </label>
+                      <input
+                        type="text"
+                        id="location"
+                        name="location"
+                        value={formData.location}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="City or area"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="category" className="mb-1 block text-sm font-medium text-slate-700">
+                        Property Category
+                      </label>
+                      <select
+                        id="category"
+                        name="category"
+                        value={formData.category}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="">Select category</option>
+                        <option value="residential">Residential</option>
+                        <option value="commercial">Commercial</option>
+                        <option value="land">Land</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="notes" className="mb-1 block text-sm font-medium text-slate-700">
+                        Additional Notes
+                      </label>
+                      <textarea
+                        id="notes"
+                        name="notes"
+                        rows={3}
+                        value={formData.notes}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="Tell us about your property..."
+                      />
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        {submitting ? "Submitting..." : "Submit"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowForm(false)}
+                        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
+
+            {submitted && (
+              <div className="mb-8 rounded-lg border border-emerald-200 bg-emerald-50 p-6">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-emerald-900">We'll contact you</h3>
+                    <p className="mt-1 text-sm text-emerald-700">
+                      Thank you for your interest! We've received your information and will connect you with a certified broker soon.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-6">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-6">
                 <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-900">
@@ -184,7 +423,7 @@ export default function SellPage() {
               </p>
               <div className="space-y-2">
                 <Link
-                  href="/signin"
+                  href="/broker/signin"
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90"
                 >
                   <LogIn className="w-4 h-4" />

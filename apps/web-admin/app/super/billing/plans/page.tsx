@@ -218,7 +218,7 @@ export default function AgencyPlansPage() {
                     {plan.intervalCount} {plan.interval}(s)
                   </span>
                 </div>
-                {plan.trialPeriodDays > 0 && (
+                 {plan.trialPeriodDays != null && plan.trialPeriodDays > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Trial:</span>
                     <span className="text-gray-900">{plan.trialPeriodDays} days</span>

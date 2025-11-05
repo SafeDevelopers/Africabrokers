@@ -1,7 +1,6 @@
-"use client";
-
-import Link from "next/link";
-import { useState, useEffect } from "react";
+import { Suspense } from "react";
+import { apiRequest } from "../../../lib/api-server";
+import { ReviewsClient } from "./reviews-client";
 
 interface Review {
   id: string;
@@ -34,294 +33,103 @@ interface ComplianceStats {
   complianceScore: number;
 }
 
-const mockReviews: Review[] = [
-  {
-    id: "review-1",
-    broker: {
-      id: "broker-1",
-      licenseNumber: "ETH-AA-2024-001",
-      licenseDocs: { businessName: "Tadesse Real Estate" },
-      status: "submitted"
-    },
-    decision: "pending",
-    submittedAt: "2024-10-20T10:30:00Z",
-    riskFlags: [],
-    documentCount: 5
-  },
-  {
-    id: "review-2",
-    broker: {
-      id: "broker-2",
-      licenseNumber: "ETH-AA-2024-002",
-      licenseDocs: { businessName: "Prime Properties Ltd" },
-      status: "submitted"
-    },
-    decision: "needs_revision",
-    submittedAt: "2024-10-19T14:20:00Z",
-    decidedAt: "2024-10-20T09:15:00Z",
-    reviewer: {
-      id: "admin-1",
-      authProviderId: "admin@afribrok.et"
-    },
-    notes: "Business license document is unclear, please resubmit with higher quality scan",
-    riskFlags: ["document_quality"],
-    documentCount: 4
-  },
-  {
-    id: "review-3",
-    broker: {
-      id: "broker-3",
-      licenseNumber: "ETH-AA-2024-003",
-      licenseDocs: { businessName: "Elite Homes" },
-      status: "approved"
-    },
-    decision: "approved",
-    submittedAt: "2024-10-18T09:15:00Z",
-    decidedAt: "2024-10-19T11:30:00Z",
-    reviewer: {
-      id: "admin-1",
-      authProviderId: "admin@afribrok.et"
-    },
-    notes: "All documents verified successfully",
-    riskFlags: [],
-    documentCount: 6
+async function fetchReviews(): Promise<Review[]> {
+  try {
+    // Try admin endpoint first, fallback to reviews endpoint
+    try {
+      const data = await apiRequest<{ reviews: any[] }>('/v1/admin/reviews');
+      return transformApiReviews(data.reviews || []);
+    } catch {
+      // Fallback to /v1/reviews/pending
+      const data = await apiRequest<{ reviews: any[] }>('/v1/reviews/pending');
+      return transformApiReviews(data.reviews || []);
+    }
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    return [];
   }
-];
+}
 
-const mockStats: ComplianceStats = {
-  totalReviews: 156,
-  pendingReviews: 12,
-  approvedThisMonth: 23,
-  deniedThisMonth: 3,
-  averageReviewTime: "2.3 days",
-  complianceScore: 94
-};
+function transformApiReviews(apiReviews: any[]): Review[] {
+  return apiReviews.map((r: any) => ({
+    id: r.id,
+    broker: {
+      id: r.broker?.id || r.brokerId,
+      licenseNumber: r.broker?.licenseNumber || '',
+      licenseDocs: {
+        businessName: (r.broker?.licenseDocs as any)?.businessName || 'Unknown Broker'
+      },
+      status: r.broker?.status || 'submitted'
+    },
+    decision: r.decision || 'pending',
+    submittedAt: r.createdAt || r.submittedAt || new Date().toISOString(),
+    decidedAt: r.decidedAt,
+    reviewer: r.reviewer ? {
+      id: r.reviewer.id,
+      authProviderId: r.reviewer.authProviderId || r.reviewer.email || ''
+    } : undefined,
+    notes: r.notes,
+    riskFlags: [], // API may not include this yet
+    documentCount: 0 // API may not include this yet
+  }));
+}
 
-export default function ReviewsPage() {
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [stats, setStats] = useState<ComplianceStats>(mockStats);
-  const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-
-  useEffect(() => {
-    // Mock API call
-    setTimeout(() => {
-      setReviews(mockReviews);
-      setLoading(false);
-    }, 1000);
-  }, []);
-
-  const filteredReviews = reviews.filter(review => {
-    return statusFilter === "all" || review.decision === statusFilter;
-  });
-
-  const statusCounts = {
-    all: reviews.length,
-    pending: reviews.filter(r => r.decision === 'pending').length,
-    approved: reviews.filter(r => r.decision === 'approved').length,
-    denied: reviews.filter(r => r.decision === 'denied').length,
-    needs_revision: reviews.filter(r => r.decision === 'needs_revision').length,
-  };
-
-  if (loading) {
-    return (
-      <div className="bg-gray-50 min-h-full">
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="px-6 py-4">
-            <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          </div>
-        </header>
-        
-        <main className="px-6 py-8">
-          <div className="space-y-6 animate-pulse">
-            <div className="grid gap-4 md:grid-cols-4">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="h-24 bg-gray-200 rounded"></div>
-              ))}
-            </div>
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </main>
-      </div>
-    );
+async function fetchComplianceStats(): Promise<ComplianceStats> {
+  try {
+    // TODO: Replace with actual admin compliance stats endpoint
+    const data = await apiRequest<ComplianceStats>('/v1/admin/reviews/stats');
+    return data;
+  } catch (error) {
+    console.error('Error fetching compliance stats:', error);
+    // Return empty stats if endpoint doesn't exist
+    return {
+      totalReviews: 0,
+      pendingReviews: 0,
+      approvedThisMonth: 0,
+      deniedThisMonth: 0,
+      averageReviewTime: '0 days',
+      complianceScore: 0,
+    };
   }
+}
 
+async function ReviewsContent() {
+  try {
+    const [reviews, stats] = await Promise.all([
+      fetchReviews(),
+      fetchComplianceStats(),
+    ]);
+
+    return <ReviewsClient initialReviews={reviews} initialStats={stats} />;
+  } catch (error) {
+    return <ErrorDisplay error={error} />;
+  }
+}
+
+function ErrorDisplay({ error }: { error: unknown }) {
   return (
     <div className="bg-gray-50 min-h-full">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Reviews & Compliance</h1>
-              <p className="text-sm text-gray-500">
-                Monitor KYC reviews, compliance metrics, and audit trail
-              </p>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Link
-                href="/reviews/pending"
-                className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-700"
-              >
-                Review Queue ({statusCounts.pending})
-              </Link>
-              <Link
-                href="/reviews/compliance"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
-              >
-                Generate Report
-              </Link>
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Reviews & Compliance</h1>
+          <p className="text-sm text-gray-500">Monitor KYC reviews, compliance metrics, and audit trail</p>
         </div>
       </header>
-
       <main className="px-6 py-8">
-        <div className="space-y-8">
-          {/* Compliance Overview */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Pending Reviews</p>
-                  <p className="text-3xl font-bold text-orange-600">{stats.pendingReviews}</p>
-                </div>
-                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <span className="text-2xl">⏳</span>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">Require immediate attention</p>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Avg Review Time</p>
-                  <p className="text-3xl font-bold text-blue-600">{stats.averageReviewTime}</p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <span className="text-2xl">⏱️</span>
-                </div>
-              </div>
-              <p className="text-xs text-green-600 mt-2">↗ 15% faster than last month</p>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Approved This Month</p>
-                  <p className="text-3xl font-bold text-green-600">{stats.approvedThisMonth}</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <span className="text-2xl">✅</span>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">{stats.deniedThisMonth} denied</p>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Compliance Score</p>
-                  <p className="text-3xl font-bold text-purple-600">{stats.complianceScore}%</p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <span className="text-2xl">📊</span>
-                </div>
-              </div>
-              <p className="text-xs text-green-600 mt-2">↗ +2% this month</p>
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="grid gap-6 md:grid-cols-3">
-            <Link
-              href="/reviews/pending"
-              className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <span className="text-2xl">📋</span>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Pending Reviews</h3>
-                  <p className="text-sm text-gray-600">Process broker KYC applications</p>
-                  {statusCounts.pending > 0 && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 mt-2">
-                      {statusCounts.pending} pending
-                    </span>
-                  )}
-                </div>
-              </div>
-            </Link>
-
-            <Link
-              href="/reviews/compliance"
-              className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <span className="text-2xl">📈</span>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Compliance Reports</h3>
-                  <p className="text-sm text-gray-600">Generate regulatory compliance reports</p>
-                </div>
-              </div>
-            </Link>
-
-            <Link
-              href="/reviews/audit"
-              className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <span className="text-2xl">📝</span>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Audit Logs</h3>
-                  <p className="text-sm text-gray-600">View system audit trail and changes</p>
-                </div>
-              </div>
-            </Link>
-          </div>
-
-          {/* Recent Reviews */}
-          <div className="bg-white rounded-lg border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Recent Reviews</h3>
-                <div className="flex space-x-2">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="denied">Denied</option>
-                    <option value="needs_revision">Needs Revision</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="divide-y divide-gray-200">
-              {filteredReviews.length === 0 ? (
-                <div className="px-6 py-12 text-center">
-                  <p className="text-gray-500">No reviews found matching your criteria.</p>
-                </div>
-              ) : (
-                filteredReviews.map((review) => (
-                  <ReviewRow key={review.id} review={review} />
-                ))
-              )}
+        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-8 shadow-lg">
+          <div className="flex items-start gap-4">
+            <span className="text-3xl">⚠️</span>
+            <div>
+              <h2 className="text-xl font-semibold text-red-900">Failed to load reviews</h2>
+              <p className="text-sm text-red-700 mt-1">
+                {error instanceof Error ? error.message : "An unexpected error occurred while fetching reviews."}
+              </p>
+              <a
+                href="/reviews"
+                className="mt-4 inline-block bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700"
+              >
+                Try again
+              </a>
             </div>
           </div>
         </div>
@@ -330,104 +138,35 @@ export default function ReviewsPage() {
   );
 }
 
-function ReviewRow({ review }: { review: Review }) {
-  const statusColors = {
-    pending: "bg-orange-100 text-orange-800",
-    approved: "bg-green-100 text-green-800",
-    denied: "bg-red-100 text-red-800",
-    needs_revision: "bg-yellow-100 text-yellow-800"
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getRiskFlagIcon = (flag: string) => {
-    const flagIcons = {
-      document_quality: "📄",
-      identity_mismatch: "🆔",
-      business_verification: "🏢",
-      address_verification: "📍",
-      financial_records: "💰"
-    };
-    return flagIcons[flag as keyof typeof flagIcons] || "⚠️";
-  };
-
+export default function ReviewsPage() {
   return (
-    <div className="px-6 py-4 hover:bg-gray-50">
-      <div className="flex items-center justify-between">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-3">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">
-                  {review.broker.licenseDocs.businessName.charAt(0)}
-                </span>
+    <Suspense
+      fallback={
+        <div className="bg-gray-50 min-h-full">
+          <header className="bg-white shadow-sm border-b border-gray-200">
+            <div className="px-6 py-4">
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
               </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2">
-                <h4 className="text-lg font-semibold text-gray-900 truncate">
-                  {review.broker.licenseDocs.businessName}
-                </h4>
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${statusColors[review.decision]}`}>
-                  {review.decision.toUpperCase().replace('_', ' ')}
-                </span>
+          </header>
+          <main className="px-6 py-8">
+            <div className="space-y-6 animate-pulse">
+              <div className="grid gap-4 md:grid-cols-4">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="h-24 bg-gray-200 rounded"></div>
+                ))}
               </div>
-              
-              <div className="mt-1 flex items-center space-x-4 text-sm text-gray-600">
-                <span>📄 {review.broker.licenseNumber}</span>
-                <span>📁 {review.documentCount} documents</span>
-                <span>📅 Submitted {formatDate(review.submittedAt)}</span>
-                {review.decidedAt && (
-                  <span>✅ Decided {formatDate(review.decidedAt)}</span>
-                )}
-              </div>
-
-              {review.riskFlags.length > 0 && (
-                <div className="mt-2 flex items-center space-x-2">
-                  <span className="text-xs text-gray-500">Risk Flags:</span>
-                  {review.riskFlags.map((flag, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"
-                    >
-                      {getRiskFlagIcon(flag)} {flag.replace('_', ' ')}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {review.notes && (
-                <div className="mt-2">
-                  <p className="text-sm text-gray-600 italic">"{review.notes}"</p>
-                </div>
-              )}
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-32 bg-gray-200 rounded"></div>
+              ))}
             </div>
-          </div>
+          </main>
         </div>
-
-        <div className="flex items-center space-x-3">
-          {review.reviewer && (
-            <div className="text-right text-xs text-gray-500">
-              <p>Reviewed by</p>
-              <p className="font-medium">{review.reviewer.authProviderId}</p>
-            </div>
-          )}
-          <Link
-            href={`/reviews/${review.id}`}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700"
-          >
-            View Details
-          </Link>
-        </div>
-      </div>
-    </div>
+      }
+    >
+      <ReviewsContent />
+    </Suspense>
   );
 }

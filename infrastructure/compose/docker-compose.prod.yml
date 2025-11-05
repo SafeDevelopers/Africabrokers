@@ -17,7 +17,7 @@ services:
       retries: 5
     networks:
       - afribrok-network
-    # Remove port exposure in production, use internal network only
+    # production: no host port exposure
     # ports:
     #   - "5432:5432"
 
@@ -34,7 +34,7 @@ services:
       retries: 5
     networks:
       - afribrok-network
-    # Remove port exposure in production
+    # production: no host port exposure
     # ports:
     #   - "6379:6379"
 
@@ -54,7 +54,7 @@ services:
       retries: 3
     networks:
       - afribrok-network
-    # Only expose console internally, use reverse proxy for public access
+    # production: front via reverse proxy
     # ports:
     #   - "9000:9000"
     #   - "9001:9001"
@@ -87,7 +87,7 @@ services:
       start_period: 60s
     networks:
       - afribrok-network
-    # Use reverse proxy for public access
+    # production: front via reverse proxy
     # ports:
     #   - "8080:8080"
 
@@ -97,7 +97,7 @@ services:
       dockerfile: services/core-api/Dockerfile
     environment:
       NODE_ENV: production
-      PORT: 4000
+      PORT: 3000
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       STORAGE_ENDPOINT: ${STORAGE_ENDPOINT}
@@ -117,9 +117,9 @@ services:
         condition: service_healthy
     networks:
       - afribrok-network
-    # Expose via reverse proxy only
+    # production: front via reverse proxy only
     # ports:
-    #   - "4000:4000"
+    #   - "3000:3000"
 
   media-service:
     build:
@@ -127,7 +127,7 @@ services:
       dockerfile: services/media-service/Dockerfile
     environment:
       NODE_ENV: production
-      PORT: 3001
+      PORT: 3000
       STORAGE_ENDPOINT: ${STORAGE_ENDPOINT}
       STORAGE_BUCKET: ${STORAGE_BUCKET}
       STORAGE_ACCESS_KEY: ${MINIO_ACCESS_KEY}
@@ -138,9 +138,9 @@ services:
         condition: service_healthy
     networks:
       - afribrok-network
-    # Expose via reverse proxy only
+    # production: front via reverse proxy only
     # ports:
-    #   - "3001:3001"
+    #   - "3000:3000"
 
   web-marketplace:
     build:
@@ -148,7 +148,7 @@ services:
       dockerfile: apps/web-marketplace/Dockerfile
     environment:
       NODE_ENV: production
-      PORT: 3003
+      PORT: 3000
       NEXT_PUBLIC_APP_BASE_URL: ${NEXT_PUBLIC_APP_BASE_URL}
       NEXT_PUBLIC_TENANT_KEY: ${NEXT_PUBLIC_TENANT_KEY:-ethiopia-addis}
     restart: unless-stopped
@@ -156,9 +156,9 @@ services:
       - core-api
     networks:
       - afribrok-network
-    # Expose via reverse proxy only
+    # production: front via reverse proxy only
     # ports:
-    #   - "3003:3003"
+    #   - "3000:3000"
 
   web-admin:
     build:
@@ -166,16 +166,16 @@ services:
       dockerfile: apps/web-admin/Dockerfile
     environment:
       NODE_ENV: production
-      PORT: 3004
+      PORT: 3000
       NEXT_PUBLIC_APP_BASE_URL: ${NEXT_PUBLIC_APP_BASE_URL}
     restart: unless-stopped
     depends_on:
       - core-api
     networks:
       - afribrok-network
-    # Expose via reverse proxy only
+    # production: front via reverse proxy only
     # ports:
-    #   - "3004:3004"
+    #   - "3000:3000"
 
 volumes:
   postgres_data:
@@ -190,4 +190,3 @@ volumes:
 networks:
   afribrok-network:
     driver: bridge
-

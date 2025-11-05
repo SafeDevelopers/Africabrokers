@@ -14,6 +14,9 @@ import {
   Shield,
   Building2,
   LogOut,
+  CreditCard,
+  Package,
+  FileText,
 } from "lucide-react";
 
 interface NavItem {
@@ -21,6 +24,7 @@ interface NavItem {
   href: string;
   icon: React.ReactNode;
   badge?: number;
+  children?: NavItem[];
 }
 
 const superAdminNavigation: NavItem[] = [

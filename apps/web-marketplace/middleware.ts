@@ -1,122 +1,98 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-  const { pathname } = request.nextUrl;
-  
-  // Get tenant from cookie, query param, or default to et-addis
-  const tenantFromCookie = request.cookies.get('afribrok-tenant')?.value;
-  const tenantFromQuery = request.nextUrl.searchParams.get('tenant');
-  const tenant = tenantFromQuery || tenantFromCookie || 'et-addis';
-  
-  // If tenant comes from query param, set it in cookie
-  if (tenantFromQuery && tenantFromQuery !== tenantFromCookie) {
-    response.cookies.set('afribrok-tenant', tenantFromQuery, {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 365, // 1 year
-      sameSite: 'lax',
-    });
-  } else if (!tenantFromCookie) {
-    // Set default tenant if no cookie exists
-    response.cookies.set('afribrok-tenant', tenant, {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 365,
-      sameSite: 'lax',
-    });
-  }
-  
-  // Public routes that don't require authentication
-  const publicRoutes = [
-    '/signin',
-    '/broker/apply',
-    '/broker/pending',
-    '/sell',
-    '/listings',
-    '/verify',
-    '/agents',
-    '/about',
-    '/contact',
-  ];
-  
-  // Check if it's a public listing (viewing individual listings is public)
-  const isPublicListing = pathname.startsWith('/listings/') && pathname !== '/listings/new';
-  
-  // Check if it's a public verify route
-  const isPublicVerify = pathname.startsWith('/verify/');
-  
-  // Check if it's a public agents route (but not apply)
-  const isPublicAgents = pathname.startsWith('/agents/') && pathname !== '/agents/apply';
-  
-  // Allow access to public routes and auth callback routes
-  if (pathname === '/signin' || 
-      pathname.startsWith('/auth/callback') ||
-      publicRoutes.includes(pathname) ||
-      isPublicListing ||
-      isPublicVerify ||
-      isPublicAgents) {
-    // Set pathname header for layouts to use
-    response.headers.set('x-pathname', pathname);
-    return response;
-  }
-  
-  // Set pathname header for all routes
-  response.headers.set('x-pathname', pathname);
-  
-  // Role gate for broker routes - only BROKER role can access
-  const brokerRoutes = [
-    '/dashboard',
-    '/billing',
-    '/profile',
-    '/analytics',
-    '/settings',
-    '/referral',
-    '/qr',
-    '/docs',
-  ];
-  
-  // /listings/new is broker-only, but /listings (browse) is public
-  // /inquiries is broker-only
-  const isBrokerNewListing = pathname === '/listings/new';
-  const isBrokerInquiries = pathname === '/inquiries' || pathname.startsWith('/inquiries/');
-  const isBrokerRoute = brokerRoutes.some(route => pathname === route || pathname.startsWith(route + '/'));
-  const isBrokerLegacyRoute = pathname.startsWith('/broker/') && pathname !== '/broker/apply' && pathname !== '/broker/pending';
-  
-  if (isBrokerRoute || isBrokerNewListing || isBrokerInquiries || isBrokerLegacyRoute) {
-    const role = request.cookies.get('afribrok-role')?.value;
-    const roleParam = request.nextUrl.searchParams.get('role');
-    const tokenParam = request.nextUrl.searchParams.get('token');
-    
-    // Allow access if:
-    // 1. Cookie has BROKER role, OR
-    // 2. URL params contain auth info from admin app (cross-origin auth)
-    const hasBrokerCookie = role && ['BROKER', 'broker'].includes(role);
-    const hasAuthParams = roleParam === 'BROKER' && tokenParam;
-    
-    // If no valid auth, redirect to signin page
-    if (!hasBrokerCookie && !hasAuthParams) {
-      return NextResponse.redirect(new URL('/signin', request.url));
-    }
-  }
-  
-  // Redirect /home to /
-  if (pathname === '/home') {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-  
-  return response;
+// Public pages (no auth)
+const PUBLIC_PREFIXES = [
+  "/",
+  "/sell",
+  "/listings",        // includes /listings and /listings/*
+  "/verify",          // includes /verify and /verify/*
+  "/agents",          // includes /agents and /agents/*
+  "/about",
+  "/contact",
+  "/broker/signin",
+  "/broker/apply",
+  "/broker/pending",
+  "/auth/callback",   // NextAuth callback
+];
+
+// Broker-only routes (require authentication)
+// These are routes under /broker/* that require authentication (excluding public ones)
+const BROKER_PUBLIC_ROUTES = [
+  "/broker/signin",
+  "/broker/apply",
+  "/broker/pending",
+];
+
+function isPublic(pathname: string) {
+  return PUBLIC_PREFIXES.some(p => pathname === p || pathname.startsWith(p + "/"));
 }
 
+function isBrokerOnly(pathname: string) {
+  // Check if it's a broker route
+  if (!pathname.startsWith("/broker/")) {
+    return false;
+  }
+  
+  // Exclude public broker routes
+  if (BROKER_PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route + "/"))) {
+    return false;
+  }
+  
+  // All other /broker/* routes require authentication
+  return true;
+}
+
+export async function middleware(req: NextRequest) {
+  const url = req.nextUrl;
+  const { pathname } = url;
+
+  // Set/ensure tenant cookie (default et-addis). Keep it simple.
+  const res = NextResponse.next();
+  const tenantCookie = req.cookies.get("afribrok-tenant")?.value;
+  const tenant = tenantCookie || "et-addis";
+  if (!tenantCookie) {
+    res.cookies.set("afribrok-tenant", tenant, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+    });
+  }
+
+  // Redirect legacy /signin → /broker/signin
+  if (pathname === "/signin") {
+    url.pathname = "/broker/signin";
+    return NextResponse.redirect(url);
+  }
+
+  // Public pages pass
+  if (isPublic(pathname)) {
+    res.headers.set("x-pathname", pathname);
+    return res;
+  }
+
+  // Broker-only routes: require a valid broker session cookie (HTTP-only)
+  // Only honor ab_broker_session cookie - no query param auth
+  if (isBrokerOnly(pathname)) {
+    const brokerSessionCookie = req.cookies.get("ab_broker_session");
+    
+    if (!brokerSessionCookie) {
+      url.pathname = "/broker/signin";
+      return NextResponse.redirect(url);
+    }
+
+    // For now, if cookie exists, allow access
+    // In NextAuth migration, this will use getToken() to validate the session
+    // For immediate hardening, we rely on backend to only set cookie when APPROVED
+  }
+
+  res.headers.set("x-pathname", pathname);
+  return res;
+}
+
+// Exclude static, images, api, favicon, and files with extensions
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*|public).*)",
   ],
 };
-

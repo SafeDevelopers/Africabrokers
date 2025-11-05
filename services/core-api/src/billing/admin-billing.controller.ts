@@ -317,7 +317,7 @@ export class AdminBillingController {
 
     // Create a cash payment intent if one doesn't exist
     let paymentIntent = invoice.paymentIntents.find(
-      (pi) => pi.status === 'requires_confirmation' || pi.status === 'requires_capture',
+      (pi: any) => pi.status === 'requires_confirmation' || pi.status === 'requires_capture',
     );
 
     if (!paymentIntent) {

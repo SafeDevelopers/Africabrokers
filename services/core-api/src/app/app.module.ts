@@ -13,6 +13,7 @@ import { HealthModule } from "../health/health.module";
 import { InspectionsModule } from "../inspections/inspections.module";
 import { AdminModule } from "../admin/admin.module";
 import { SuperAdminModule } from "../superadmin/superadmin.module";
+import { SuperPlatformSettingsModule } from "../super-platform-settings/platform-settings.module";
 import { AuditModule } from "../audit/audit.module";
 import { SecurityModule } from "../security/security.module";
 import { BillingModule } from "../billing/billing.module";
@@ -23,6 +24,7 @@ import { RateLimitMiddleware } from "../security/rate-limit.middleware";
 import { CsrfMiddleware } from "../security/csrf.middleware";
 import { TenantContextMiddleware } from "../tenancy/tenant-context.middleware";
 import { InquiryRateLimitMiddleware } from "../inquiries/inquiry-rate-limit.middleware";
+import { LeadRateLimitMiddleware } from "../public/lead-rate-limit.middleware";
 import { ReqScopeInterceptor } from "../tenancy/req-scope.interceptor";
 import { RolesGuard } from "../tenancy/roles.guard";
 import { TenantGuard } from "../tenancy/tenant.guard";
@@ -43,6 +45,7 @@ import { TenantGuard } from "../tenancy/tenant.guard";
     InspectionsModule,
     AdminModule,
     SuperAdminModule,
+    SuperPlatformSettingsModule,
     AuditModule,
     SecurityModule,
     BillingModule,
@@ -88,9 +91,16 @@ export class AppModule implements NestModule {
       .forRoutes('/v1/admin/*', '/v1/superadmin/*');
     
     // Apply rate limiting to public inquiries (after tenant context)
+    // Note: Middleware is provided by InquiriesModule with DI
     consumer
       .apply(InquiryRateLimitMiddleware)
       .forRoutes('/v1/public/inquiries');
+    
+    // Apply rate limiting to public leads (after tenant context)
+    // Note: Middleware is provided by PublicModule with DI
+    consumer
+      .apply(LeadRateLimitMiddleware)
+      .forRoutes('/v1/public/leads/sell');
     
     // Apply CSRF protection to admin POST/PUT/PATCH/DELETE (after rate limit)
     consumer

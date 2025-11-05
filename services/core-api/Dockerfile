@@ -10,7 +10,6 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/config/package.json ./packages/config/
 COPY packages/config/env/package.json ./packages/config/env/
 COPY packages/config/design-tokens/package.json ./packages/config/design-tokens/
 COPY packages/lib/package.json ./packages/lib/
@@ -52,11 +51,11 @@ COPY --from=build /app/packages ./packages
 RUN pnpm install --prod --frozen-lockfile
 
 # Expose port
-EXPOSE 4000
+EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:4000/v1/health/live', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "require('http').get('http://localhost:3000/v1/health/live', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Run the application
 CMD ["node", "dist/main.js"]

@@ -54,7 +54,7 @@ export default function NewListingPage() {
     
     if (!isAuthenticated()) {
       redirectAttemptedRef.current = true;
-      router.replace("/signin?redirect=/listings/new");
+      router.replace("/broker/signin?redirect=/listings/new");
     }
   }, [user, isLoading]);
 

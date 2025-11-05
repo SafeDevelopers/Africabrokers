@@ -1,6 +1,7 @@
-import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReqContext } from '../tenancy/req-scope.interceptor';
+import { PlatformSettingsHelper } from '../super-platform-settings/platform-settings.helper';
 
 export interface CreateBrokerDto {
   licenseNumber: string;
@@ -9,9 +10,10 @@ export interface CreateBrokerDto {
 
 export interface SubmitBrokerDto {
   documentUrls: {
-    licenseUrl: string;
-    idUrl: string;
-    selfieUrl: string;
+    licenseUrl?: string;
+    idUrl?: string;
+    selfieUrl?: string;
+    [key: string]: string | undefined;
   };
 }
 
@@ -22,7 +24,10 @@ export interface ReviewDecisionDto {
 
 @Injectable()
 export class BrokersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private settingsHelper: PlatformSettingsHelper,
+  ) {}
 
   async createBroker(dto: CreateBrokerDto) {
     const tenantId = ReqContext.tenantId;
@@ -73,6 +78,24 @@ export class BrokersService {
 
     if (!broker || broker.tenantId !== tenantId || broker.userId !== userId) {
       throw new ForbiddenException('You do not have permission to submit this broker');
+    }
+
+    // Check required documents according to settings (with tenant overrides)
+    const settings = await this.settingsHelper.getEffectiveSettings();
+    const requiredDocs = settings.tenancy?.brokerKyc?.requiredDocs || ['license', 'id', 'selfie'];
+    
+    const missingDocs: string[] = [];
+    for (const doc of requiredDocs) {
+      const docKey = `${doc}Url` as keyof typeof dto.documentUrls;
+      if (!dto.documentUrls[docKey]) {
+        missingDocs.push(doc);
+      }
+    }
+
+    if (missingDocs.length > 0) {
+      throw new BadRequestException(
+        `Missing required documents: ${missingDocs.join(', ')}. Required: ${requiredDocs.join(', ')}`
+      );
     }
 
     const updatedBroker = await this.prisma.broker.update({

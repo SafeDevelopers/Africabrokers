@@ -1,751 +1,228 @@
-"use client";
+import { Suspense } from "react";
+import { ListingsClient } from "./listings-client";
+import { type Listing, type ListingPurpose, type ListingStatus } from "../data/mock-data";
 
-import Link from "next/link";
-import { useMemo, useState, useEffect, useRef } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ListingImage } from "../components/listing-image";
-import {
-  listings,
-  getBrokerById,
-  type Listing,
-  type ListingPurpose,
-  type ListingStatus
-} from "../data/mock-data";
-import { Search, MapPin, Filter, Home, Building2, X, SlidersHorizontal, Grid3x3, List, ChevronDown } from "lucide-react";
-
-type ViewMode = "grid" | "list";
-type PurposeFilter = ListingPurpose | "All";
-type StatusFilter = ListingStatus | "All";
-type BedroomFilter = "any" | "1" | "2" | "3" | "4";
-type PropertyTypeFilter = "All" | string;
-
-const bedroomFilters: { label: string; value: BedroomFilter }[] = [
-  { label: "Any beds", value: "any" },
-  { label: "1+ beds", value: "1" },
-  { label: "2+ beds", value: "2" },
-  { label: "3+ beds", value: "3" },
-  { label: "4+ beds", value: "4" }
-];
-
-export default function ListingsPage() {
-  const [query, setQuery] = useState("");
-  const [purpose, setPurpose] = useState<PurposeFilter>("All");
-  const [status, setStatus] = useState<StatusFilter>("All");
-  const [bedrooms, setBedrooms] = useState<BedroomFilter>("any");
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [propertyType, setPropertyType] = useState<PropertyTypeFilter>("All");
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
-  const [showMap, setShowMap] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(12);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const initializingRef = useRef(true);
-  const [sortBy, setSortBy] = useState<
-    "default" | "newest" | "price-asc" | "price-desc" | "rating-desc"
-  >("default");
-
-  const propertyTypes = useMemo(
-    () => {
-      const types = Array.from(new Set(listings.map((listing) => listing.propertyType)));
-      // Add "Land" if not already present
-      if (!types.includes("Land")) {
-        types.push("Land");
-      }
-      return ["All", ...types.sort()];
-    },
-    []
-  );
-
-  // Initialize state from URL search params on mount
-  useEffect(() => {
-    if (!searchParams) return;
-    // Support both 'query' (from landing page) and 'q' (legacy)
-    const urlQuery = searchParams.get("query") || searchParams.get("q") || "";
-    const p = (searchParams.get("purpose") as PurposeFilter) ?? "All";
-    const s = (searchParams.get("status") as StatusFilter) ?? "All";
-    const bd = (searchParams.get("beds") as BedroomFilter) ?? "any";
-    const pt = (searchParams.get("type") as PropertyTypeFilter) ?? "All";
-    const min = searchParams.get("min") ?? "";
-    const max = searchParams.get("max") ?? "";
-    const sort = (searchParams.get("sort") as any) ?? "default";
-    const page = Number(searchParams.get("page") ?? "1") || 1;
-    const per = Number(searchParams.get("per") ?? "12") || 12;
-
-    // Only update if incoming values differ to avoid extra state updates
-    if (urlQuery !== query) setQuery(urlQuery);
-    if (p !== purpose) setPurpose(p);
-    if (s !== status) setStatus(s);
-    if (bd !== bedrooms) setBedrooms(bd);
-    if (pt !== propertyType) setPropertyType(pt);
-    if (min !== minPrice) setMinPrice(min);
-    if (max !== maxPrice) setMaxPrice(max);
-    if (sort !== sortBy) setSortBy(sort);
-    if (page !== currentPage) setCurrentPage(page);
-    if (per !== pageSize) setPageSize(per);
-
-    // mark initial sync complete
-    initializingRef.current = false;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
-
-  const filteredListings = useMemo(() => {
-    return listings.filter((listing) => {
-      if (purpose !== "All" && listing.purpose !== purpose) {
-        return false;
-      }
-
-      if (status !== "All" && listing.status !== status) {
-        return false;
-      }
-
-      if (propertyType !== "All" && listing.propertyType !== propertyType) {
-        return false;
-      }
-
-      if (minPrice) {
-        const min = Number(minPrice);
-        if (!Number.isNaN(min) && listing.price < min) return false;
-      }
-
-      if (maxPrice) {
-        const max = Number(maxPrice);
-        if (!Number.isNaN(max) && listing.price > max) return false;
-      }
-
-      if (bedrooms !== "any") {
-        const minBedrooms = Number(bedrooms);
-        if (listing.bedrooms === null || listing.bedrooms < minBedrooms) return false;
-      }
-
-      if (!query.trim()) return true;
-
-      const search = query.toLowerCase();
-      return (
-        listing.title.toLowerCase().includes(search) ||
-        listing.location.toLowerCase().includes(search)
-      );
-    });
-  }, [query, purpose, status, bedrooms, propertyType, minPrice, maxPrice]);
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [query, purpose, status, bedrooms, propertyType, minPrice, maxPrice]);
-
-  // Sync relevant state to URL (debounced/controlled via initializingRef)
-  useEffect(() => {
-    if (initializingRef.current) {
-      // skip syncing URL during initial param hydration
-      initializingRef.current = false;
-      return;
-    }
-
-    const params = new URLSearchParams();
-    if (query) params.set("q", query);
-    if (purpose && purpose !== "All") params.set("purpose", purpose);
-    if (status && status !== "All") params.set("status", status);
-    if (bedrooms && bedrooms !== "any") params.set("beds", bedrooms);
-    if (propertyType && propertyType !== "All") params.set("type", propertyType);
-    if (minPrice) params.set("min", minPrice);
-    if (maxPrice) params.set("max", maxPrice);
-    if (sortBy && sortBy !== "default") params.set("sort", sortBy);
-    if (pageSize && pageSize !== 12) params.set("per", String(pageSize));
-    if (currentPage && currentPage !== 1) params.set("page", String(currentPage));
-
-    const qs = params.toString();
-    const url = qs ? `${pathname}?${qs}` : pathname;
-    // replace to avoid pushing history on every change
-    router.replace(url);
-  }, [query, purpose, status, bedrooms, propertyType, minPrice, maxPrice, sortBy, pageSize, currentPage, router, pathname]);
-
-  const sortedListings = useMemo(() => {
-    const arr = [...filteredListings];
-    switch (sortBy) {
-      case "price-asc":
-        return arr.sort((a, b) => a.price - b.price);
-      case "price-desc":
-        return arr.sort((a, b) => b.price - a.price);
-      case "rating-desc":
-        return arr.sort((a, b) => b.overallRating - a.overallRating);
-      case "newest":
-        // mock-data has no createdAt; keep original order as "newest"
-        return arr;
-      default:
-        return arr;
-    }
-  }, [filteredListings, sortBy]);
-
-  const totalListings = sortedListings.length;
-  const totalPages = Math.max(1, Math.ceil(totalListings / pageSize));
-  const paginatedListings = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return sortedListings.slice(start, start + pageSize);
-  }, [sortedListings, currentPage, pageSize]);
-
-  // Pagination helpers: numbered pages
-  const getPageNumbers = (current: number, total: number, maxButtons = 5) => {
-    const half = Math.floor(maxButtons / 2);
-    let start = Math.max(1, current - half);
-    let end = Math.min(total, start + maxButtons - 1);
-    if (end - start + 1 < maxButtons) {
-      start = Math.max(1, end - maxButtons + 1);
-    }
-    const pages: number[] = [];
-    for (let i = start; i <= end; i++) pages.push(i);
-    return pages;
-  };
-
-  // Accessibility: handle outside click and keyboard for popover
-
-
-  const activeFiltersCount = useMemo(() => {
-    let count = 0;
-    if (purpose !== "All") count++;
-    if (status !== "All") count++;
-    if (bedrooms !== "any") count++;
-    if (propertyType !== "All") count++;
-    if (minPrice || maxPrice) count++;
-    return count;
-  }, [purpose, status, bedrooms, propertyType, minPrice, maxPrice]);
-
-  const clearFilters = () => {
-    setQuery("");
-    setPurpose("All");
-    setStatus("All");
-    setBedrooms("any");
-    setPropertyType("All");
-    setMinPrice("");
-    setMaxPrice("");
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      {/* Hero Search Section */}
-      <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur-sm shadow-sm">
-        <div className="mx-auto max-w-screen-2xl px-4 py-6 sm:px-6 lg:py-8">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">Find Your Perfect Property</h1>
-            <p className="mt-2 text-sm text-slate-600 sm:text-base">
-              Browse verified properties across Addis Ababa. Use filters to narrow your search.
-            </p>
-          </div>
-
-          {/* Main Search Bar */}
-          <div className="relative mb-4">
-            <div className="relative flex items-center">
-              <Search className="absolute left-4 h-5 w-5 text-slate-400" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search by location, neighborhood, or keyword..."
-                className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-4 text-base text-slate-900 shadow-md transition-all placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-              />
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="absolute right-3 flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-primary/90 hover:shadow-xl"
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                <span className="hidden sm:inline">Filters</span>
-                {activeFiltersCount > 0 && (
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
-                    {activeFiltersCount}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Quick Filters Bar */}
-          <div className="flex flex-wrap items-center gap-3">
-            <FilterSelect
-              label="Purpose"
-              value={purpose}
-              onChange={(value) => setPurpose(value as PurposeFilter)}
-              options={[
-                { label: "All", value: "All" },
-                { label: "Rent", value: "Rent" },
-                { label: "Sale", value: "Sale" }
-              ]}
-              icon={<Home className="h-4 w-4" />}
-            />
-
-            <FilterSelect
-              label="Type"
-              value={propertyType}
-              onChange={(value) => setPropertyType(value as PropertyTypeFilter)}
-              options={propertyTypes.map((type) => ({ label: type, value: type }))}
-              icon={<Building2 className="h-4 w-4" />}
-            />
-
-            <FilterSelect
-              label="Bedrooms"
-              value={bedrooms}
-              onChange={(value) => setBedrooms(value as BedroomFilter)}
-              options={bedroomFilters}
-              icon={<Home className="h-4 w-4" />}
-            />
-
-            <FilterSelect
-              label="Status"
-              value={status}
-              onChange={(value) => setStatus(value as StatusFilter)}
-              options={[
-                { label: "All", value: "All" },
-                { label: "Verified", value: "Verified" },
-                { label: "Pending", value: "Pending" }
-              ]}
-              icon={<MapPin className="h-4 w-4" />}
-            />
-
-            {activeFiltersCount > 0 && (
-              <button
-                onClick={clearFilters}
-                className="flex items-center gap-2 rounded-lg border-2 border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition-all hover:bg-red-100 hover:border-red-300"
-              >
-                <X className="h-4 w-4" />
-                Clear All
-              </button>
-            )}
-          </div>
-
-          {/* Expanded Filters Panel */}
-          {showFilters && (
-            <div className="mt-6 rounded-xl border-2 border-slate-200 bg-white p-6 shadow-lg">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-900">Advanced Filters</h3>
-                <button
-                  onClick={() => setShowFilters(false)}
-                  className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    Price Range (ETB)
-                  </label>
-                  <div className="flex items-center gap-3 rounded-lg border-2 border-slate-200 bg-slate-50 px-4 py-3 shadow-sm transition-all focus-within:border-primary focus-within:bg-white focus-within:ring-4 focus-within:ring-primary/10">
-                    <input
-                      type="number"
-                      value={minPrice}
-                      onChange={(event) => setMinPrice(event.target.value)}
-                      placeholder="Min"
-                      className="w-full border-0 bg-transparent text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                    />
-                    <span className="text-sm font-medium text-slate-400">—</span>
-                    <input
-                      type="number"
-                      value={maxPrice}
-                      onChange={(event) => setMaxPrice(event.target.value)}
-                      placeholder="Max"
-                      className="w-full border-0 bg-transparent text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-screen-2xl px-4 py-6 sm:px-6 sm:py-8">
-        {/* Results Header */}
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <p className="text-sm font-medium text-slate-600">
-              Showing <span className="font-bold text-primary">{filteredListings.length}</span>{" "}
-              {filteredListings.length === 1 ? "property" : "properties"}
-            </p>
-          </div>
-          
-          <div className="flex flex-wrap items-center gap-3">
-            {/* View Toggle */}
-            <div className="flex items-center gap-1 rounded-lg border-2 border-slate-200 bg-white p-1 shadow-sm">
-              <button
-                type="button"
-                onClick={() => setViewMode("grid")}
-                className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition-all ${
-                  viewMode === "grid"
-                    ? "bg-primary text-white shadow-md"
-                    : "text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                <Grid3x3 className="h-4 w-4" />
-                <span className="hidden sm:inline">Grid</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition-all ${
-                  viewMode === "list"
-                    ? "bg-primary text-white shadow-md"
-                    : "text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                <List className="h-4 w-4" />
-                <span className="hidden sm:inline">List</span>
-              </button>
-            </div>
-
-            {/* Map Toggle */}
-            <button
-              type="button"
-              onClick={() => setShowMap((prev) => !prev)}
-              className={`flex items-center gap-2 rounded-lg border-2 px-4 py-2 text-sm font-semibold transition-all ${
-                showMap
-                  ? "border-primary bg-primary text-white shadow-md"
-                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:shadow-sm"
-              }`}
-            >
-              <MapPin className="h-4 w-4" />
-              <span className="hidden sm:inline">{showMap ? "Hide Map" : "Show Map"}</span>
-            </button>
-
-            {/* Sort */}
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="appearance-none rounded-lg border-2 border-slate-200 bg-white px-4 py-2 pr-10 text-sm font-semibold text-slate-700 shadow-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-              >
-                <option value="default">Recommended</option>
-                <option value="newest">Newest First</option>
-                <option value="price-asc">Price: Low → High</option>
-                <option value="price-desc">Price: High → Low</option>
-                <option value="rating-desc">Top Rated</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            </div>
-          </div>
-        </div>
-
-        {showMap && <MapPreview listings={filteredListings} />}
-        
-        {filteredListings.length === 0 ? (
-          <EmptyState query={query} />
-        ) : viewMode === "grid" ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {paginatedListings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} variant="grid" />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {paginatedListings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} variant="list" />
-            ))}
-          </div>
-        )}
-        {/* Pagination controls */}
-        {filteredListings.length > 0 && (
-          <div className="mt-8 rounded-xl border-2 border-slate-200 bg-white p-6 shadow-lg">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-sm font-medium text-slate-700">
-                Showing <span className="font-bold text-primary">{Math.min((currentPage - 1) * pageSize + 1, totalListings)}</span> -{" "}
-                <span className="font-bold text-primary">{Math.min(currentPage * pageSize, totalListings)}</span> of{" "}
-                <span className="font-bold text-primary">{totalListings}</span> properties
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-semibold text-slate-700">Per page</label>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                    className="appearance-none rounded-lg border-2 border-slate-200 bg-white px-3 py-2 pr-8 text-sm font-semibold text-slate-700 shadow-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                  >
-                    {[6, 12, 24, 48].map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none -ml-6 h-4 w-4 text-slate-400" />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="min-h-[40px] rounded-lg border-2 border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-slate-200 hover:border-primary hover:bg-primary/5 hover:text-primary"
-                  >
-                    Prev
-                  </button>
-                  {/* Numbered pages */}
-                  <div className="hidden items-center gap-1 md:flex">
-                    {getPageNumbers(currentPage, totalPages).map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setCurrentPage(p)}
-                        className={`min-h-[40px] min-w-[40px] rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
-                          p === currentPage
-                            ? "bg-primary text-white shadow-md"
-                            : "border-2 border-slate-200 bg-white text-slate-700 shadow-sm hover:border-primary hover:bg-primary/5 hover:text-primary"
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="min-h-[40px] rounded-lg border-2 border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-slate-200 hover:border-primary hover:bg-primary/5 hover:text-primary"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
-
-type ToggleButtonProps = {
-  label: string;
-  active: boolean;
-  onClick: () => void;
+type SearchParams = {
+  q?: string;
+  query?: string;
+  purpose?: string;
+  status?: string;
+  beds?: string;
+  type?: string;
+  min?: string;
+  max?: string;
+  sort?: string;
+  page?: string;
+  per?: string;
 };
 
-function ToggleButton({ label, active, onClick }: ToggleButtonProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-md px-4 py-2 text-sm font-semibold transition-all ${
-        active
-          ? "bg-primary text-white shadow-md"
-          : "text-slate-600 hover:bg-slate-50 hover:shadow-sm"
-      }`}
-      aria-pressed={active}
-    >
-      {label}
-    </button>
-  );
-}
+async function fetchListings(searchParams: SearchParams) {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_CORE_API_BASE_URL;
+  const tenantKey = process.env.NEXT_PUBLIC_TENANT_KEY;
 
-type FilterSelectProps<T extends string> = {
-  label: string;
-  value: T;
-  onChange: (value: T) => void;
-  options: { label: string; value: T }[];
-  icon?: React.ReactNode;
-};
-
-function FilterSelect<T extends string>({ label, value, onChange, options, icon }: FilterSelectProps<T>) {
-  return (
-    <label className="relative block min-w-[140px]">
-      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </span>
-      <div className="relative">
-        {icon && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-            {icon}
-          </span>
-        )}
-        <select
-          value={value}
-          onChange={(event) => onChange(event.target.value as T)}
-          className={`w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 hover:border-slate-300 hover:shadow-md ${
-            icon ? "pl-10" : ""
-          }`}
-        >
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-      </div>
-    </label>
-  );
-}
-
-function ListingCard({ listing, variant }: { listing: Listing; variant: ViewMode }) {
-  const broker = getBrokerById(listing.brokerId);
-  const isVerified = listing.status === "Verified";
-  const purposeClasses =
-    listing.purpose === "Rent" ? "bg-blue-600 text-white" : "bg-amber-500 text-white";
-  const statusClasses = isVerified
-    ? "bg-white/90 text-green-800"
-    : "bg-white/90 text-amber-600";
-
-  const overlay = (
-    <>
-      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${purposeClasses}`}>
-        {listing.purpose}
-      </span>
-      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${statusClasses}`}>
-        {isVerified ? "✓ Verified broker" : "Pending verification"}
-      </span>
-      <span className="inline-flex items-center rounded-full bg-black/70 px-2 py-1 text-xs font-semibold text-white">
-        {listing.overallRating.toFixed(1)} ★
-      </span>
-    </>
-  );
-
-  if (variant === "list") {
-    return (
-      <Link href={`/listings/${listing.id}`}>
-        <article className="group flex flex-col overflow-hidden rounded-2xl border-2 border-slate-200 bg-white shadow-lg transition-all hover:-translate-y-1 hover:border-primary/30 hover:shadow-2xl md:flex-row">
-          <div className="md:w-80 md:flex-shrink-0">
-            <ListingImage listing={listing} overlay={overlay} className="aspect-[16/10]" />
-          </div>
-
-          <div className="flex flex-1 flex-col gap-4 p-6">
-            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between md:gap-4">
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-slate-900 transition-colors group-hover:text-primary">{listing.title}</h2>
-                <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-600">
-                  <MapPin className="h-4 w-4" />
-                  {listing.location}
-                </p>
-                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-primary">{listing.propertyType}</p>
-              </div>
-              <p className="text-2xl font-bold text-primary md:text-3xl">{listing.priceLabel}</p>
-            </div>
-
-            <p className="line-clamp-2 text-sm leading-relaxed text-slate-600">{listing.description}</p>
-
-            <div className="flex flex-wrap gap-2">
-              {typeof listing.bedrooms === "number" && (
-                <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
-                  🛏️ {listing.bedrooms}
-                </span>
-              )}
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
-                🚿 {listing.bathrooms}
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
-                📐 {listing.area}
-              </span>
-            </div>
-
-            <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
-              <div className="text-sm text-slate-600">
-                <span className="font-semibold">Broker:</span> {broker ? broker.name : "Unknown"}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-primary group-hover:underline">View Details →</span>
-              </div>
-            </div>
-          </div>
-        </article>
-      </Link>
-    );
+  if (!apiBaseUrl) {
+    throw new Error("NEXT_PUBLIC_CORE_API_BASE_URL is not configured");
+  }
+  if (!tenantKey) {
+    throw new Error("NEXT_PUBLIC_TENANT_KEY is not configured");
   }
 
-  return (
-    <Link href={`/listings/${listing.id}`}>
-      <article className="group flex h-full flex-col overflow-hidden rounded-2xl border-2 border-slate-200 bg-white shadow-lg transition-all hover:-translate-y-1 hover:border-primary/30 hover:shadow-2xl">
-        <ListingImage listing={listing} overlay={overlay} />
+  const params = new URLSearchParams();
+  const search = searchParams.query || searchParams.q || "";
+  if (search) params.set("search", search);
+  
+  // Map purpose filter (Rent/Sale not directly supported by API, will need to handle in client)
+  // Map status filter
+  if (searchParams.status && searchParams.status !== "All") {
+    const statusMap: Record<string, string> = {
+      Verified: "active",
+      Pending: "pending_review"
+    };
+    if (statusMap[searchParams.status]) {
+      params.set("availability", statusMap[searchParams.status]);
+    }
+  }
+  
+  // Map property type
+  if (searchParams.type && searchParams.type !== "All") {
+    // API expects: residential | commercial | land
+    // We'll need to map from property types in client
+    params.set("propertyType", searchParams.type);
+  }
+  
+  if (searchParams.min) params.set("minPrice", searchParams.min);
+  if (searchParams.max) params.set("maxPrice", searchParams.max);
+  
+  const page = Number(searchParams.page) || 1;
+  const limit = Number(searchParams.per) || 12;
+  params.set("page", String(page));
+  params.set("limit", String(limit));
 
-        <div className="flex flex-1 flex-col gap-4 p-5">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 transition-colors group-hover:text-primary">{listing.title}</h2>
-            <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-600">
-              <MapPin className="h-3.5 w-3.5" />
-              {listing.location}
-            </p>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-primary">{listing.propertyType}</p>
-          </div>
+  const url = `${apiBaseUrl}/v1/listings/search?${params.toString()}`;
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "X-Tenant": tenantKey,
+      },
+      cache: "no-store",
+    });
 
-          <div className="flex flex-wrap gap-2">
-            {typeof listing.bedrooms === "number" && (
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                🛏️ {listing.bedrooms}
-              </span>
-            )}
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-              🚿 {listing.bathrooms}
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-              📐 {listing.area}
-            </span>
-          </div>
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch listings: ${response.status} ${response.statusText} - ${errorText}`);
+    }
 
-          <div className="mt-auto flex items-end justify-between gap-4 border-t border-slate-200 pt-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Price</p>
-              <p className="mt-1 text-2xl font-bold text-primary">{listing.priceLabel}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Broker</p>
-              <p className="mt-1 text-sm font-bold text-slate-900">
-                {broker ? broker.name : "Unknown"}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold text-primary group-hover:underline">View Details →</span>
-            <Link
-              href={`/listings/${listing.id}#contact-form`}
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
-              className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white shadow-md transition-all hover:bg-primary/90 hover:shadow-lg"
-            >
-              Contact
-            </Link>
-          </div>
-        </div>
-      </article>
-    </Link>
-  );
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching listings:", error);
+    throw error;
+  }
 }
 
-function MapPreview({ listings }: { listings: Listing[] }) {
-  if (listings.length === 0) return null;
-  const [first] = listings;
-  const src = `https://www.google.com/maps?q=${first.latitude},${first.longitude}&hl=en&output=embed`;
+function transformApiListingToMock(apiListing: any): Listing {
+  const property = apiListing.property || {};
+  const address = typeof property.address === "object" ? property.address : {};
+  
+  // Extract purpose from channels or attrs if available
+  const purpose = (apiListing.channels as any)?.purpose || "Rent";
+  const priceAmount = Number(apiListing.priceAmount) || 0;
+  const priceCurrency = apiListing.priceCurrency || "ETB";
+  
+  // Format price label
+  const priceLabel = purpose === "Rent" 
+    ? `${priceCurrency} ${priceAmount.toLocaleString()} / month`
+    : `${priceCurrency} ${priceAmount.toLocaleString()}`;
+  
+  // Map verification status
+  const verificationStatus = property.verificationStatus || "draft";
+  const status: ListingStatus = verificationStatus === "verified" ? "Verified" : "Pending";
+  
+  // Extract attributes
+  const attrs = (apiListing.attrs as any) || {};
+  const bedrooms = attrs.bedrooms ? Number(attrs.bedrooms) : null;
+  const bathrooms = attrs.bathrooms ? Number(attrs.bathrooms) : 1;
+  const area = attrs.area || "N/A";
+  
+  // Extract features and amenities
+  const features = attrs.features || [];
+  const amenities = attrs.amenities || [];
+  
+  // Get description
+  const description = attrs.description || property.description || "";
+  
+  // Get title from address or property
+  const title = attrs.title || (typeof address === "object" ? address.street || "Property" : "Property");
+  
+  // Get location from address
+  const location = typeof address === "object" 
+    ? [address.street, address.district, address.city].filter(Boolean).join(", ") || "Location not specified"
+    : String(address) || "Location not specified";
+  
+  // Get property type
+  const propertyType = property.type || "Property";
+  
+  // Get broker ID
+  const brokerId = property.broker?.id || apiListing.brokerId || "";
+  
+  // Get coordinates
+  const latitude = property.latitude || 9.145;
+  const longitude = property.longitude || 38.7636;
+  
+  // Image URL (use placeholder or from attrs)
+  const imageUrl = attrs.imageUrl || attrs.image || "";
+  const image = imageUrl ? "" : "🏠";
+  
+  // Gallery
+  const gallery = attrs.gallery || (imageUrl ? [imageUrl] : []);
+  
+  // Reviews (not in API response yet, use empty array)
+  const reviews: any[] = [];
+  const overallRating = property.broker?.rating || 0;
 
-  return (
-    <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Map preview</p>
-          <p className="text-sm text-slate-600">
-            Centered on {first.title}. Interactive map controls will be available in the live integration.
-          </p>
-        </div>
-        <span className="text-xs text-slate-500">Powered by Google Maps embed</span>
-      </div>
-      <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-        <iframe
-          title="Listings map preview"
-          src={src}
-          width="100%"
-          height="320"
-          loading="lazy"
-          className="w-full"
-          allowFullScreen
-        />
-      </div>
-    </div>
-  );
+  return {
+    id: apiListing.id,
+    title,
+    purpose: purpose as ListingPurpose,
+    propertyType,
+    price: priceAmount,
+    priceLabel,
+    location,
+    latitude,
+    longitude,
+    status,
+    brokerId,
+    bedrooms,
+    bathrooms,
+    area: String(area),
+    image,
+    imageUrl: imageUrl || undefined,
+    gallery,
+    overallRating,
+    description,
+    features: Array.isArray(features) ? features : [],
+    amenities: Array.isArray(amenities) ? amenities : [],
+    reviews,
+  };
 }
 
-function EmptyState({ query }: { query: string }) {
+async function ListingsPageContent({ searchParams }: { searchParams: SearchParams }) {
+  try {
+    const apiData = await fetchListings(searchParams);
+    const apiListings = apiData.listings || [];
+    const listings: Listing[] = apiListings.map(transformApiListingToMock);
+    const pagination = apiData.pagination || { page: 1, limit: 12, total: 0, totalPages: 1 };
+
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center">
-      <p className="text-lg font-semibold text-slate-900">No properties match your filters yet.</p>
-      <p className="mt-2 text-sm text-slate-600">
-        {query
-          ? "Try adjusting your keywords or removing some filters to see more results."
-          : "Modify the filters to explore other property types or price ranges."}
-      </p>
-    </div>
+      <ListingsClient 
+        initialListings={listings}
+        initialPagination={pagination}
+        searchParams={searchParams}
+      />
+    );
+  } catch (error) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="max-w-md w-full rounded-xl border-2 border-rose-200 bg-rose-50 p-8 shadow-lg">
+          <div className="space-y-4">
+            <div className="flex items-start gap-4">
+              <span className="text-3xl">⚠️</span>
+              <div>
+                <h2 className="text-xl font-semibold text-rose-900">Failed to load listings</h2>
+                <p className="text-sm text-rose-700 mt-1">
+                  {error instanceof Error ? error.message : "An unexpected error occurred while fetching listings."}
+                </p>
+              </div>
+            </div>
+            <div className="mt-6">
+              <a
+                href="/listings"
+                className="block w-full rounded-lg bg-primary px-4 py-3 text-center text-sm font-semibold text-white shadow-md transition hover:bg-primary/90"
+              >
+                Try again
+              </a>
+            </div>
+              </div>
+            </div>
+          </div>
+    );
+  }
+  }
+
+export default function ListingsPage({ searchParams }: { searchParams: SearchParams }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-slate-600">Loading listings...</p>
+          </div>
+        </div>
+      }
+    >
+      <ListingsPageContent searchParams={searchParams} />
+    </Suspense>
   );
 }

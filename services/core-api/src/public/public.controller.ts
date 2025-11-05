@@ -26,7 +26,16 @@ export class CreateAgentApplicationDto {
   complianceStandards?: string[];
 }
 
-@Controller('public/agents')
+export class CreateSellLeadDto {
+  name!: string;
+  phone!: string;
+  email?: string;
+  location?: string;
+  category?: string;
+  notes?: string;
+}
+
+@Controller('public')
 export class PublicController {
   constructor(private readonly prisma: PrismaService) {}
 
@@ -34,7 +43,7 @@ export class PublicController {
    * POST /v1/public/agents/applications
    * Create a new agent application
    */
-  @Post('applications')
+  @Post('agents/applications')
   async createAgentApplication(
     @Body() dto: CreateAgentApplicationDto,
     @Request() req: any,
@@ -121,6 +130,73 @@ export class PublicController {
       status: application.status,
       submittedAt: application.submittedAt.toISOString(),
       message: 'Application submitted successfully',
+    };
+  }
+
+  /**
+   * POST /v1/public/leads/sell
+   * Create a lead from the sell page
+   */
+  @Post('leads/sell')
+  async createSellLead(
+    @Body() dto: CreateSellLeadDto,
+    @Request() req: any,
+  ) {
+    const tenantId = req.tenantId || req.headers['x-tenant'] || req.headers['x-tenant-id'];
+    
+    if (!tenantId) {
+      throw new BadRequestException('Tenant ID is required');
+    }
+
+    // Validate required fields
+    if (!dto.name || !dto.phone) {
+      throw new BadRequestException('Name and phone are required');
+    }
+
+    // Store the full payload in JSON
+    const payload = {
+      name: dto.name,
+      phone: dto.phone,
+      email: dto.email || null,
+      location: dto.location || null,
+      category: dto.category || null,
+      notes: dto.notes || null,
+    };
+
+    // Create the lead
+    const lead = await this.prisma.lead.create({
+      data: {
+        tenantId,
+        source: 'SELL_PAGE',
+        payloadJson: payload,
+        status: 'NEW',
+      },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // TODO: Emit webhook if configured
+    // This would typically be done via a webhook service or event emitter
+    // For now, we'll just log it
+    console.log('Lead created:', {
+      id: lead.id,
+      tenantId: lead.tenantId,
+      source: lead.source,
+      payload: payload,
+    });
+
+    return {
+      id: lead.id,
+      status: lead.status,
+      createdAt: lead.createdAt.toISOString(),
+      message: 'Lead submitted successfully',
     };
   }
 }

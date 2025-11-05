@@ -37,8 +37,8 @@ const DEMO_ACCOUNTS: Record<LoginRole, { email: string; password: string }> = {
     password: "admin123",
   },
   TENANT_ADMIN: {
-    email: "broker@afribrok.com",
-    password: "broker123",
+    email: "tenant@afribrok.com",
+    password: "tenant123",
   },
 };
 
@@ -94,6 +94,11 @@ export default function LoginPage() {
         document.cookie = `afribrok-tenant=${data.tenantId}; path=/; max-age=86400; SameSite=Lax`;
       }
 
+      // Set tenant-id cookie if needed (for compatibility with middleware)
+      if (data.tenantId && selectedRole !== "SUPER_ADMIN") {
+        document.cookie = `afribrok-tenant-id=${data.tenantId}; path=/; max-age=86400; SameSite=Lax`;
+      }
+
       // Small delay to ensure cookies are set, then redirect
       await new Promise(resolve => setTimeout(resolve, 100));
       
@@ -102,11 +107,13 @@ export default function LoginPage() {
       if (selectedRole === "SUPER_ADMIN") {
         console.log('Redirecting to super admin dashboard');
         setIsLoading(false);
-        window.location.replace("/superadmin/dashboard");
+        // /superadmin/dashboard redirects to /super, so go directly there
+        window.location.replace("/super");
       } else if (selectedRole === "TENANT_ADMIN") {
         console.log('Redirecting to tenant admin dashboard');
         setIsLoading(false);
-        window.location.replace("/admin/dashboard");
+        // /admin/dashboard redirects to /, so go directly there
+        window.location.replace("/");
       } else {
         console.error('Invalid role selected:', selectedRole);
         setError("Invalid role. Only SUPER_ADMIN or TENANT_ADMIN can log in here. Brokers should sign in at the marketplace.");
@@ -117,12 +124,6 @@ export default function LoginPage() {
       const errorMessage = err instanceof Error ? err.message : "An error occurred during login";
       setError(errorMessage);
       setIsLoading(false);
-      
-      // Broker login errors should redirect to marketplace
-      if (error && error.includes('broker')) {
-        const marketplaceUrl = process.env.NEXT_PUBLIC_MARKETPLACE_URL || "http://localhost:3000";
-        window.location.href = `${marketplaceUrl}/signin`;
-      }
     }
   };
 

@@ -24,22 +24,14 @@ export default function BrokerSignInPage() {
     
     // Initialize redirect if not already set
     if (redirectToRef.current === null && searchParams) {
-      redirectToRef.current = searchParams.get("redirect") || "/dashboard";
+      redirectToRef.current = searchParams.get("redirect") || "/broker/dashboard";
     }
     
-    // Check if already authenticated
-    if (typeof document === 'undefined') return;
-    
-    const role = document.cookie
-      .split(";")
-      .find((c) => c.trim().startsWith("afribrok-role="))
-      ?.split("=")[1];
-    
-    if (role === "BROKER" || role === "broker") {
-      const redirectTo = redirectToRef.current || "/dashboard";
-      router.replace(redirectTo);
-    }
-  }, []); // Empty dependency array - only run once on mount
+    // Check if already authenticated via ab_broker_session cookie
+    // Note: HTTP-only cookies cannot be read from client-side JavaScript
+    // This check relies on middleware redirecting authenticated users away from signin
+    // If user reaches this page, they're not authenticated
+  }, [router, searchParams]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -47,7 +39,7 @@ export default function BrokerSignInPage() {
     setIsLoading(true);
 
     try {
-      // Call local authentication API route
+      // Call marketplace authentication API route (broker-only)
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
@@ -57,7 +49,7 @@ export default function BrokerSignInPage() {
         body: JSON.stringify({
           email,
           password,
-          role: "BROKER",
+          role: "BROKER", // Marketplace only handles BROKER role
         }),
       });
 
@@ -67,18 +59,12 @@ export default function BrokerSignInPage() {
         throw new Error(data.message || "Login failed");
       }
 
-      // Set cookies for authentication
-      document.cookie = `afribrok-role=BROKER; path=/; max-age=86400; SameSite=Lax`;
-      document.cookie = `afribrok-user-id=${data.user?.id || "demo-broker-001"}; path=/; max-age=86400; SameSite=Lax`;
-      if (data.token) {
-        document.cookie = `afribrok-token=${data.token}; path=/; max-age=86400; SameSite=Lax`;
-      }
-      if (data.tenantId) {
-        document.cookie = `afribrok-tenant=${data.tenantId}; path=/; max-age=86400; SameSite=Lax`;
-      }
+      // Cookies are set by the server (HTTP-only ab_broker_session)
+      // No need to set cookies client-side anymore
+      // The backend sets ab_broker_session only if broker is APPROVED
 
       // Redirect to broker dashboard
-      router.replace(redirectToRef.current || "/dashboard");
+      router.replace(redirectToRef.current || "/broker/dashboard");
     } catch (err) {
       console.error("Login error:", err);
       const errorMessage = err instanceof Error ? err.message : "An error occurred during login";

@@ -109,7 +109,7 @@ export function SiteHeader() {
           {/* Broker Sign In - Only show when not logged in or not a broker */}
           {(!user || user.role !== "broker") && (
             <Link
-              href="/signin"
+              href="/broker/signin"
               className="flex items-center gap-2 rounded-xl border-2 border-indigo-600 bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:bg-indigo-700 hover:shadow-lg hover:scale-105"
             >
               <LogIn className="h-4 w-4" />
@@ -212,7 +212,7 @@ export function SiteHeader() {
             {!user || user.role !== "broker" ? (
               <div className="mt-4 flex flex-col gap-2 border-t-2 border-slate-200 pt-4">
                 <Link
-                  href="/signin"
+                  href="/broker/signin"
                   className="flex items-center justify-center gap-2 rounded-xl border-2 border-indigo-600 bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-indigo-700 hover:shadow-lg"
                   onClick={() => setOpen(false)}
                 >

@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { verifyQrCodeViaApi } from './api';
 
 export type VerifyResult = {
@@ -13,6 +14,16 @@ export type VerifyResult = {
   };
   message?: string;
 };
+
+/**
+ * Check if offline mode is enabled
+ */
+function isOfflineModeEnabled(): boolean {
+  const offlineFlag = Constants.expoConfig?.extra?.inspectorOffline ||
+                      process.env.EXPO_PUBLIC_INSPECTOR_OFFLINE ||
+                      'disabled';
+  return offlineFlag.toLowerCase() === 'enabled';
+}
 
 /**
  * Verify QR code - attempts API verification first, falls back to local parsing
@@ -51,23 +62,57 @@ export async function verifyFromQR(raw: string): Promise<VerifyResult> {
 
     // If we found a QR code ID, try API verification
     if (qrCodeId) {
-      try {
-        const apiResult = await verifyQrCodeViaApi(qrCodeId);
-        // If API succeeded, return that result
-        if (apiResult.status !== 'invalid' || apiResult.broker) {
-          return apiResult;
-        }
-      } catch (apiError) {
-        // API call failed, fall through to local parsing
-        console.warn('API verification failed, falling back to local parsing:', apiError);
+      const apiResult = await verifyQrCodeViaApi(qrCodeId);
+      
+      // Check if API call succeeded (has broker or valid status)
+      const apiSucceeded = apiResult.status !== 'invalid' || apiResult.broker;
+      
+      if (apiSucceeded) {
+        // API succeeded, return that result
+        return apiResult;
       }
+      
+      // API returned invalid status (network error or API error)
+      const offlineEnabled = isOfflineModeEnabled();
+      
+      if (!offlineEnabled) {
+        // Offline mode is disabled - throw error instead of falling back
+        // Check if it's a network error (message contains "Unable to connect" or "Network error")
+        const isNetworkError = apiResult.message?.toLowerCase().includes('unable to connect') ||
+                               apiResult.message?.toLowerCase().includes('network error');
+        
+        if (isNetworkError) {
+          throw new Error(apiResult.message || 'API verification failed. Please check your connection and try again.');
+        }
+        
+        // API returned an error (not network), still throw in offline-disabled mode
+        throw new Error(apiResult.message || 'API verification failed. Please try again.');
+      }
+      
+      // Offline mode is enabled - fall through to local parsing
+      console.warn('API verification failed, falling back to local parsing:', apiResult.message);
     }
   } catch (parseError) {
-    // JSON parsing failed, continue with local parsing
+    // JSON parsing failed, continue with local parsing only if offline mode is enabled
+    const offlineEnabled = isOfflineModeEnabled();
+    if (!offlineEnabled && qrCodeId) {
+      // If we have a QR code ID but offline is disabled, this is an error
+      throw new Error('Unable to verify QR code. API verification required but failed.');
+    }
   }
 
   // Fallback: Local parsing for demo/offline mode
   // This allows the app to work even without API access
+  // Only if offline mode is enabled
+  const offlineEnabled = isOfflineModeEnabled();
+  if (!offlineEnabled) {
+    // Offline mode is disabled - return error instead of local parsing
+    return {
+      status: 'invalid',
+      message: 'API verification required but failed. Please check your connection and try again.',
+    };
+  }
+
   try {
     let payload: any = null;
     if (raw.trim().startsWith("{")) {

@@ -328,7 +328,7 @@ export class InvoiceService {
       });
       
       // Find payment intent by chargeId in metadata
-      paymentIntent = allIntents.find((pi) => {
+      paymentIntent = allIntents.find((pi: any) => {
         const meta = pi.metadata as Record<string, any>;
         return meta?.chargeId === chargeId || meta?.charge_id === chargeId;
       }) || null;

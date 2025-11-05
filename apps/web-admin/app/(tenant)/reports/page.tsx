@@ -1,23 +1,6 @@
-"use client";
-
-import Link from "next/link";
-import { useState, useEffect } from "react";
-import {
-  Users,
-  Building2,
-  User,
-  DollarSign,
-  TrendingUp,
-  Star,
-  AlertCircle,
-  Clock,
-  MapPin,
-  Download,
-  Calendar,
-  BarChart3,
-  Eye,
-  ArrowUpRight,
-} from "lucide-react";
+import { Suspense } from "react";
+import { apiRequest } from "../../../lib/api-server";
+import { ReportsClient } from "./reports-client";
 
 interface AnalyticsData {
   overview: {
@@ -67,463 +50,120 @@ interface AnalyticsData {
   };
 }
 
-const mockAnalyticsData: AnalyticsData = {
-  overview: {
-    totalBrokers: 156,
-    activeBrokers: 142,
-    totalListings: 2847,
-    activeListings: 2156,
-    totalUsers: 8924,
-    activeUsers: 5632,
-    totalTransactions: 1247,
-    totalRevenue: 2850000
-  },
-  brokerMetrics: {
-    newBrokers: 12,
-    pendingApplications: 8,
-    averageRating: 4.3,
-    topPerformingBrokers: [
-      {
-        id: "broker-1",
-        name: "Tadesse Real Estate",
-        listings: 45,
-        transactions: 23,
-        rating: 4.8
+async function fetchAnalyticsData(): Promise<AnalyticsData> {
+  try {
+    // TODO: Replace with actual admin analytics endpoint when available
+    // For now, using placeholder endpoint that may return 404
+    const data = await apiRequest<AnalyticsData>('/v1/admin/analytics');
+    return data;
+  } catch (error) {
+    // If endpoint doesn't exist yet, return empty structure
+    console.error('Error fetching analytics:', error);
+    return {
+      overview: {
+        totalBrokers: 0,
+        activeBrokers: 0,
+        totalListings: 0,
+        activeListings: 0,
+        totalUsers: 0,
+        activeUsers: 0,
+        totalTransactions: 0,
+        totalRevenue: 0,
       },
-      {
-        id: "broker-2", 
-        name: "Prime Properties Ltd",
-        listings: 38,
-        transactions: 19,
-        rating: 4.6
+      brokerMetrics: {
+        newBrokers: 0,
+        pendingApplications: 0,
+        averageRating: 0,
+        topPerformingBrokers: [],
       },
-      {
-        id: "broker-3",
-        name: "Elite Homes",
-        listings: 42,
-        transactions: 18,
-        rating: 4.7
-      }
-    ]
-  },
-  listingMetrics: {
-    newListings: 34,
-    pendingListings: 12,
-    averagePrice: 485000,
-    averageTimeToSell: 45,
-    mostPopularAreas: [
-      {
-        area: "Bole",
-        count: 287,
-        averagePrice: 650000
+      listingMetrics: {
+        newListings: 0,
+        pendingListings: 0,
+        averagePrice: 0,
+        averageTimeToSell: 0,
+        mostPopularAreas: [],
       },
-      {
-        area: "Kirkos",
-        count: 234,
-        averagePrice: 420000
+      userMetrics: {
+        newUsers: 0,
+        activeUsers: 0,
+        searchQueries: 0,
+        averageSessionTime: 0,
       },
-      {
-        area: "Yeka",
-        count: 198,
-        averagePrice: 380000
-      }
-    ]
-  },
-  userMetrics: {
-    newUsers: 156,
-    activeUsers: 5632,
-    searchQueries: 12847,
-    averageSessionTime: 8.5
-  },
-  financialMetrics: {
-    totalRevenue: 2850000,
-    commission: 2280000,
-    subscriptionRevenue: 570000,
-    monthlyGrowth: 12.5
+      financialMetrics: {
+        totalRevenue: 0,
+        commission: 0,
+        subscriptionRevenue: 0,
+        monthlyGrowth: 0,
+      },
+    };
   }
-};
+}
 
-export default function AnalyticsReportsPage() {
-  const [data, setData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState<string>("30d");
-
-  useEffect(() => {
-    // Mock API call
-    setTimeout(() => {
-      setData(mockAnalyticsData);
-      setLoading(false);
-    }, 1000);
-  }, [timeRange]);
-
-  if (loading) {
-    return (
-      <div className="bg-gray-50 min-h-full">
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="px-8 py-6">
-            <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          </div>
-        </header>
-        <main className="px-8 py-8">
-          <div className="grid gap-6 md:grid-cols-4">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-32 bg-gray-200 rounded-xl animate-pulse"></div>
-            ))}
-          </div>
-        </main>
-      </div>
-    );
+async function ReportsContent() {
+  try {
+    const data = await fetchAnalyticsData();
+    return <ReportsClient initialData={data} />;
+  } catch (error) {
+    return <ErrorDisplay error={error} />;
   }
+}
 
-  if (!data) {
-    return <div>Error loading analytics data</div>;
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'ETB',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('en-US').format(num);
-  };
-
+function ErrorDisplay({ error }: { error: unknown }) {
   return (
     <div className="bg-gray-50 min-h-full">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
+      <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Analytics & Reports</h1>
-              <p className="text-sm text-gray-600">
-                Platform performance metrics, business intelligence, and insights
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <select
-                  value={timeRange}
-                  onChange={(e) => setTimeRange(e.target.value)}
-                  className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-sm font-medium text-gray-700 appearance-none cursor-pointer hover:border-gray-400 transition-colors"
-                >
-                  <option value="7d">Last 7 Days</option>
-                  <option value="30d">Last 30 Days</option>
-                  <option value="90d">Last 90 Days</option>
-                  <option value="1y">Last Year</option>
-                </select>
-              </div>
-              <button
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2"
-                onClick={() => alert("Export analytics report dialog (mock)")}
-              >
-                <Download className="w-4 h-4" />
-                <span>Export Report</span>
-              </button>
-            </div>
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Analytics & Reports</h1>
+          <p className="text-sm text-gray-600">Platform performance metrics, business intelligence, and insights</p>
         </div>
       </header>
-
       <main className="px-8 py-8">
-        <div className="space-y-8">
-          {/* Platform Overview */}
-          <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Platform Overview</h2>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <MetricCard
-                title="Total Brokers"
-                value={formatNumber(data.overview.totalBrokers)}
-                subtitle={`${data.overview.activeBrokers} active`}
-                icon={<Users className="w-6 h-6" />}
-                gradient="from-blue-500 to-cyan-500"
-                bgColor="bg-blue-50"
-                borderColor="border-blue-200"
-              />
-              <MetricCard
-                title="Total Listings"
-                value={formatNumber(data.overview.totalListings)}
-                subtitle={`${data.overview.activeListings} active`}
-                icon={<Building2 className="w-6 h-6" />}
-                gradient="from-green-500 to-emerald-500"
-                bgColor="bg-green-50"
-                borderColor="border-green-200"
-              />
-              <MetricCard
-                title="Total Users"
-                value={formatNumber(data.overview.totalUsers)}
-                subtitle={`${data.overview.activeUsers} active`}
-                icon={<User className="w-6 h-6" />}
-                gradient="from-purple-500 to-pink-500"
-                bgColor="bg-purple-50"
-                borderColor="border-purple-200"
-              />
-              <MetricCard
-                title="Total Revenue"
-                value={formatCurrency(data.overview.totalRevenue)}
-                subtitle={`${data.overview.totalTransactions} transactions`}
-                icon={<DollarSign className="w-6 h-6" />}
-                gradient="from-amber-500 to-orange-500"
-                bgColor="bg-amber-50"
-                borderColor="border-amber-200"
-              />
+        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-8 shadow-lg">
+          <div className="flex items-start gap-4">
+            <span className="text-3xl">⚠️</span>
+            <div>
+              <h2 className="text-xl font-semibold text-red-900">Failed to load analytics</h2>
+              <p className="text-sm text-red-700 mt-1">
+                {error instanceof Error ? error.message : "An unexpected error occurred while fetching analytics data."}
+              </p>
+              <a
+                href="/reports"
+                className="mt-4 inline-block bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700"
+              >
+                Try again
+              </a>
             </div>
-          </section>
-
-          {/* Broker Performance */}
-          <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Broker Performance</h2>
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">Broker Metrics</h3>
-                  <BarChart3 className="w-5 h-5 text-gray-400" />
-                </div>
-                <div className="space-y-5">
-                  <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <TrendingUp className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">New Brokers (30 days)</span>
-                      </div>
-                    </div>
-                    <span className="text-lg font-bold text-gray-900">{data.brokerMetrics.newBrokers}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                        <AlertCircle className="w-5 h-5 text-orange-600" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">Pending Applications</span>
-                      </div>
-                    </div>
-                    <span className="text-lg font-bold text-orange-600">{data.brokerMetrics.pendingApplications}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                        <Star className="w-5 h-5 text-yellow-600 fill-yellow-400" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">Average Rating</span>
-                      </div>
-                    </div>
-                    <span className="text-lg font-bold text-gray-900 flex items-center space-x-1">
-                      <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-                      <span>{data.brokerMetrics.averageRating}/5</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">Top Performing Brokers</h3>
-                  <TrendingUp className="w-5 h-5 text-gray-400" />
-                </div>
-                <div className="space-y-4">
-                  {data.brokerMetrics.topPerformingBrokers.map((broker, index) => (
-                    <div key={broker.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                      <div className="flex items-center space-x-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white ${
-                          index === 0 ? 'bg-gradient-to-r from-yellow-400 to-amber-500' :
-                          index === 1 ? 'bg-gradient-to-r from-gray-400 to-gray-500' :
-                          'bg-gradient-to-r from-amber-600 to-orange-600'
-                        }`}>
-                          #{index + 1}
-                        </div>
-                        <div>
-                          <span className="text-sm font-semibold text-gray-900 block">{broker.name}</span>
-                          <span className="text-xs text-gray-500">{broker.listings} listings • {broker.transactions} transactions</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                        <span className="text-sm font-semibold text-gray-900">{broker.rating}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Listing Performance */}
-          <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Listing Performance</h2>
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">Listing Metrics</h3>
-                  <Building2 className="w-5 h-5 text-gray-400" />
-                </div>
-                <div className="space-y-5">
-                  <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                        <TrendingUp className="w-5 h-5 text-green-600" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">New Listings (30 days)</span>
-                      </div>
-                    </div>
-                    <span className="text-lg font-bold text-gray-900">{data.listingMetrics.newListings}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                        <AlertCircle className="w-5 h-5 text-orange-600" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">Pending Review</span>
-                      </div>
-                    </div>
-                    <span className="text-lg font-bold text-orange-600">{data.listingMetrics.pendingListings}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <DollarSign className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">Average Price</span>
-                      </div>
-                    </div>
-                    <span className="text-lg font-bold text-gray-900">{formatCurrency(data.listingMetrics.averagePrice)}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <Clock className="w-5 h-5 text-purple-600" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">Avg. Time to Sell</span>
-                      </div>
-                    </div>
-                    <span className="text-lg font-bold text-gray-900">{data.listingMetrics.averageTimeToSell} days</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">Popular Areas</h3>
-                  <MapPin className="w-5 h-5 text-gray-400" />
-                </div>
-                <div className="space-y-4">
-                  {data.listingMetrics.mostPopularAreas.map((area, index) => (
-                    <div key={area.area} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                      <div className="flex items-center space-x-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white ${
-                          index === 0 ? 'bg-gradient-to-r from-blue-500 to-cyan-500' :
-                          index === 1 ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
-                          'bg-gradient-to-r from-purple-500 to-pink-500'
-                        }`}>
-                          #{index + 1}
-                        </div>
-                        <div>
-                          <span className="text-sm font-semibold text-gray-900 block">{area.area}</span>
-                          <span className="text-xs text-gray-500">{formatCurrency(area.averagePrice)} avg price</span>
-                        </div>
-                      </div>
-                      <span className="text-sm font-semibold text-gray-900">{area.count} listings</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* User Engagement */}
-          <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">User Engagement</h2>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-              <div className="grid gap-6 md:grid-cols-4">
-                <MetricCard
-                  title="New Users"
-                  value={formatNumber(data.userMetrics.newUsers)}
-                  subtitle="Last 30 days"
-                  icon={<Users className="w-6 h-6" />}
-                  gradient="from-blue-500 to-cyan-500"
-                  bgColor="bg-blue-50"
-                  borderColor="border-blue-200"
-                />
-                <MetricCard
-                  title="Active Users"
-                  value={formatNumber(data.userMetrics.activeUsers)}
-                  subtitle="Monthly active"
-                  icon={<TrendingUp className="w-6 h-6" />}
-                  gradient="from-green-500 to-emerald-500"
-                  bgColor="bg-green-50"
-                  borderColor="border-green-200"
-                />
-                <MetricCard
-                  title="Search Queries"
-                  value={formatNumber(data.userMetrics.searchQueries)}
-                  subtitle="This month"
-                  icon={<Eye className="w-6 h-6" />}
-                  gradient="from-purple-500 to-pink-500"
-                  bgColor="bg-purple-50"
-                  borderColor="border-purple-200"
-                />
-                <MetricCard
-                  title="Avg Session Time"
-                  value={`${data.userMetrics.averageSessionTime}m`}
-                  subtitle="Per user"
-                  icon={<Clock className="w-6 h-6" />}
-                  gradient="from-amber-500 to-orange-500"
-                  bgColor="bg-amber-50"
-                  borderColor="border-amber-200"
-                />
-              </div>
-            </div>
-          </section>
+          </div>
         </div>
       </main>
     </div>
   );
 }
 
-function MetricCard({ 
-  title, 
-  value, 
-  subtitle, 
-  icon, 
-  gradient,
-  bgColor,
-  borderColor
-}: { 
-  title: string; 
-  value: string; 
-  subtitle: string; 
-  icon: React.ReactNode;
-  gradient: string;
-  bgColor: string;
-  borderColor: string;
-}) {
+export default function AnalyticsReportsPage() {
   return (
-    <div className={`p-6 rounded-xl border-2 ${borderColor} ${bgColor} hover:shadow-lg transition-all duration-200 group cursor-pointer`}>
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${gradient} flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}>
-          {icon}
+    <Suspense
+      fallback={
+        <div className="bg-gray-50 min-h-full">
+          <header className="bg-white shadow-sm border-b border-gray-200">
+            <div className="px-8 py-6">
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            </div>
+          </header>
+          <main className="px-8 py-8">
+            <div className="grid gap-6 md:grid-cols-4">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-32 bg-gray-200 rounded-xl animate-pulse"></div>
+              ))}
+            </div>
+          </main>
         </div>
-      </div>
-      <div>
-        <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-        <p className="text-2xl font-bold text-gray-900 mb-1">{value}</p>
-        <p className="text-xs text-gray-500">{subtitle}</p>
-      </div>
-    </div>
+      }
+    >
+      <ReportsContent />
+    </Suspense>
   );
 }

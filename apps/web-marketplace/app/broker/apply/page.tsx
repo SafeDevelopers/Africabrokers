@@ -184,7 +184,7 @@ export default function BrokerApplyPage() {
               Return to Home
             </Link>
             <Link
-              href="/signin"
+              href="/broker/signin"
               className="rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary/90"
             >
               Sign In

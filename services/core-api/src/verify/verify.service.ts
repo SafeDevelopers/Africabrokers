@@ -1,11 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PlatformSettingsHelper } from '../super-platform-settings/platform-settings.helper';
 
 @Injectable()
 export class VerifyService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private settingsHelper: PlatformSettingsHelper,
+  ) {}
 
-  async verifyQrCode(qrCodeId: string) {
+  async verifyQrCode(qrCodeId: string, signature?: string, ttl?: number) {
     const qrCode = await this.prisma.qrCode.findFirst({
       where: {
         OR: [{ id: qrCodeId }, { code: qrCodeId }],
@@ -31,6 +35,26 @@ export class VerifyService {
         message: 'Broker not found or not approved',
         qrCodeId: qrCodeId
       };
+    }
+
+    // Check TTL signature if configured (with tenant overrides)
+    const settings = await this.settingsHelper.getEffectiveSettings();
+    const qrSignature = settings.tenancy?.license?.qrSignature || 'none';
+    
+    if (qrSignature === 'signed-ttl') {
+      if (!signature || !ttl) {
+        throw new BadRequestException('TTL signature required for verification');
+      }
+      
+      // Validate TTL (Time To Live) - check if signature is not expired
+      const now = Date.now();
+      if (ttl < now) {
+        throw new BadRequestException('TTL signature expired');
+      }
+      
+      // TODO: In production, validate the signature cryptographically
+      // For now, we just check that TTL is in the future
+      // This should be replaced with proper cryptographic signature validation
     }
 
     return {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Badge } from "../components/ui/Badge";
+import { Badge } from "../../components/ui/Badge";
 import { useState, useEffect } from "react";
 
 interface Broker {

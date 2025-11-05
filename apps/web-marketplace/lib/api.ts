@@ -28,7 +28,7 @@ export async function api<T = any>(
   // Add X-Tenant header unless explicitly skipped
   if (!skipTenantHeader) {
     const tenant = getTenant();
-    headers['X-Tenant'] = tenant;
+    (headers as Record<string, string>)['X-Tenant'] = tenant;
   }
 
   // Include credentials for cookie-based auth

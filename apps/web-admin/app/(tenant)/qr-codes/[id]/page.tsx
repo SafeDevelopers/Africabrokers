@@ -33,7 +33,7 @@ type QrCodeDto = z.infer<typeof QrSchema>;
 
 async function getQrDetail(id: string, cookies: string | undefined): Promise<QrCodeDto | null> {
   // Use API client with automatic X-Tenant header
-  const { apiClient } = await import('../../../lib/api-client');
+  const { apiClient } = await import('@/lib/api-client');
   
   try {
     const data = await apiClient.get(`/admin/qrcodes/${encodeURIComponent(id)}`, {

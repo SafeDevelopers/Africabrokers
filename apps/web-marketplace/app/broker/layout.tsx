@@ -12,11 +12,13 @@ export default async function BrokerShellLayout({
   const headersList = await headers();
   const pathname = headersList.get('x-pathname') || '';
   
-  // Allow /broker/apply and /broker/pending without authentication
+  // Allow public broker routes without authentication
   const isPublicRoute = pathname === '/broker/apply' || 
                         pathname.startsWith('/broker/apply/') || 
                         pathname === '/broker/pending' || 
-                        pathname.startsWith('/broker/pending/');
+                        pathname.startsWith('/broker/pending/') ||
+                        pathname === '/broker/signin' ||
+                        pathname.startsWith('/broker/signin/');
   
   // If it's a public route, render without authentication check
   if (isPublicRoute) {
@@ -28,11 +30,12 @@ export default async function BrokerShellLayout({
   }
 
   // For all other broker routes, require authentication
+  // Check for ab_broker_session cookie (HTTP-only, set by login API)
   const cookieStore = await cookies();
-  const role = cookieStore.get('afribrok-role')?.value;
+  const brokerSession = cookieStore.get('ab_broker_session');
 
-  if (!role || !['BROKER', 'broker'].includes(role)) {
-    redirect('/signin');
+  if (!brokerSession) {
+    redirect('/broker/signin');
   }
 
   return (

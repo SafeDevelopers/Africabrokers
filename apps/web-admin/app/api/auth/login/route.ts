@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // Demo accounts for testing (in production, this should query the database)
+// Note: Brokers should login via the marketplace, not the admin app
 const DEMO_ACCOUNTS: Record<string, { email: string; password: string; role: string; userId: string; tenantId?: string }> = {
   "admin@afribrok.com": {
     email: "admin@afribrok.com",
@@ -8,9 +9,9 @@ const DEMO_ACCOUNTS: Record<string, { email: string; password: string; role: str
     role: "SUPER_ADMIN",
     userId: "demo-super-admin-001",
   },
-  "broker@afribrok.com": {
-    email: "broker@afribrok.com",
-    password: "broker123",
+  "tenant@afribrok.com": {
+    email: "tenant@afribrok.com",
+    password: "tenant123",
     role: "TENANT_ADMIN",
     userId: "demo-tenant-admin-001",
     tenantId: "et-addis",
@@ -30,14 +31,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Only allow SUPER_ADMIN or TENANT_ADMIN roles
-    // Brokers must authenticate via the marketplace
+    // Brokers must authenticate via the marketplace - this endpoint is admin-only
     if (!["SUPER_ADMIN", "TENANT_ADMIN"].includes(role)) {
-      if (role === "BROKER") {
-        const marketplaceUrl = process.env.NEXT_PUBLIC_MARKETPLACE_URL || "http://localhost:3000";
-        return NextResponse.redirect(`${marketplaceUrl}/signin`, 301);
-      }
       return NextResponse.json(
-        { message: "Invalid role. Only SUPER_ADMIN or TENANT_ADMIN can log in here. Brokers should sign in at the marketplace." },
+        { message: "Invalid role. Only SUPER_ADMIN or TENANT_ADMIN can log in here. Brokers must sign in at the marketplace." },
         { status: 403 }
       );
     }
@@ -109,7 +106,15 @@ export async function POST(request: NextRequest) {
     });
 
     if (account.tenantId) {
+      // Set both tenant cookies for compatibility
       response.cookies.set("afribrok-tenant", account.tenantId, {
+        path: "/",
+        maxAge: 60 * 60 * 24,
+        httpOnly: false,
+        sameSite: "lax",
+      });
+      // Set tenant-id cookie (required by middleware for TENANT_ADMIN)
+      response.cookies.set("afribrok-tenant-id", account.tenantId, {
         path: "/",
         maxAge: 60 * 60 * 24,
         httpOnly: false,

@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
   // Handle OAuth errors
   if (error) {
-    return NextResponse.redirect(new URL(`/signin?error=${encodeURIComponent(error)}`, request.url));
+    return NextResponse.redirect(new URL(`/broker/signin?error=${encodeURIComponent(error)}`, request.url));
   }
 
   // If we have an authorization code, exchange it for tokens
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
-  // No code or error - redirect to signin
-  return NextResponse.redirect(new URL("/signin", request.url));
+  // No code or error - redirect to broker signin
+  return NextResponse.redirect(new URL("/broker/signin", request.url));
 }
 
