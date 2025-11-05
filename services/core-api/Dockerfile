@@ -26,12 +26,6 @@
   RUN pnpm prisma generate
   RUN pnpm build
   
-  # -------- deploy (produce a self-contained folder) --------
-  FROM build AS deploy
-  WORKDIR /repo
-  # output goes to /out with app dist + EXACT node_modules that app needs
-  RUN pnpm -w deploy --filter @afribrok/core-api /out
-  
   # -------- runtime --------
   FROM node:20-alpine AS runtime
   ENV NODE_ENV=production
