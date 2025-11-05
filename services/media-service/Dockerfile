@@ -22,11 +22,6 @@
   RUN pnpm build
  
   
-  # -------- deploy --------
-  FROM build AS deploy
-  WORKDIR /repo
-  RUN pnpm -w deploy --filter @afribrok/media-service /out
-  
   # -------- runtime --------
   FROM node:20-alpine AS runtime
   ENV NODE_ENV=production
