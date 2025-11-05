@@ -37,8 +37,12 @@
   ENV NODE_ENV=production
   ENV PORT=3000
   WORKDIR /app
-  # copy the self-contained deploy output
-  COPY --from=deploy /out/ ./
+  # Copy built application and dependencies
+  COPY --from=build /repo/services/core-api/dist ./dist
+  COPY --from=build /repo/services/core-api/prisma ./prisma
+  COPY --from=build /repo/services/core-api/package.json ./package.json
+  COPY --from=build /repo/node_modules ./node_modules
+  COPY --from=build /repo/packages ./packages
   
   EXPOSE 3000
   HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \

@@ -32,7 +32,11 @@
   ENV NODE_ENV=production
   ENV PORT=3000
   WORKDIR /app
-  COPY --from=deploy /out/ ./
+  # Copy built application and dependencies
+  COPY --from=build /repo/services/media-service/dist ./dist
+  COPY --from=build /repo/services/media-service/package.json ./package.json
+  COPY --from=build /repo/node_modules ./node_modules
+  COPY --from=build /repo/packages ./packages
   
   EXPOSE 3000
   HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
