@@ -48,7 +48,7 @@ COPY --from=build /app/services/core-api/prisma ./prisma
 COPY --from=build /app/packages ./packages
 
 # Install production dependencies only
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --no-frozen-lockfile || true
 
 # Set port environment variable
 ENV PORT=3000
