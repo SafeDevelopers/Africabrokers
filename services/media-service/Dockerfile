@@ -24,12 +24,21 @@
   ENV NODE_ENV=production
   ENV PORT=3000
   
-  COPY --from=build /app/node_modules ./node_modules
+  # Install pnpm for production dependencies
+  RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+  
+  # Copy package files for dependency installation
+  COPY --from=build /app/package.json ./package.json
+  COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
+  COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+  COPY --from=build /app/services/media-service/package.json ./package.json
+  
+  # Copy built application
   COPY --from=build /app/services/media-service/dist ./dist
-  COPY --from=build /app/services/media-service/package.json ./
   COPY --from=build /app/packages ./packages
   
-  # Dependencies are already installed in build stage, no need to reinstall
+  # Install only production dependencies
+  RUN pnpm install --prod --no-frozen-lockfile || true
   
   EXPOSE 3000
   

@@ -44,7 +44,11 @@
   COPY --from=build /app/apps/web-marketplace/.next/standalone ./
   COPY --from=build /app/apps/web-marketplace/.next/static ./apps/web-marketplace/.next/static
   COPY --from=build /app/apps/web-marketplace/public ./apps/web-marketplace/public
+  # Copy root node_modules for any hoisted dependencies (like styled-jsx)
+  COPY --from=build /app/node_modules ./node_modules
   
   EXPOSE 3000
   # server.js is in apps/web-marketplace/ directory in standalone output
-  CMD ["node", "apps/web-marketplace/server.js"]
+  # Change working directory to where server.js is located
+  WORKDIR /app/apps/web-marketplace
+  CMD ["node", "server.js"]

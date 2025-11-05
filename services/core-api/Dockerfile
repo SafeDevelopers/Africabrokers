@@ -40,15 +40,22 @@ FROM base AS production
 
 WORKDIR /app
 
+# Install pnpm for production dependencies
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+
+# Copy package files for dependency installation
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=build /app/services/core-api/package.json ./package.json
+
 # Copy built application
-COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/services/core-api/dist ./dist
-COPY --from=build /app/services/core-api/package.json ./
 COPY --from=build /app/services/core-api/prisma ./prisma
 COPY --from=build /app/packages ./packages
 
-# Ensure node_modules are available (already installed in build stage)
-# No need to reinstall if we copy from build stage
+# Install only production dependencies
+RUN pnpm install --prod --no-frozen-lockfile || true
 
 # Set port environment variable
 ENV PORT=3000

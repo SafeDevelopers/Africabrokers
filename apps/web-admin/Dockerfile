@@ -43,7 +43,11 @@
   COPY --from=build /app/apps/web-admin/.next/standalone ./
   COPY --from=build /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
   COPY --from=build /app/apps/web-admin/public ./apps/web-admin/public
+  # Copy root node_modules for any hoisted dependencies (like styled-jsx)
+  COPY --from=build /app/node_modules ./node_modules
   
   EXPOSE 3000
   # server.js is in apps/web-admin/ directory in standalone output
-  CMD ["node", "apps/web-admin/server.js"]
+  # Change working directory to where server.js is located
+  WORKDIR /app/apps/web-admin
+  CMD ["node", "server.js"]
