@@ -26,7 +26,7 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id', 'x-tenant'],
   });
   
-  const resolvedPort = typeof port === "string" ? parseInt(port, 10) || 4000 : port;
+  const resolvedPort = typeof port === "string" ? parseInt(port, 10) || 3000 : port;
   await app.listen(resolvedPort);
   Logger.log(`🚀 Core API listening on port ${resolvedPort}`, "Bootstrap");
   Logger.log(`📚 API Documentation: http://localhost:${resolvedPort}/v1`, "Bootstrap");
