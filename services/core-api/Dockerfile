@@ -47,7 +47,10 @@ RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
-COPY --from=build /app/services/core-api/package.json ./package.json
+# Copy all workspace package.json files needed for dependency resolution
+COPY --from=build /app/packages/config/env/package.json ./packages/config/env/
+COPY --from=build /app/packages/lib/package.json ./packages/lib/
+COPY --from=build /app/services/core-api/package.json ./services/core-api/
 
 # Copy built application
 COPY --from=build /app/services/core-api/dist ./dist
@@ -55,6 +58,7 @@ COPY --from=build /app/services/core-api/prisma ./prisma
 COPY --from=build /app/packages ./packages
 
 # Install only production dependencies
+WORKDIR /app
 RUN pnpm install --prod --no-frozen-lockfile || true
 
 # Set port environment variable
@@ -67,6 +71,6 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/v1/health/live', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Run the application
+# Run the application (dist is at /app/dist/main.js)
 CMD ["node", "dist/main.js"]
 

@@ -31,13 +31,16 @@
   COPY --from=build /app/package.json ./package.json
   COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
   COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
-  COPY --from=build /app/services/media-service/package.json ./package.json
+  # Copy all workspace package.json files needed for dependency resolution
+  COPY --from=build /app/packages/config/env/package.json ./packages/config/env/
+  COPY --from=build /app/services/media-service/package.json ./services/media-service/
   
   # Copy built application
   COPY --from=build /app/services/media-service/dist ./dist
   COPY --from=build /app/packages ./packages
   
   # Install only production dependencies
+  WORKDIR /app
   RUN pnpm install --prod --no-frozen-lockfile || true
   
   EXPOSE 3000
