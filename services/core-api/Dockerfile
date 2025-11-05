@@ -50,6 +50,9 @@ COPY --from=build /app/packages ./packages
 # Install production dependencies only
 RUN pnpm install --prod --frozen-lockfile
 
+# Set port environment variable
+ENV PORT=3000
+
 # Expose port
 EXPOSE 3000
 
