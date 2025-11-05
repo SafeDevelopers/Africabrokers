@@ -40,10 +40,11 @@
   ENV PORT=3000
   
   # Next.js standalone output
+  # Standalone output structure: standalone/ contains server.js and node_modules
   COPY --from=build /app/apps/web-marketplace/.next/standalone ./
   COPY --from=build /app/apps/web-marketplace/.next/static ./apps/web-marketplace/.next/static
   COPY --from=build /app/apps/web-marketplace/public ./apps/web-marketplace/public
-  COPY --from=build /app/apps/web-marketplace/package.json ./apps/web-marketplace/
   
   EXPOSE 3000
-  CMD ["node", "server.js"]
+  # server.js is in apps/web-marketplace/ directory in standalone output
+  CMD ["node", "apps/web-marketplace/server.js"]

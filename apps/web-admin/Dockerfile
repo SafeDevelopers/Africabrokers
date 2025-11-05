@@ -39,10 +39,11 @@
   ENV PORT=3000
   
   # Next.js standalone output
+  # Standalone output structure: standalone/ contains server.js and node_modules
   COPY --from=build /app/apps/web-admin/.next/standalone ./
   COPY --from=build /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
   COPY --from=build /app/apps/web-admin/public ./apps/web-admin/public
-  COPY --from=build /app/apps/web-admin/package.json ./apps/web-admin/
   
   EXPOSE 3000
-  CMD ["node", "server.js"]
+  # server.js is in apps/web-admin/ directory in standalone output
+  CMD ["node", "apps/web-admin/server.js"]
