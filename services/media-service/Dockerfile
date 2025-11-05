@@ -29,9 +29,7 @@
   COPY --from=build /app/services/media-service/package.json ./
   COPY --from=build /app/packages ./packages
   
-  # Optional: minimal re-install for prod dependencies only
-  RUN corepack enable && corepack prepare pnpm@8.15.0 --activate \
-      && pnpm install --prod --no-frozen-lockfile || true
+  # Dependencies are already installed in build stage, no need to reinstall
   
   EXPOSE 3000
   

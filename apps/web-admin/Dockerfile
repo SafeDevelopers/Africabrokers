@@ -27,6 +27,7 @@
   # Build the app
   WORKDIR /app/apps/web-admin
   ENV NEXT_TELEMETRY_DISABLED=1
+  ENV NODE_ENV=production
   RUN pnpm build
   # Ensure public exists to make COPY robust
   RUN mkdir -p /app/apps/web-admin/public

@@ -47,8 +47,8 @@ COPY --from=build /app/services/core-api/package.json ./
 COPY --from=build /app/services/core-api/prisma ./prisma
 COPY --from=build /app/packages ./packages
 
-# Install production dependencies only
-RUN pnpm install --prod --no-frozen-lockfile || true
+# Ensure node_modules are available (already installed in build stage)
+# No need to reinstall if we copy from build stage
 
 # Set port environment variable
 ENV PORT=3000

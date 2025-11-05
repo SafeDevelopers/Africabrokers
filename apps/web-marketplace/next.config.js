@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // App directory is stable in Next.js 13.4+
-  // Only use standalone output in production builds
-  ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
+  // Always use standalone output for Docker builds
+  output: 'standalone',
   images: {
     remotePatterns: [
       {

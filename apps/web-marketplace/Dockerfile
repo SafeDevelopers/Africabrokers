@@ -28,6 +28,7 @@
   # Build the app
   WORKDIR /app/apps/web-marketplace
   ENV NEXT_TELEMETRY_DISABLED=1
+  ENV NODE_ENV=production
   RUN pnpm build
   # Ensure public exists to make COPY robust even if empty
   RUN mkdir -p /app/apps/web-marketplace/public
