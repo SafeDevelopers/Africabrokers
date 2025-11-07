@@ -16,8 +16,8 @@ import {
 export class MpesaAdapter implements PaymentAdapter {
   private config: any;
 
-  constructor(config?: any) {
-    this.config = config || {};
+  constructor() {
+    this.config = {};
   }
 
   getProviderId(): string {
@@ -104,4 +104,3 @@ export class MpesaAdapter implements PaymentAdapter {
     return 'mock_access_token';
   }
 }
-

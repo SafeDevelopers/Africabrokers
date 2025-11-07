@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ListingImage } from "../components/listing-image";
 import {
   type Listing,
   type ListingPurpose,
   type ListingStatus
-} from "../data/mock-data";
-import { Search, MapPin, Filter, Home, Building2, X, SlidersHorizontal, Grid3x3, List, ChevronDown } from "lucide-react";
+} from "../types/listing";
+import { Search, MapPin, Filter, Home, Building2, X, SlidersHorizontal, Grid3x3, List, ChevronDown, ArrowLeft, RefreshCw, AlertCircle } from "lucide-react";
+import { api, getErrorMessage, getErrorDetails, type NetworkError } from "../../lib/api";
 
 type ViewMode = "grid" | "list";
 type PurposeFilter = ListingPurpose | "All";
@@ -25,19 +26,7 @@ const bedroomFilters: { label: string; value: BedroomFilter }[] = [
   { label: "4+ beds", value: "4" }
 ];
 
-type SearchParams = {
-  q?: string;
-  query?: string;
-  purpose?: string;
-  status?: string;
-  beds?: string;
-  type?: string;
-  min?: string;
-  max?: string;
-  sort?: string;
-  page?: string;
-  per?: string;
-};
+type SearchParams = Record<string, string | undefined>;
 
 type Pagination = {
   page: number;
@@ -47,13 +36,103 @@ type Pagination = {
 };
 
 type ListingsClientProps = {
-  initialListings: Listing[];
-  initialPagination: Pagination;
   searchParams: SearchParams;
 };
 
-export function ListingsClient({ initialListings, initialPagination, searchParams: initialSearchParams }: ListingsClientProps) {
-  const [query, setQuery] = useState("");
+function transformApiListing(apiListing: any): Listing {
+  const property = apiListing.property || {};
+  const address = typeof property.address === "object" ? property.address : {};
+  
+  // Extract purpose from channels or attrs if available
+  const purpose = (apiListing.channels as any)?.purpose || "Rent";
+  const priceAmount = Number(apiListing.priceAmount) || 0;
+  const priceCurrency = apiListing.priceCurrency || "ETB";
+  
+  // Format price label
+  const priceLabel = purpose === "Rent" 
+    ? `${priceCurrency} ${priceAmount.toLocaleString()} / month`
+    : `${priceCurrency} ${priceAmount.toLocaleString()}`;
+  
+  // Map verification status
+  const verificationStatus = property.verificationStatus || "draft";
+  const status: ListingStatus = verificationStatus === "verified" ? "Verified" : "Pending";
+  
+  // Extract attributes
+  const attrs = (apiListing.attrs as any) || {};
+  const bedrooms = attrs.bedrooms ? Number(attrs.bedrooms) : null;
+  const bathrooms = attrs.bathrooms ? Number(attrs.bathrooms) : 1;
+  const area = attrs.area || "N/A";
+  
+  // Extract features and amenities
+  const features = attrs.features || [];
+  const amenities = attrs.amenities || [];
+  
+  // Get description
+  const description = attrs.description || property.description || "";
+  
+  // Get title from address or property
+  const title = attrs.title || (typeof address === "object" ? address.street || "Property" : "Property");
+  
+  // Get location from address
+  const location = typeof address === "object" 
+    ? [address.street, address.district, address.city].filter(Boolean).join(", ") || "Location not specified"
+    : String(address) || "Location not specified";
+  
+  // Get property type
+  const propertyType = property.type || "Property";
+  
+  // Get broker ID
+  const brokerId = property.broker?.id || apiListing.brokerId || "";
+  
+  // Get coordinates
+  const latitude = property.latitude || 9.145;
+  const longitude = property.longitude || 38.7636;
+  
+  // Image URL (use placeholder or from attrs)
+  const imageUrl = attrs.imageUrl || attrs.image || "";
+  const image = imageUrl ? "" : "🏠";
+  
+  // Gallery
+  const gallery = attrs.gallery || (imageUrl ? [imageUrl] : []);
+  
+  // Reviews (not in API response yet, use empty array)
+  const reviews: any[] = [];
+  const overallRating = property.broker?.rating || 0;
+
+  return {
+    id: apiListing.id,
+    title,
+    purpose: purpose as ListingPurpose,
+    propertyType,
+    price: priceAmount,
+    priceLabel,
+    location,
+    latitude,
+    longitude,
+    status,
+    brokerId,
+    bedrooms,
+    bathrooms,
+    area: String(area),
+    image,
+    imageUrl: imageUrl || undefined,
+    gallery,
+    overallRating,
+    description,
+    features: Array.isArray(features) ? features : [],
+    amenities: Array.isArray(amenities) ? amenities : [],
+    reviews,
+  };
+}
+
+export function ListingsClient({ searchParams: initialSearchParams }: ListingsClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  
+  // Initialize query from URL params immediately
+  const initialQuery = searchParams?.get("query") || searchParams?.get("q") || "";
+  const [query, setQuery] = useState(initialQuery);
   const [purpose, setPurpose] = useState<PurposeFilter>("All");
   const [status, setStatus] = useState<StatusFilter>("All");
   const [bedrooms, setBedrooms] = useState<BedroomFilter>("any");
@@ -65,25 +144,126 @@ export function ListingsClient({ initialListings, initialPagination, searchParam
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(12);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
   const initializingRef = useRef(true);
   const [sortBy, setSortBy] = useState<
     "default" | "newest" | "price-asc" | "price-desc" | "rating-desc"
   >("default");
 
-  // Use server-fetched data
-  const [listings] = useState<Listing[]>(initialListings);
-  const [pagination] = useState<Pagination>(initialPagination);
+  // Data fetching state
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 12, total: 0, totalPages: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<NetworkError | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Fetch listings function
+  const fetchListings = useCallback(async () => {
+    // Abort previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams();
+      const search = query || "";
+      if (search) params.set("q", search);
+      
+      // Map status filter (marketplace endpoint doesn't support status filter, it only shows active/pending_review)
+      // Status filter is handled client-side
+      
+      // Map property type (marketplace endpoint doesn't support propertyType filter yet)
+      // Property type filter is handled client-side
+      
+      // Price filters (marketplace endpoint doesn't support price filters yet)
+      // Price filters are handled client-side
+      
+      // Pagination
+      const offset = (currentPage - 1) * pageSize;
+      params.set("offset", String(offset));
+      params.set("limit", String(pageSize));
+      
+      // Sorting
+      if (sortBy === "newest") {
+        params.set("sort", "createdAt:desc");
+      } else if (sortBy === "price-asc") {
+        params.set("sort", "priceAmount:asc");
+      } else if (sortBy === "price-desc") {
+        params.set("sort", "priceAmount:desc");
+      } else {
+        params.set("sort", "createdAt:desc");
+      }
+
+      // Use marketplace listings endpoint
+      const apiData = await api<{ items: any[]; count: number }>(
+        `/v1/marketplace/listings?${params.toString()}`,
+        { signal: abortController.signal }
+      );
+
+      const apiListings = apiData.items || [];
+      const transformedListings: Listing[] = apiListings.map(transformApiListing);
+      const total = apiData.count || 0;
+      const paginationData: Pagination = {
+        page: currentPage,
+        limit: pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      };
+
+      setListings(transformedListings);
+      setPagination(paginationData);
+      setError(null);
+    } catch (err: any) {
+      // Ignore abort errors
+      if (err?.name === "AbortError") {
+        return;
+      }
+      
+      const networkError = err as NetworkError;
+      setError(networkError);
+      setListings([]);
+      setPagination({ page: currentPage, limit: pageSize, total: 0, totalPages: 0 });
+    } finally {
+      setLoading(false);
+    }
+  }, [query, status, propertyType, minPrice, maxPrice, currentPage, pageSize]);
+
+  // Property type options with enum values and display labels
   const propertyTypes = useMemo(
     () => {
-      const types = Array.from(new Set(listings.map((listing) => listing.propertyType)));
-      if (!types.includes("Land")) {
-        types.push("Land");
-      }
-      return ["All", ...types.sort()];
+      // Always include all available property types from the enum
+      const allEnumTypes = ["residential", "commercial", "land"];
+      
+      // Also include any additional types found in listings (normalize to lowercase)
+      const listingTypes = Array.from(
+        new Set(listings.map((listing) => listing.propertyType?.toLowerCase()))
+      ).filter(Boolean);
+      
+      // Combine and deduplicate
+      const combinedTypes = Array.from(new Set([...allEnumTypes, ...listingTypes]));
+      
+      // Map enum values to display labels
+      const typeLabelMap: Record<string, string> = {
+        residential: "Residential",
+        commercial: "Commercial",
+        land: "Land",
+      };
+      
+      // Return options with both value (enum) and label (display)
+      return [
+        { value: "All", label: "All" },
+        ...combinedTypes
+          .map(type => ({
+            value: type,
+            label: typeLabelMap[type] || type.charAt(0).toUpperCase() + type.slice(1)
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label))
+      ];
     },
     [listings]
   );
@@ -117,6 +297,11 @@ export function ListingsClient({ initialListings, initialPagination, searchParam
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  // Fetch listings when filters change
+  useEffect(() => {
+    fetchListings();
+  }, [fetchListings]);
+
   // Apply client-side filtering for immediate feedback (server already filtered, but we apply additional filters)
   const filteredListings = useMemo(() => {
     return listings.filter((listing) => {
@@ -125,8 +310,13 @@ export function ListingsClient({ initialListings, initialPagination, searchParam
         return false;
       }
 
-      if (propertyType !== "All" && listing.propertyType !== propertyType) {
-        return false;
+      if (propertyType !== "All") {
+        // Normalize comparison - API returns lowercase enum values, but listings might be capitalized
+        const listingType = listing.propertyType?.toLowerCase();
+        const filterType = propertyType.toLowerCase();
+        if (listingType !== filterType) {
+          return false;
+        }
       }
 
       if (bedrooms !== "any") {
@@ -234,6 +424,17 @@ export function ListingsClient({ initialListings, initialPagination, searchParam
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur-sm shadow-sm">
         <div className="mx-auto max-w-screen-2xl px-4 py-6 sm:px-6 lg:py-8">
+          {/* Back Button */}
+          <div className="mb-4">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300 hover:shadow-md"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
+            </Link>
+          </div>
+
           <div className="mb-6">
             <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">Find Your Perfect Property</h1>
             <p className="mt-2 text-sm text-slate-600 sm:text-base">
@@ -242,17 +443,20 @@ export function ListingsClient({ initialListings, initialPagination, searchParam
           </div>
 
           <div className="relative mb-4">
-            <div className="relative flex items-center">
-              <Search className="absolute left-4 h-5 w-5 text-slate-400" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search by location, neighborhood, or keyword..."
-                className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-4 text-base text-slate-900 shadow-md transition-all placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-              />
+            <div className="relative flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search by location, neighborhood, or keyword..."
+                  className="w-full rounded-xl border-2 border-slate-200 bg-white pl-12 pr-4 py-4 text-base text-slate-900 shadow-md transition-all placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                />
+              </div>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="absolute right-3 flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-primary/90 hover:shadow-xl"
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-primary/90 hover:shadow-xl whitespace-nowrap"
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 <span className="hidden sm:inline">Filters</span>
@@ -282,7 +486,7 @@ export function ListingsClient({ initialListings, initialPagination, searchParam
               label="Type"
               value={propertyType}
               onChange={(value) => setPropertyType(value as PropertyTypeFilter)}
-              options={propertyTypes.map((type) => ({ label: type, value: type }))}
+              options={propertyTypes}
               icon={<Building2 className="h-4 w-4" />}
             />
 
@@ -358,12 +562,42 @@ export function ListingsClient({ initialListings, initialPagination, searchParam
       </header>
 
       <main className="mx-auto max-w-screen-2xl px-4 py-6 sm:px-6 sm:py-8">
+        {/* Error Banner */}
+        {error && (
+          <div className="mb-6 rounded-xl border-2 border-red-200 bg-red-50 p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-red-900 mb-1">Failed to load listings</h3>
+                <p className="text-sm text-red-700 mb-2">{getErrorMessage(error)}</p>
+                {error.url && (
+                  <p className="text-xs text-red-600 mb-3">
+                    {'status' in error && error.status && `Status: ${error.status} • `}
+                    Route: {error.url}
+                  </p>
+                )}
+                <button
+                  onClick={() => fetchListings()}
+                  className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-red-700 hover:shadow-md"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Retry
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <p className="text-sm font-medium text-slate-600">
-              Showing <span className="font-bold text-primary">{filteredListings.length}</span>{" "}
-              {filteredListings.length === 1 ? "property" : "properties"}
-            </p>
+            {loading ? (
+              <div className="h-5 w-32 animate-pulse rounded bg-slate-200"></div>
+            ) : (
+              <p className="text-sm font-medium text-slate-600">
+                Showing <span className="font-bold text-primary">{filteredListings.length}</span>{" "}
+                {filteredListings.length === 1 ? "property" : "properties"}
+              </p>
+            )}
           </div>
           
           <div className="flex flex-wrap items-center gap-3">
@@ -426,22 +660,50 @@ export function ListingsClient({ initialListings, initialPagination, searchParam
 
         {showMap && <MapPreview listings={filteredListings} />}
         
-        {filteredListings.length === 0 ? (
-          <EmptyState query={query} />
-        ) : viewMode === "grid" ? (
+        {/* Loading State - Skeleton */}
+        {loading && (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {paginatedListings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} variant="grid" />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {paginatedListings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} variant="list" />
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border-2 border-slate-200 bg-white shadow-lg overflow-hidden">
+                <div className="aspect-[4/3] bg-slate-200 animate-pulse"></div>
+                <div className="p-5 space-y-3">
+                  <div className="h-5 bg-slate-200 rounded animate-pulse"></div>
+                  <div className="h-4 bg-slate-200 rounded w-3/4 animate-pulse"></div>
+                  <div className="h-4 bg-slate-200 rounded w-1/2 animate-pulse"></div>
+                  <div className="flex gap-2 mt-4">
+                    <div className="h-6 bg-slate-200 rounded w-16 animate-pulse"></div>
+                    <div className="h-6 bg-slate-200 rounded w-16 animate-pulse"></div>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         )}
-        {filteredListings.length > 0 && (
+
+        {/* Empty State */}
+        {!loading && filteredListings.length === 0 && (
+          <EmptyState query={query} />
+        )}
+
+        {/* Success State - Listings Grid/List */}
+        {!loading && filteredListings.length > 0 && (
+          viewMode === "grid" ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {paginatedListings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing} variant="grid" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {paginatedListings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing} variant="list" />
+              ))}
+            </div>
+          )
+        )}
+        
+        {/* Pagination - Only show when not loading and there are listings */}
+        {!loading && filteredListings.length > 0 && (
           <div className="mt-8 rounded-xl border-2 border-slate-200 bg-white p-6 shadow-lg">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm font-medium text-slate-700">
@@ -712,13 +974,24 @@ function MapPreview({ listings }: { listings: Listing[] }) {
 
 function EmptyState({ query }: { query: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center">
-      <p className="text-lg font-semibold text-slate-900">No properties match your filters yet.</p>
-      <p className="mt-2 text-sm text-slate-600">
-        {query
-          ? "Try adjusting your keywords or removing some filters to see more results."
-          : "Modify the filters to explore other property types or price ranges."}
-      </p>
+    <div className="rounded-xl border-2 border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
+      <div className="max-w-md mx-auto">
+        <div className="text-6xl mb-4">🏠</div>
+        <p className="text-xl font-semibold text-slate-900 mb-2">No listings found</p>
+        <p className="text-sm text-slate-600 mb-4">
+          {query
+            ? `No properties match "${query}". Try adjusting your search keywords or removing some filters to see more results.`
+            : "No listings are available yet. Check back later or try adjusting your filters to explore different property types or price ranges."}
+        </p>
+        <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+          <p className="text-xs font-semibold text-slate-700 mb-2">Tips:</p>
+          <ul className="text-xs text-slate-600 space-y-1 text-left">
+            <li>• Try searching with different keywords</li>
+            <li>• Clear filters to see all available properties</li>
+            <li>• Check back later as new listings are added regularly</li>
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }

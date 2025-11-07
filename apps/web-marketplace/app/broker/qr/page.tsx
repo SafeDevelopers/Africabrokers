@@ -13,6 +13,9 @@ interface QRCodeData {
   brokerId: string;
 }
 
+const CORE_API_BASE_URL = process.env.NEXT_PUBLIC_CORE_API_BASE_URL;
+const TENANT_KEY = process.env.NEXT_PUBLIC_TENANT_KEY;
+
 export default function BrokerQRPage() {
   const [qrCodes, setQrCodes] = useState<QRCodeData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,28 +23,58 @@ export default function BrokerQRPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Fetch QR codes from API
-    // TODO: Replace with actual API call
     const fetchQRCodes = async () => {
+      if (!CORE_API_BASE_URL) {
+        setError("Core API base URL is not configured.");
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
-        // Mock data for now
-        const mockQRCodes: QRCodeData[] = [
-          {
-            id: "qr-001",
-            code: "AFR-QR-156",
-            status: "active",
-            createdAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-            brokerId: "broker-001",
+
+        const response = await fetch(`${CORE_API_BASE_URL}/v1/admin/qrcodes?limit=20`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...(TENANT_KEY ? { "X-Tenant": TENANT_KEY } : {}),
           },
-        ];
-        
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setQrCodes(mockQRCodes);
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => response.statusText);
+          throw new Error(
+            response.status === 401 || response.status === 403
+              ? "Broker QR view is restricted. Use a tenant admin account or expose a broker-specific endpoint."
+              : `Failed to load QR codes: ${response.status} ${errorText}`
+          );
+        }
+
+        const data = await response.json();
+        const items: QRCodeData[] = (data.items || []).map((item: any) => ({
+          id: item.id,
+          code: item.code || item.id,
+          status: item.status === "REVOKED" ? "revoked" : "active",
+          createdAt: item.createdAt,
+          expiresAt: item.revokedAt || undefined,
+          brokerId: item.subject?.id || "",
+        }));
+
+        setQrCodes(items);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load QR codes");
+        let errorMessage = "Failed to load QR codes";
+        if (err instanceof Error) {
+          errorMessage = err.message;
+        } else if (err && typeof err === 'object' && 'message' in err) {
+          errorMessage = String(err.message);
+        }
+        // Handle network errors
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+          errorMessage = "Network error: Unable to connect to the API. Please check your connection and try again.";
+        }
+        setError(errorMessage);
+        setQrCodes([]);
       } finally {
         setLoading(false);
       }
@@ -235,4 +268,3 @@ export default function BrokerQRPage() {
     </div>
   );
 }
-

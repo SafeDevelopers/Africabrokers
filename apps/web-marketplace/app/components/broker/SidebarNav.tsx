@@ -66,6 +66,7 @@ export function SidebarNav() {
           border-r border-slate-200 bg-white z-40
           transition-transform duration-300 ease-in-out
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          lg:translate-x-0
         `}
       >
         <div className="flex h-full flex-col">

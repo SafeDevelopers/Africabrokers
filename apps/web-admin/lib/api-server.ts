@@ -8,9 +8,18 @@ export async function getApiHeaders(): Promise<HeadersInit> {
   const cookieStore = await cookies();
   
   const token = cookieStore.get('afribrok-token')?.value;
-  const tenantId = cookieStore.get('afribrok-tenant')?.value || 
-                   cookieStore.get('afribrok-tenant-id')?.value;
+  const tenantId = cookieStore.get('afribrok-tenant-id')?.value || 
+                   cookieStore.get('afribrok-tenant')?.value;
   const role = cookieStore.get('afribrok-role')?.value;
+
+  // Debug logging in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[getApiHeaders] Cookies:', {
+      hasToken: !!token,
+      tenantId,
+      role,
+    });
+  }
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -22,6 +31,7 @@ export async function getApiHeaders(): Promise<HeadersInit> {
   }
 
   // Add X-Tenant header if tenantId exists and user is not SUPER_ADMIN
+  // The API expects x-tenant-id header for tenant context
   if (tenantId && role !== 'SUPER_ADMIN') {
     headers['X-Tenant'] = tenantId;
     headers['x-tenant-id'] = tenantId;
@@ -49,20 +59,40 @@ export async function apiRequest<T = any>(
 
   const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
   
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...headers,
-      ...options.headers,
-    },
-    cache: 'no-store',
-  });
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...headers,
+        ...options.headers,
+      },
+      cache: 'no-store',
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      // For 401/403 errors, log but don't throw - let the page handle it gracefully
+      if (response.status === 401 || response.status === 403) {
+        console.warn(`API auth error (${response.status}): ${endpoint}`, errorText);
+        // Create a specific error that pages can catch and handle
+        const authError = new Error(`Authentication failed: ${response.status}`);
+        (authError as any).status = response.status;
+        (authError as any).isAuthError = true;
+        throw authError;
+      }
+      // For other errors, throw normally
+      const error = new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+      (error as any).status = response.status;
+      throw error;
+    }
+
+    return response.json();
+  } catch (error) {
+    // Re-throw with more context
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(`Unknown error during API request: ${endpoint}`);
   }
-
-  return response.json();
 }
 

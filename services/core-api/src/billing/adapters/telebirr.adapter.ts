@@ -16,8 +16,8 @@ import {
 export class TelebirrAdapter implements PaymentAdapter {
   private config: any;
 
-  constructor(config?: any) {
-    this.config = config || {};
+  constructor() {
+    this.config = {};
   }
 
   getProviderId(): string {
@@ -96,4 +96,3 @@ export class TelebirrAdapter implements PaymentAdapter {
     return signature.length > 0;
   }
 }
-

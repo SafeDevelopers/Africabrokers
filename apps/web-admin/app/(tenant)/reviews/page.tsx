@@ -76,7 +76,6 @@ function transformApiReviews(apiReviews: any[]): Review[] {
 
 async function fetchComplianceStats(): Promise<ComplianceStats> {
   try {
-    // TODO: Replace with actual admin compliance stats endpoint
     const data = await apiRequest<ComplianceStats>('/v1/admin/reviews/stats');
     return data;
   } catch (error) {

@@ -83,7 +83,7 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
       return;
     }
 
-    alert(`User creation would be handled via API. Email: ${newUserForm.email}`);
+    alert("User creation requires a live admin API endpoint.");
     setShowAddUserModal(false);
     setNewUserForm({
       email: "",
@@ -118,7 +118,7 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
             <div className="flex items-center space-x-3">
               <button 
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
-                onClick={() => alert("Export functionality would download CSV/Excel file")}
+                onClick={() => alert("Export requires integration with the reporting service.")}
               >
                 Export Users
               </button>
@@ -478,4 +478,3 @@ function UserRow({ user }: { user: User }) {
     </div>
   );
 }
-

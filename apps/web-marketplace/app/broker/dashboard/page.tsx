@@ -9,12 +9,12 @@ export default function BrokerDashboard() {
   const { user } = useAuth();
 
   const kpiData = {
-    activeListings: 8,
-    newLeads: 12,
-    views7d: 245,
-    saves: 18,
-    inquiries: 24,
-    scans7d: 156,
+    activeListings: 0,
+    newLeads: 0,
+    views7d: 0,
+    saves: 0,
+    inquiries: 0,
+    scans7d: 0,
   };
 
   return (
@@ -27,17 +27,10 @@ export default function BrokerDashboard() {
       </div>
 
       <section>
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          At a glance
-        </h2>
-        <KpiCards
-          activeListings={kpiData.activeListings}
-          newLeads={kpiData.newLeads}
-          views7d={kpiData.views7d}
-          saves={kpiData.saves}
-          inquiries={kpiData.inquiries}
-          scans7d={kpiData.scans7d}
-        />
+        <div className="mb-4 rounded-lg border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-600">
+          Connect your analytics endpoints to populate these KPIs. Until then the values default to zero.
+        </div>
+        <KpiCards {...kpiData} />
       </section>
 
       <section>

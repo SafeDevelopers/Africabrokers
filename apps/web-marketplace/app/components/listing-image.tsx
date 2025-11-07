@@ -1,6 +1,6 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
-import type { Listing } from "../data/mock-data";
+import type { Listing } from "../types/listing";
 
 type ListingImageProps = {
   listing: Listing;

@@ -19,6 +19,11 @@ import { RequireIdorProtection, IdorGuard } from '../security/idor.guard';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  @Get('dashboard')
+  async getDashboardOverview() {
+    return this.adminService.getDashboardOverview();
+  }
+
   // QR Codes routes
   @Get('qrcodes')
   async getQRCodes(@Query('limit', new DefaultValuePipe(60), ParseIntPipe) limit: number) {
@@ -46,20 +51,22 @@ export class AdminController {
     return this.adminService.revokeQRCode(id);
   }
 
-  // Brokers routes (placeholder - can be expanded)
+  // Brokers routes
   @Get('brokers')
   async getBrokers(
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
   ) {
-    // TODO: Implement broker listing for tenant admins
-    return {
-      items: [],
-      total: 0,
-      limit,
-      offset,
-      message: 'Broker listing endpoint - to be implemented',
-    };
+    return this.adminService.getBrokers(limit, offset);
+  }
+
+  @Get('brokers/:id')
+  @UseGuards(IdorGuard)
+  @RequireIdorProtection('Broker')
+  async getBrokerById(@Param('id') id: string) {
+    return this.adminService.getBrokerById(id);
   }
 
   // Licenses routes (placeholder - can be expanded)
@@ -78,20 +85,50 @@ export class AdminController {
     };
   }
 
-  // Listings routes (placeholder - can be expanded)
+  // Listings routes
   @Get('listings')
   async getListings(
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
   ) {
-    // TODO: Implement listing management for tenant admins
-    return {
-      items: [],
-      total: 0,
-      limit,
-      offset,
-      message: 'Listing management endpoint - to be implemented',
-    };
+    return this.adminService.getListings(limit, offset);
+  }
+
+  // Users routes
+  @Get('users')
+  async getUsers(
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+  ) {
+    return this.adminService.getUsers(limit, offset);
+  }
+
+  // Reviews routes
+  @Get('reviews/pending')
+  async getPendingReviews() {
+    return this.adminService.getPendingReviews();
+  }
+
+  @Get('reviews/compliance')
+  async getComplianceReports() {
+    return this.adminService.getComplianceReports();
+  }
+
+  // Verifications routes
+  @Get('verifications/pending')
+  async getPendingVerifications() {
+    return this.adminService.getPendingVerifications();
+  }
+
+  // Payouts routes
+  @Get('payouts/pending')
+  async getPendingPayouts() {
+    return this.adminService.getPendingPayouts();
+  }
+
+  // Notifications routes
+  @Get('notifications/stats')
+  async getNotificationStats() {
+    return this.adminService.getNotificationStats();
   }
 }
-

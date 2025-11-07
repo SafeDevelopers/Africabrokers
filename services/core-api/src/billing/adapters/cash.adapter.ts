@@ -17,8 +17,8 @@ import {
 export class CashAdapter implements PaymentAdapter {
   private config: any;
 
-  constructor(config?: any) {
-    this.config = config || {};
+  constructor() {
+    this.config = {};
   }
 
   getProviderId(): string {
@@ -93,4 +93,3 @@ export class CashAdapter implements PaymentAdapter {
     return true;
   }
 }
-

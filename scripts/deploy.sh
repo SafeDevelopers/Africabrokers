@@ -32,8 +32,11 @@ REQUIRED_VARS=(
     "POSTGRES_PASSWORD"
     "DATABASE_URL"
     "REDIS_PASSWORD"
-    "MINIO_ACCESS_KEY"
-    "MINIO_SECRET_KEY"
+    "STORAGE_ENDPOINT"
+    "STORAGE_BUCKET"
+    "AWS_REGION"
+    "AWS_ACCESS_KEY_ID"
+    "AWS_SECRET_ACCESS_KEY"
     "OIDC_CLIENT_SECRET"
 )
 
@@ -101,4 +104,3 @@ else
     echo -e "${YELLOW}docker compose -f $COMPOSE_FILE logs${NC}"
     exit 1
 fi
-

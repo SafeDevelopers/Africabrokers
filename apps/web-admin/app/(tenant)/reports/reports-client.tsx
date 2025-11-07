@@ -113,7 +113,7 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
               </div>
               <button
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2"
-                onClick={() => alert("Export analytics report dialog (mock)")}
+                onClick={() => alert("Export analytics requires integration with the reporting service.")}
               >
                 <Download className="w-4 h-4" />
                 <span>Export Report</span>
@@ -421,4 +421,3 @@ function MetricCard({
     </div>
   );
 }
-

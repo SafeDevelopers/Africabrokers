@@ -1,6 +1,7 @@
-import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NestMiddleware, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import * as jwt from 'jsonwebtoken';
+import { PrismaService } from '../prisma/prisma.service';
 
 // Extend Express Request to include user
 declare global {
@@ -18,16 +19,19 @@ declare global {
 interface JwtPayload {
   sub: string; // user ID
   role: string;
-  tenantId: string;
+  tenant?: string; // tenant slug (for admin users)
+  tenantId?: string; // tenant ID (for backward compatibility)
   iat?: number;
   exp?: number;
 }
 
 @Injectable()
 export class JwtAuthMiddleware implements NestMiddleware {
-  use(req: Request, res: Response, next: NextFunction) {
+  constructor(private prisma: PrismaService) {}
+
+  async use(req: Request, res: Response, next: NextFunction) {
     // Skip auth for public routes
-    const publicRoutes = ['/health', '/auth/callback'];
+    const publicRoutes = ['/health', '/healthz', '/readiness', '/auth/callback'];
     if (publicRoutes.some(route => req.path.startsWith(`/v1${route}`) || req.path.startsWith(route))) {
       return next();
     }
@@ -47,19 +51,59 @@ export class JwtAuthMiddleware implements NestMiddleware {
     
     try {
       // Verify JWT token
-      // In production, use a proper JWT secret from environment
       const jwtSecret = process.env.JWT_SECRET || 'dev-secret-change-in-production';
-      const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
+      const jwtIssuer = process.env.JWT_ISSUER;
+      const jwtAudience = process.env.JWT_AUDIENCE;
+      
+      // Build verification options
+      const verifyOptions: jwt.VerifyOptions = {};
+      if (jwtIssuer) {
+        verifyOptions.issuer = jwtIssuer;
+      }
+      if (jwtAudience) {
+        verifyOptions.audience = jwtAudience;
+      }
+      
+      const decoded = jwt.verify(token, jwtSecret, verifyOptions) as JwtPayload;
+
+      // For admin routes, assert role === 'admin'
+      const isAdminRoute = req.path.startsWith('/v1/admin') || req.path.startsWith('/admin');
+      if (isAdminRoute && decoded.role !== 'admin') {
+        throw new ForbiddenException('Admin role required for this route');
+      }
+
+      // Map tenant slug to tenantId if needed
+      let tenantId: string | null = null;
+      
+      if (decoded.tenant) {
+        // Admin user with tenant slug - map to tenantId
+        const tenant = await this.prisma.tenant.findUnique({
+          where: { slug: decoded.tenant },
+          select: { id: true },
+        });
+        
+        if (!tenant) {
+          throw new ForbiddenException(`Invalid tenant slug: ${decoded.tenant}`);
+        }
+        
+        tenantId = tenant.id;
+      } else if (decoded.tenantId) {
+        // Backward compatibility: use tenantId directly
+        tenantId = decoded.tenantId;
+      }
 
       // Attach user info to request
       req.user = {
         id: decoded.sub,
         role: decoded.role,
-        tenantId: decoded.tenantId,
+        tenantId: tenantId || '',
       };
 
       next();
     } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
       if (error instanceof jwt.JsonWebTokenError) {
         throw new UnauthorizedException('Invalid token');
       }

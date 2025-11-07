@@ -15,16 +15,10 @@ interface RateLimitStore {
 @Injectable()
 export class RateLimitMiddleware implements NestMiddleware {
   private store: RateLimitStore = {};
-  private readonly windowMs: number;
-  private readonly maxRequests: number;
+  private readonly windowMs = 60_000; // 1 minute
+  private readonly maxRequests = 100; // 100 requests per window
 
-  constructor(
-    windowMs: number = 60000, // 1 minute
-    maxRequests: number = 100, // 100 requests per window
-  ) {
-    this.windowMs = windowMs;
-    this.maxRequests = maxRequests;
-    
+  constructor() {
     // Cleanup old entries every 5 minutes
     setInterval(() => this.cleanup(), 5 * 60 * 1000);
   }
@@ -109,4 +103,3 @@ export class RateLimitMiddleware implements NestMiddleware {
     });
   }
 }
-

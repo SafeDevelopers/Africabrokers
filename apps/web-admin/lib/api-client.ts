@@ -4,7 +4,7 @@
  * Works on both server-side and client-side
  */
 
-const CORE_API_BASE_URL = process.env.NEXT_PUBLIC_CORE_API_BASE_URL || 'http://localhost:8080';
+const CORE_API_BASE_URL = process.env.NEXT_PUBLIC_CORE_API_BASE_URL || 'http://localhost:4000';
 
 interface ApiClientConfig {
   includeTenant?: boolean; // Whether to include X-Tenant header
@@ -105,28 +105,48 @@ class ApiClient {
    * Make a GET request
    */
   async get<T = any>(endpoint: string, config?: ApiClientConfig): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: this.buildHeaders(config),
-      credentials: config?.cookies ? 'omit' : 'include', // Omit credentials if using cookie header
-      cache: 'no-store',
-      ...(config?.cookies && { next: { revalidate: 0 } }), // Server-side cache control
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => response.statusText);
-      throw new Error(`API request failed: ${response.status} ${errorText}`);
+    // Ensure endpoint starts with /v1 if it doesn't already
+    const normalizedEndpoint = endpoint.startsWith('/v1/') ? endpoint : `/v1${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    const url = `${this.baseUrl}${normalizedEndpoint}`;
+    
+    // Debug logging in development
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.log('[ApiClient] GET', url, { baseUrl: this.baseUrl, endpoint });
     }
+    
+    try {
+      const headers = this.buildHeaders(config);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers,
+        credentials: config?.cookies ? 'omit' : 'include', // Omit credentials if using cookie header
+        cache: 'no-store',
+        ...(config?.cookies && { next: { revalidate: 0 } }), // Server-side cache control
+      });
 
-    return response.json();
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => response.statusText);
+        throw new Error(`API request failed: ${response.status} ${errorText}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      // Handle network errors
+      if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+        throw new Error(`Network error: Unable to connect to API at ${url}. Please check if the API is running at ${this.baseUrl}.`);
+      }
+      throw error;
+    }
   }
 
   /**
    * Make a POST request
    */
   async post<T = any>(endpoint: string, data?: any, config?: ApiClientConfig): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    // Ensure endpoint starts with /v1 if it doesn't already
+    const normalizedEndpoint = endpoint.startsWith('/v1/') ? endpoint : `/v1${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    const url = `${this.baseUrl}${normalizedEndpoint}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: this.buildHeaders(config),
@@ -146,7 +166,9 @@ class ApiClient {
    * Make a PUT request
    */
   async put<T = any>(endpoint: string, data?: any, config?: ApiClientConfig): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    // Ensure endpoint starts with /v1 if it doesn't already
+    const normalizedEndpoint = endpoint.startsWith('/v1/') ? endpoint : `/v1${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    const url = `${this.baseUrl}${normalizedEndpoint}`;
     const response = await fetch(url, {
       method: 'PUT',
       headers: this.buildHeaders(config),
@@ -166,7 +188,9 @@ class ApiClient {
    * Make a PATCH request
    */
   async patch<T = any>(endpoint: string, data?: any, config?: ApiClientConfig): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    // Ensure endpoint starts with /v1 if it doesn't already
+    const normalizedEndpoint = endpoint.startsWith('/v1/') ? endpoint : `/v1${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    const url = `${this.baseUrl}${normalizedEndpoint}`;
     const response = await fetch(url, {
       method: 'PATCH',
       headers: this.buildHeaders(config),
@@ -186,7 +210,9 @@ class ApiClient {
    * Make a DELETE request
    */
   async delete<T = any>(endpoint: string, config?: ApiClientConfig): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    // Ensure endpoint starts with /v1 if it doesn't already
+    const normalizedEndpoint = endpoint.startsWith('/v1/') ? endpoint : `/v1${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    const url = `${this.baseUrl}${normalizedEndpoint}`;
     const response = await fetch(url, {
       method: 'DELETE',
       headers: this.buildHeaders(config),

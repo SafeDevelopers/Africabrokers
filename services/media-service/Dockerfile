@@ -3,35 +3,46 @@
   ENV PNPM_HOME=/root/.local/share/pnpm
   ENV PATH=$PNPM_HOME:$PATH
   RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
-  WORKDIR /repo
+  WORKDIR /app
   
-  # -------- deps --------
+  # -------- deps (workspace-aware; dev+prod) --------
   FROM base AS deps
+  # Root manifests for workspace resolution
   COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+  # Workspace package manifests so pnpm can resolve without full sources yet
   COPY packages/config/env/package.json ./packages/config/env/
+  # add more package.json manifests here if media-service depends on other workspaces
   COPY services/media-service/package.json ./services/media-service/
+  # Install all deps (dev + prod) per lockfile (keeps CLI/tools available for build)
   RUN pnpm -w install --frozen-lockfile
   
   # -------- build --------
   FROM deps AS build
+  # Bring in full source
   COPY . .
-  # Build shared packages first (may not have build scripts)
+  # Build shared workspaces first (no-op if none / or if they’re pure JS)
   RUN pnpm -w --filter @afribrok/config... build || true
-  # Build only the media-service (not its dependencies to avoid turbo issues)
-  WORKDIR /repo/services/media-service
-  RUN pnpm build
- 
   
-  # -------- runtime --------
+  # If this service uses Prisma, uncomment these two lines:
+  # WORKDIR /app/services/media-service
+  # RUN pnpm prisma generate
+  
+  # Build the service (NestJS or plain TS)
+  WORKDIR /app/services/media-service
+  RUN pnpm build
+  
+  # -------- runtime (no installs) --------
   FROM node:20-alpine AS runtime
+  WORKDIR /app
   ENV NODE_ENV=production
   ENV PORT=3000
-  WORKDIR /app
-  # Copy built application and dependencies
-  COPY --from=build /repo/services/media-service/dist ./dist
-  COPY --from=build /repo/services/media-service/package.json ./package.json
-  COPY --from=build /repo/node_modules ./node_modules
-  COPY --from=build /repo/packages ./packages
+  
+  # Copy compiled output
+  COPY --from=build /app/services/media-service/dist ./dist
+  # Copy full node_modules from build (includes Nest + any workspace-linked deps)
+  COPY --from=build /app/node_modules ./node_modules
+  # Minimal manifest (handy for tooling)
+  COPY --from=build /app/services/media-service/package.json ./package.json
   
   EXPOSE 3000
   HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \

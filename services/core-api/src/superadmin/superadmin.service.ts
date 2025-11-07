@@ -281,4 +281,81 @@ export class SuperAdminService {
       infoRequest,
     };
   }
+
+  // Get all tenants
+  async getTenants(query?: { limit?: number; offset?: number }) {
+    const { limit = 50, offset = 0 } = query || {};
+
+    const [tenants, total] = await Promise.all([
+      this.prisma.tenant.findMany({
+        take: limit,
+        skip: offset,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          _count: {
+            select: {
+              users: true,
+              brokers: true,
+              listings: true,
+            },
+          },
+        },
+      }),
+      this.prisma.tenant.count(),
+    ]);
+
+    return {
+      items: tenants.map((tenant: any) => ({
+        id: tenant.id,
+        slug: tenant.slug,
+        key: tenant.key,
+        name: tenant.name,
+        country: tenant.country,
+        currency: tenant.currency,
+        createdAt: tenant.createdAt.toISOString(),
+        updatedAt: tenant.updatedAt.toISOString(),
+        stats: {
+          users: tenant._count.users,
+          brokers: tenant._count.brokers,
+          listings: tenant._count.listings,
+        },
+      })),
+      total,
+      limit,
+      offset,
+    };
+  }
+
+  // Get overview statistics
+  async getOverview() {
+    const [tenantCount, userCount, brokerCount, listingCount, agentApplicationCount] = await Promise.all([
+      this.prisma.tenant.count(),
+      this.prisma.user.count(),
+      this.prisma.broker.count(),
+      this.prisma.listing.count(),
+      this.prisma.brokerApplication.count({
+        where: {
+          status: 'SUBMITTED',
+        },
+      }),
+    ]);
+
+    return {
+      tenants: {
+        total: tenantCount,
+      },
+      users: {
+        total: userCount,
+      },
+      brokers: {
+        total: brokerCount,
+      },
+      listings: {
+        total: listingCount,
+      },
+      agentApplications: {
+        pending: agentApplicationCount,
+      },
+    };
+  }
 }

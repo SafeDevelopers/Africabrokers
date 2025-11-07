@@ -49,10 +49,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="mx-auto flex max-w-screen-2xl flex-col gap-4 px-6 py-8 text-sm text-slate-600 md:flex-row md:items-center md:justify-between">
                 <p className="font-medium">© {new Date().getFullYear()} AfriBrok. All rights reserved.</p>
                 <div className="flex items-center gap-6">
-                  <a href="#" className="font-medium transition-colors hover:text-primary">
+                  <a href="/legal/terms" className="font-medium transition-colors hover:text-primary">
                     Terms
                   </a>
-                  <a href="#" className="font-medium transition-colors hover:text-primary">
+                  <a href="/legal/privacy" className="font-medium transition-colors hover:text-primary">
                     Privacy
                   </a>
                   <a href="#" className="font-medium transition-colors hover:text-primary">

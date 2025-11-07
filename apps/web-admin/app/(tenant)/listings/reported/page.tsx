@@ -31,7 +31,6 @@ interface ReportedListing {
 
 async function fetchReportedListings(): Promise<ReportedListing[]> {
   try {
-    // TODO: Replace with actual admin reported listings endpoint when available
     const data = await apiRequest<{ reports: any[] }>('/v1/admin/listings/reported');
     return transformApiReports(data.reports || []);
   } catch (error) {

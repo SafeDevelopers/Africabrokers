@@ -136,12 +136,14 @@ export default function QRCodesPage() {
 
   async function handleBulkGenerate() {
     // POST to a bulk endpoint; for now no-op
-    alert("TODO: POST /v1/admin/qrcodes/bulk-generate");
+    // Bulk QR code generation - endpoint implementation pending
+    alert("Bulk QR code generation feature coming soon");
   }
 
   async function handlePrintPack() {
     // Either open a server-rendered print page or generate a PDF on server
-    alert("TODO: Build a print pack (server-rendered) for crisp output");
+    // Print pack generation - server-rendered output pending
+    alert("Print pack generation feature coming soon");
   }
 
   if (loading) {

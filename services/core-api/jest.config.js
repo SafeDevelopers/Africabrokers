@@ -4,7 +4,7 @@ module.exports = {
   testEnvironment: "node",
   rootDir: "./",
   moduleFileExtensions: ["js", "json", "ts"],
-  testRegex: ".*\\.spec\\.ts$",
+  testRegex: ".*\\.(spec|e2e-spec)\\.ts$",
   coverageDirectory: "../coverage/core-api",
   collectCoverageFrom: ["src/**/*.ts"]
 };

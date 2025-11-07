@@ -13,7 +13,7 @@ export default function BrokerBillingPage() {
     currency: "ETB",
     interval: "month",
     status: "active",
-    nextBillingDate: "2024-02-15",
+    nextBillingDate: "2025-02-15",
     features: [
       "Up to 50 active listings",
       "Priority support",
@@ -24,14 +24,14 @@ export default function BrokerBillingPage() {
 
   const invoices = [
     {
-      id: "INV-2024-001",
-      date: "2024-01-15",
+      id: "INV-2025-001",
+      date: "2025-01-15",
       amount: 299,
       currency: "ETB",
       status: "paid",
     },
     {
-      id: "INV-2024-002",
+      id: "INV-2025-002",
       date: "2023-12-15",
       amount: 299,
       currency: "ETB",

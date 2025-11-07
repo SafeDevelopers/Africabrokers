@@ -4,6 +4,31 @@
 
 :root {
   color-scheme: light;
+  
+  /* Design token CSS variables - ensure primary colors are available */
+  --color-primary: #184C8C;
+  --color-primaryForeground: #FFFFFF;
+  --color-secondary: #0F9D58;
+  --color-secondaryForeground: #FFFFFF;
+  --color-accent: #F9A825;
+  --color-accentForeground: #0F172A;
+  --color-success: #0F9D58;
+  --color-danger: #D93025;
+  --color-warning: #F59E0B;
+  --color-info: #1D4ED8;
+  
+  /* Neutral colors */
+  --color-neutral-900: #0F172A;
+  --color-neutral-800: #1E293B;
+  --color-neutral-700: #334155;
+  --color-neutral-400: #CBD5F5;
+  --color-neutral-200: #E2E8F0;
+  --color-neutral-50: #F8FAFC;
+  --color-neutral-background: #F8FAFC;
+  --color-neutral-surface: #FFFFFF;
+  --color-neutral-border: #CBD5F5;
+  --color-neutral-title: #0F172A;
+  --color-neutral-body: #1E293B;
 }
 
 * {

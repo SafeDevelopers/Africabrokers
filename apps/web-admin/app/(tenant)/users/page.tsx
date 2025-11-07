@@ -26,8 +26,7 @@ interface User {
 
 async function fetchUsers(): Promise<User[]> {
   try {
-    // TODO: Replace with actual admin users endpoint when available
-    const data = await apiRequest<{ users: any[] }>('/v1/admin/users');
+    const data = await apiRequest<{ users: any[] }>('/v1/admin/users?limit=100');
     return transformApiUsers(data.users || []);
   } catch (error) {
     console.error('Error fetching users:', error);

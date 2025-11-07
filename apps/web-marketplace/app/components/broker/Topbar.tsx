@@ -10,22 +10,9 @@ export function Topbar() {
   const router = useRouter();
 
   const handleLogout = async () => {
-    // Call auth context logout (clears user state and localStorage)
-    logout();
-    
-    // Clear all cookies
-    if (typeof document !== 'undefined') {
-      document.cookie.split(';').forEach((cookie) => {
-        const eqPos = cookie.indexOf('=');
-        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-        if (name.startsWith('afribrok-')) {
-          document.cookie = `${name}=;path=/;max-age=0`;
-        }
-      });
-    }
-    
-    // Redirect to homepage
-    router.push('/');
+    // Call auth context logout which handles everything and redirects
+    await logout();
+    // logout() already does a hard redirect, so we don't need router.push
   };
 
   return (

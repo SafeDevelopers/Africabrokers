@@ -14,57 +14,109 @@ interface Invoice {
   description: string;
 }
 
+const CORE_API_BASE_URL = process.env.NEXT_PUBLIC_CORE_API_BASE_URL;
+const TENANT_KEY = process.env.NEXT_PUBLIC_TENANT_KEY;
+
+const mapStatus = (status: string): Invoice["status"] => {
+  if (status === "paid") return "paid";
+  if (status === "open" || status === "draft") return "pending";
+  return "overdue";
+};
+
+const toNumber = (value: unknown): number => {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  if (value && typeof value === "object" && "toNumber" in (value as any)) {
+    try {
+      return (value as any).toNumber();
+    } catch {
+      return 0;
+    }
+  }
+  return 0;
+};
+
 export default function BrokerInvoicesPage() {
   const { user } = useAuth();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchInvoices = async () => {
+      if (user?.role !== "broker") {
+        setError("Switch to a broker account to view invoices.");
+        setInvoices([]);
+        setLoading(false);
+        return;
+      }
+
+      if (!CORE_API_BASE_URL) {
+        setError("Core API base URL is not configured.");
+        setInvoices([]);
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
-        
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        
-        // Mock data
-        const mockInvoices: Invoice[] = [
-          {
-            id: "INV-2024-001",
-            date: "2024-01-15",
-            amount: 299,
-            currency: "ETB",
-            status: "paid",
-            description: "Professional Plan - January 2024",
+        setError(null);
+
+        const response = await fetch(`${CORE_API_BASE_URL}/v1/billing/invoices/me`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...(TENANT_KEY ? { "X-Tenant": TENANT_KEY } : {}),
           },
-          {
-            id: "INV-2024-002",
-            date: "2023-12-15",
-            amount: 299,
-            currency: "ETB",
-            status: "paid",
-            description: "Professional Plan - December 2023",
-          },
-          {
-            id: "INV-2024-003",
-            date: "2023-11-15",
-            amount: 299,
-            currency: "ETB",
-            status: "paid",
-            description: "Professional Plan - November 2023",
-          },
-        ];
-        
-        setInvoices(mockInvoices);
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error("Broker authentication required. Please sign in again.");
+          }
+          const text = await response.text().catch(() => response.statusText);
+          throw new Error(`Failed to load invoices: ${response.status} ${text}`);
+        }
+
+        const data = await response.json();
+        const mapped: Invoice[] = (data.invoices || []).map((item: any) => ({
+          id: item.invoiceNumber || item.id,
+          date: item.createdAt,
+          amount: toNumber(item.amount || item.paidAmount),
+          currency: item.currency || "ETB",
+          status: mapStatus(item.status),
+          description:
+            item.subscription?.name ||
+            item.metadata?.description ||
+            item.provider?.name ||
+            "Subscription invoice",
+        }));
+
+        setInvoices(mapped);
       } catch (error) {
-        console.error("Failed to load invoices", error);
+        let errorMessage = "Failed to load invoices";
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        } else if (error && typeof error === 'object' && 'message' in error) {
+          errorMessage = String(error.message);
+        }
+        // Handle network errors
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+          errorMessage = "Network error: Unable to connect to the API. Please check your connection and try again.";
+        }
+        setError(errorMessage);
+        setInvoices([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchInvoices();
-  }, []);
+  }, [user?.role]);
 
   const handleDownload = (invoiceId: string) => {
     // Handle invoice download
@@ -91,6 +143,10 @@ export default function BrokerInvoicesPage() {
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : error ? (
+          <div className="p-8 text-center">
+            <p className="text-sm text-red-600">{error}</p>
           </div>
         ) : invoices.length === 0 ? (
           <div className="p-8 text-center">

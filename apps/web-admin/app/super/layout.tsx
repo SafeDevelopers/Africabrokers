@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '../../lib/auth';
 import SuperAdminSidebar from '../components/SuperAdminSidebar';
 
+export const dynamic = 'force-dynamic';
+
 export default async function SuperAdminLayout({
   children,
 }: {
@@ -23,4 +25,3 @@ export default async function SuperAdminLayout({
     </SuperAdminSidebar>
   );
 }
-

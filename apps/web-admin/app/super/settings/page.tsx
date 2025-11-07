@@ -9,7 +9,14 @@ export const metadata: Metadata = {
   description: 'Configure platform-wide settings',
 };
 
-async function fetchPlatformSettings() {
+export const dynamic = 'force-dynamic';
+
+type PlatformSettingsResponse = {
+  version: number;
+  settings: any;
+};
+
+async function fetchPlatformSettings(): Promise<PlatformSettingsResponse | null> {
   try {
     const data = await apiRequest<{ version: number; settings: any }>(
       '/v1/super/platform-settings',
@@ -17,62 +24,7 @@ async function fetchPlatformSettings() {
     return data;
   } catch (error) {
     console.error('Failed to fetch platform settings:', error);
-    // Return defaults if fetch fails
-    return {
-      version: 1,
-      settings: {
-        branding: {
-          siteName: 'AfriBrok',
-          theme: 'light',
-        },
-        localization: {
-          defaultLocale: 'en-ET',
-          supportedLocales: ['en-ET', 'am-ET'],
-          currency: 'ETB',
-          timezone: 'Africa/Addis_Ababa',
-          dateFormat: 'DD/MM/YYYY',
-          timeFormat: '24h',
-        },
-        security: {
-          require2FA: false,
-          sessionTimeout: 60,
-          passwordMinLength: 8,
-          passwordRequireUppercase: true,
-          passwordRequireLowercase: true,
-          passwordRequireNumbers: true,
-          passwordRequireSpecialChars: false,
-          maxLoginAttempts: 5,
-          lockoutDuration: 15,
-        },
-        tenancy: {
-          allowMultiTenant: true,
-          tenantIsolationLevel: 'strict',
-        },
-        marketplace: {
-          enableSellPageLeads: false,
-          enablePublicListings: true,
-          requireBrokerVerification: true,
-          listingApprovalRequired: true,
-        },
-        payments: {
-          supportedCurrencies: ['ETB', 'USD'],
-          enableSubscriptions: true,
-          enableInvoicing: true,
-        },
-        integrations: {
-          analyticsEnabled: true,
-        },
-        observability: {
-          enableLogging: true,
-          logLevel: 'info',
-          enableMetrics: true,
-          enableTracing: false,
-        },
-        legal: {
-          gdprCompliant: false,
-        },
-      },
-    };
+    return null;
   }
 }
 
@@ -88,8 +40,8 @@ async function checkTenantOverrides() {
 }
 
 export default async function PlatformSettingsPage() {
-  const { version, settings } = await fetchPlatformSettings();
-  const hasTenantOverrides = await checkTenantOverrides();
+  const data = await fetchPlatformSettings();
+  const hasTenantOverrides = data ? await checkTenantOverrides() : false;
 
   return (
     <>
@@ -114,8 +66,17 @@ export default async function PlatformSettingsPage() {
           </div>
         </div>
       )}
-      <PlatformSettingsClient initialSettings={settings} version={version} />
+      {data ? (
+        <PlatformSettingsClient initialSettings={data.settings} version={data.version} />
+      ) : (
+        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-sm text-gray-600 shadow-sm">
+          <p className="font-medium text-gray-900">Platform settings API unavailable</p>
+          <p className="mt-2">
+            No fallback configuration is loaded. Ensure <code className="rounded bg-gray-100 px-1 py-0.5 text-xs text-gray-700">/v1/super/platform-settings</code> is implemented
+            and reachable before updating global policies.
+          </p>
+        </div>
+      )}
     </>
   );
 }
-

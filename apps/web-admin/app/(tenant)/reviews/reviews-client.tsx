@@ -113,7 +113,7 @@ export function ReviewsClient({ initialReviews, initialStats }: ReviewsClientPro
                   <span className="text-2xl">⏱️</span>
                 </div>
               </div>
-              <p className="text-xs text-green-600 mt-2">↗ 15% faster than last month</p>
+              <p className="text-xs text-gray-500 mt-2">Trend data will appear once analytics are connected.</p>
             </div>
 
             <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -139,7 +139,7 @@ export function ReviewsClient({ initialReviews, initialStats }: ReviewsClientPro
                   <span className="text-2xl">📊</span>
                 </div>
               </div>
-              <p className="text-xs text-green-600 mt-2">↗ +2% this month</p>
+              <p className="text-xs text-gray-500 mt-2">Compliance trends require telemetry integration.</p>
             </div>
           </div>
 
@@ -334,4 +334,3 @@ function ReviewRow({ review }: { review: Review }) {
     </div>
   );
 }
-

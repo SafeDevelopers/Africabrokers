@@ -4,7 +4,7 @@ import { ListingImage } from "../../components/listing-image";
 import { ContactBrokerForm } from "../../components/contact-broker-form";
 import { BrokerCard } from "../../components/broker/BrokerCard";
 import { ScrollToContact } from "./scroll-to-contact";
-import { type Listing, type ListingReview } from "../../data/mock-data";
+import { type Listing, type ListingReview } from "../../types/listing";
 
 type ListingDetailPageProps = {
   params: {
@@ -49,7 +49,7 @@ async function fetchListing(id: string) {
   }
 }
 
-function transformApiListingToMock(apiListing: any): Listing {
+function transformApiListing(apiListing: any): Listing {
   const property = apiListing.property || {};
   const address = typeof property.address === "object" ? property.address : {};
   
@@ -172,7 +172,7 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
       notFound();
     }
 
-    const listing = transformApiListingToMock(apiListing);
+    const listing = transformApiListing(apiListing);
     const broker = listing.brokerId ? await fetchBroker(listing.brokerId) : null;
 
     const hasReviews = listing.reviews.length > 0;

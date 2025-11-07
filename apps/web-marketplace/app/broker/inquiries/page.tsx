@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/auth-context";
 import { LeadsTable } from "../../components/broker/LeadsTable";
 import { Loader2, RefreshCw } from "lucide-react";
 
-type LeadStatus = "NEW" | "CONTACTED" | "QUALIFIED" | "VIEWING" | "CLOSED" | "LOST";
+type LeadStatus = "NEW" | "READ" | "ARCHIVED";
 
 interface Lead {
   id: string;
@@ -22,74 +22,175 @@ interface Lead {
   lastContacted?: string;
 }
 
+const CORE_API_BASE_URL = process.env.NEXT_PUBLIC_CORE_API_BASE_URL;
+const TENANT_KEY = process.env.NEXT_PUBLIC_TENANT_KEY;
+
+const mapInquiryStatusToLead = (status: string): LeadStatus => {
+  switch (status) {
+    case "READ":
+      return "READ";
+    case "ARCHIVED":
+      return "ARCHIVED";
+    default:
+      return "NEW";
+  }
+};
+
+const formatAddress = (address: unknown): string => {
+  if (address && typeof address === "object") {
+    const addr = address as Record<string, unknown>;
+    return [addr.street, addr.district, addr.city].filter(Boolean).join(", ") || "—";
+  }
+  if (typeof address === "string") {
+    return address;
+  }
+  return "—";
+};
+
 export default function BrokerInquiriesPage() {
   const { user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchLeads = async () => {
+  const canManage = user?.role === "broker";
+
+  const fetchLeads = useCallback(async () => {
+    if (!canManage) {
+      setError("Switch to a broker account to manage inquiries.");
+      setLeads([]);
+      return;
+    }
+
+    if (!CORE_API_BASE_URL) {
+      setError("Core API base URL is not configured.");
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
-      
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // Mock data
-      const mockLeads: Lead[] = [
-        {
-          id: "1",
-          name: "John Doe",
-          email: "john@example.com",
-          phone: "+251 911 123 456",
-          propertyType: "Apartment",
-          location: "Addis Ababa",
-          budget: "ETB 2,000,000",
-          status: "NEW",
-          source: "Website",
-          createdAt: new Date().toISOString(),
+
+      const response = await fetch(`${CORE_API_BASE_URL}/v1/broker/inquiries`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...(TENANT_KEY ? { "X-Tenant": TENANT_KEY } : {}),
         },
-        {
-          id: "2",
-          name: "Jane Smith",
-          email: "jane@example.com",
-          phone: "+251 911 234 567",
-          propertyType: "House",
-          location: "Addis Ababa",
-          budget: "ETB 5,000,000",
-          status: "CONTACTED",
-          source: "Referral",
-          createdAt: new Date().toISOString(),
-        },
-      ];
-      
-      setLeads(mockLeads);
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Broker authentication required. Please sign in again.");
+        }
+        const errorText = await response.text().catch(() => response.statusText);
+        throw new Error(`Failed to load inquiries: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      const mapped: Lead[] = (data.items || []).map((item: any) => {
+        const listing = item.listing || {};
+        const property = listing.property || {};
+        return {
+          id: item.id,
+          name: item.fullName || "Unknown lead",
+          email: item.email || "—",
+          phone: item.phone || "—",
+          propertyType: property.propertyType || "Listing",
+          location: formatAddress(property.address),
+          budget: undefined,
+          status: mapInquiryStatusToLead(item.status),
+          source: item.source || "Unknown",
+          notes: item.brokerNotes || undefined,
+          createdAt: item.createdAt,
+          lastContacted: item.updatedAt,
+        };
+      });
+
+      setLeads(mapped);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load inquiries");
+      let errorMessage = "Failed to load inquiries";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        errorMessage = String(err.message);
+      }
+      // Handle network errors
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+        errorMessage = "Network error: Unable to connect to the API. Please check your connection and try again.";
+      }
+      setError(errorMessage);
+      setLeads([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [canManage]);
 
   useEffect(() => {
     fetchLeads();
-  }, []);
+  }, [fetchLeads]);
 
-  const handleStatusChange = (leadId: string, newStatus: LeadStatus) => {
-    setLeads((prev) =>
-      prev.map((lead) =>
-        lead.id === leadId ? { ...lead, status: newStatus } : lead
-      )
-    );
+  const handleStatusChange = async (leadId: string, newStatus: LeadStatus) => {
+    if (!CORE_API_BASE_URL || !canManage) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${CORE_API_BASE_URL}/v1/broker/inquiries/${leadId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(TENANT_KEY ? { "X-Tenant": TENANT_KEY } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => response.statusText);
+        throw new Error(`Failed to update inquiry: ${response.status} ${errorText}`);
+      }
+
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.id === leadId ? { ...lead, status: newStatus } : lead
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update inquiry");
+    }
   };
 
-  const handleAddNote = (leadId: string, note: string) => {
-    setLeads((prev) =>
-      prev.map((lead) =>
-        lead.id === leadId ? { ...lead, notes: note } : lead
-      )
-    );
+  const handleAddNote = async (leadId: string, note: string) => {
+    if (!CORE_API_BASE_URL || !canManage) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${CORE_API_BASE_URL}/v1/broker/inquiries/${leadId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(TENANT_KEY ? { "X-Tenant": TENANT_KEY } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ brokerNotes: note }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => response.statusText);
+        throw new Error(`Failed to save note: ${response.status} ${errorText}`);
+      }
+
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.id === leadId ? { ...lead, notes: note } : lead
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save note");
+    }
   };
 
   return (
@@ -110,7 +211,7 @@ export default function BrokerInquiriesPage() {
             type="button"
             onClick={fetchLeads}
             className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-            disabled={loading}
+            disabled={loading || !canManage}
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -128,6 +229,7 @@ export default function BrokerInquiriesPage() {
               type="button"
               onClick={fetchLeads}
               className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90"
+              disabled={loading}
             >
               Retry
             </button>

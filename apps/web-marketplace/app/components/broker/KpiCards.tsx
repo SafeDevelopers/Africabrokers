@@ -52,46 +52,33 @@ export function KpiCards({ activeListings, newLeads, views7d, saves = 0, inquiri
       <KpiCard
         label="Active Listings"
         value={activeListings}
-        change="+2 this month"
-        changeType="increase"
         icon={<TrendingUp className="w-6 h-6" />}
       />
       <KpiCard
         label="New Leads"
         value={newLeads}
-        change="Last 7 days"
-        changeType="increase"
         icon={<Users className="w-6 h-6" />}
       />
       <KpiCard
         label="Views (7d)"
         value={views7d}
-        change="+15% vs last week"
-        changeType="increase"
         icon={<Eye className="w-6 h-6" />}
       />
       <KpiCard
         label="Saves"
         value={saves}
-        change="Total saves"
-        changeType="neutral"
         icon={<TrendingUp className="w-6 h-6" />}
       />
       <KpiCard
         label="Inquiries"
         value={inquiries}
-        change="Total inquiries"
-        changeType="neutral"
         icon={<Users className="w-6 h-6" />}
       />
       <KpiCard
         label="QR Scans (7d)"
         value={scans7d}
-        change="+8 vs last week"
-        changeType="increase"
         icon={<QrCode className="w-6 h-6" />}
       />
     </div>
   );
 }
-

@@ -52,8 +52,6 @@ interface AnalyticsData {
 
 async function fetchAnalyticsData(): Promise<AnalyticsData> {
   try {
-    // TODO: Replace with actual admin analytics endpoint when available
-    // For now, using placeholder endpoint that may return 404
     const data = await apiRequest<AnalyticsData>('/v1/admin/analytics');
     return data;
   } catch (error) {

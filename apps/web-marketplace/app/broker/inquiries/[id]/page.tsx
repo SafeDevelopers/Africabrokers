@@ -23,6 +23,20 @@ interface Inquiry {
   };
 }
 
+const CORE_API_BASE_URL = process.env.NEXT_PUBLIC_CORE_API_BASE_URL;
+const TENANT_KEY = process.env.NEXT_PUBLIC_TENANT_KEY;
+
+const formatAddress = (address: unknown): string => {
+  if (address && typeof address === "object") {
+    const addr = address as Record<string, unknown>;
+    return [addr.street, addr.district, addr.city].filter(Boolean).join(", ") || "—";
+  }
+  if (typeof address === "string") {
+    return address;
+  }
+  return "—";
+};
+
 export default function InquiryDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -35,34 +49,80 @@ export default function InquiryDetailPage() {
 
   useEffect(() => {
     const fetchInquiry = async () => {
+      if (!inquiryId) return;
+
+      if (user?.role !== "broker") {
+        setError("Switch to a broker account to view inquiry details.");
+        setLoading(false);
+        return;
+      }
+
+      if (!CORE_API_BASE_URL) {
+        setError("Core API base URL is not configured.");
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
-        
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        
-        // Mock data
-        const mockInquiry: Inquiry = {
-          id: inquiryId,
-          name: "John Doe",
-          email: "john@example.com",
-          phone: "+251 911 123 456",
-          propertyType: "Apartment",
-          location: "Addis Ababa",
-          budget: "ETB 2,000,000",
-          message: "I'm interested in viewing this property. Please contact me.",
-          status: "NEW",
-          createdAt: new Date().toISOString(),
-          listing: {
-            id: "listing-1",
-            title: "Modern 2BR Apartment in Bole",
+
+        const response = await fetch(`${CORE_API_BASE_URL}/v1/broker/inquiries/${inquiryId}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...(TENANT_KEY ? { "X-Tenant": TENANT_KEY } : {}),
           },
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error("Broker authentication required. Please sign in again.");
+          }
+          const errorText = await response.text().catch(() => response.statusText);
+          throw new Error(`Failed to load inquiry: ${response.status} ${errorText}`);
+        }
+
+        const data = await response.json();
+        const listing = data.listing || {};
+        const property = listing.property || {};
+
+        const mapped: Inquiry = {
+          id: data.id,
+          name: data.fullName || "Unknown lead",
+          email: data.email || "—",
+          phone: data.phone || "—",
+          propertyType: property.propertyType || "Listing",
+          location: formatAddress(property.address),
+          budget: undefined,
+          message: data.message || "",
+          status: data.status,
+          createdAt: data.createdAt,
+          listing: listing.id
+            ? {
+                id: listing.id,
+                title:
+                  (property.address && formatAddress(property.address)) ||
+                  `Listing ${listing.id.slice(0, 6)}`,
+              }
+            : undefined,
         };
-        
-        setInquiry(mockInquiry);
+
+        setInquiry(mapped);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load inquiry");
+        let errorMessage = "Failed to load inquiry";
+        if (err instanceof Error) {
+          errorMessage = err.message;
+        } else if (err && typeof err === 'object' && 'message' in err) {
+          errorMessage = String(err.message);
+        }
+        // Handle network errors
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+          errorMessage = "Network error: Unable to connect to the API. Please check your connection and try again.";
+        }
+        setError(errorMessage);
+        setInquiry(null);
       } finally {
         setLoading(false);
       }
@@ -71,7 +131,7 @@ export default function InquiryDetailPage() {
     if (inquiryId) {
       fetchInquiry();
     }
-  }, [inquiryId]);
+  }, [inquiryId, user?.role]);
 
   if (loading) {
     return (

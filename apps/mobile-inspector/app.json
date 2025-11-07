@@ -2,7 +2,7 @@
   "expo": {
     "name": "AfriBrok Inspector",
     "slug": "mobile-inspector",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "scheme": "afribrokinspector",
@@ -28,7 +28,7 @@
       "eas": {
         "projectId": "00000000-0000-0000-0000-000000000000"
       },
-      "apiBaseUrl": "http://localhost:4000"
+      "apiBaseUrl": "https://api.afribrok.com"
     }
   }
 }

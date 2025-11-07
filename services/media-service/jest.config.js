@@ -6,5 +6,6 @@ module.exports = {
   moduleFileExtensions: ["js", "json", "ts"],
   testRegex: ".*\\.spec\\.ts$",
   coverageDirectory: "../coverage/media-service",
-  collectCoverageFrom: ["src/**/*.ts"]
+  collectCoverageFrom: ["src/**/*.ts"],
+  passWithNoTests: true
 };

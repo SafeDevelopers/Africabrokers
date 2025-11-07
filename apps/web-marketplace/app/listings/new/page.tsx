@@ -162,17 +162,17 @@ export default function NewListingPage() {
           </div>
         </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
-          {/* Title */}
-          <div>
-            <label
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+            {/* Title */}
+            <div>
+              <label
               htmlFor="title"
               className="block text-sm font-semibold text-slate-900 mb-2"
             >
-              Title <span className="text-red-500">*</span>
-            </label>
-            <input
+                Title <span className="text-red-500">*</span>
+              </label>
+              <input
               type="text"
               id="title"
               name="title"
@@ -183,12 +183,12 @@ export default function NewListingPage() {
                   ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                   : "border-slate-300 focus:border-primary focus:ring-primary"
               }`}
-              placeholder="Enter listing title"
-            />
-            {errors.title && (
-              <p className="mt-1 text-xs text-red-600">{errors.title}</p>
-            )}
-          </div>
+                placeholder="Enter listing title"
+              />
+              {errors.title && (
+                <p className="mt-1 text-xs text-red-600">{errors.title}</p>
+              )}
+            </div>
 
           {/* Category */}
           <div>
@@ -296,11 +296,11 @@ export default function NewListingPage() {
             {errors.description && (
               <p className="mt-1 text-xs text-red-600">{errors.description}</p>
             )}
+            </div>
           </div>
-        </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-4">
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-4">
           <Link
             href="/broker/listings"
             className="rounded-xl border border-slate-300 px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
@@ -321,8 +321,8 @@ export default function NewListingPage() {
               </>
             )}
           </button>
-        </div>
-      </form>
+          </div>
+        </form>
       </div>
     </div>
   );

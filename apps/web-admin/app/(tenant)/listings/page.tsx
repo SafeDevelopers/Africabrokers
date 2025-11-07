@@ -34,7 +34,7 @@ interface Listing {
 
 async function fetchListings(): Promise<Listing[]> {
   try {
-    const data = await apiRequest<{ items: any[] }>('/v1/admin/listings');
+    const data = await apiRequest<{ items: any[] }>('/v1/admin/listings?limit=100');
     return transformApiListings(data.items || []);
   } catch (error) {
     console.error('Error fetching listings:', error);

@@ -154,7 +154,17 @@ export default function BrokerListingsPage() {
       setData(payload);
     } catch (err: any) {
       if (err?.name === "AbortError") return;
-      setError(err?.message ?? "Failed to load listings");
+      let errorMessage = "Failed to load listings";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        errorMessage = String(err.message);
+      }
+      // Handle network errors
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+        errorMessage = "Network error: Unable to connect to the API. Please check your connection and try again.";
+      }
+      setError(errorMessage);
       setData(null);
     } finally {
       setLoading(false);

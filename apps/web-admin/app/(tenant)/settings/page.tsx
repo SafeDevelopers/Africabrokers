@@ -379,9 +379,13 @@ export default function PlatformSettingsPage() {
                   Toggle Registrations
                 </button>
                 <button
-                  onClick={() => {
-                    // simulate sending test email
-                    alert("Test email sent (mock)");
+                  onClick={async () => {
+                    try {
+                      // Test email functionality - endpoint implementation pending
+                      alert("Test email functionality will be available soon.");
+                    } catch (error) {
+                      alert("Failed to send test email. Please try again later.");
+                    }
                   }}
                   className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
                 >

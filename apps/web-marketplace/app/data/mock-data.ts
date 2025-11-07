@@ -92,7 +92,7 @@ export const listings: Listing[] = [
         author: "Lulit M.",
         rating: 5,
         comment: "Beautiful interior and the broker handled all paperwork smoothly. Internet is very fast.",
-        date: "Feb 2024",
+        date: "Feb 2025",
         relationship: "Tenant"
       },
       {
@@ -100,7 +100,7 @@ export const listings: Listing[] = [
         author: "Abebe T.",
         rating: 4,
         comment: "Great location for frequent flyers. Parking space is a bit tight but manageable.",
-        date: "Jan 2024",
+        date: "Jan 2025",
         relationship: "Corporate"
       }
     ]
@@ -186,7 +186,7 @@ export const listings: Listing[] = [
         author: "Embassy Housing Team",
         rating: 5,
         comment: "One of the best-maintained villas we’ve seen. The broker handled all security checks professionally.",
-        date: "Feb 2024",
+        date: "Feb 2025",
         relationship: "Corporate"
       },
       {
@@ -194,7 +194,7 @@ export const listings: Listing[] = [
         author: "Yeshi D.",
         rating: 5,
         comment: "The garden is stunning and perfect for kids. Quick maintenance response as well.",
-        date: "Jan 2024",
+        date: "Jan 2025",
         relationship: "Tenant"
       }
     ]
@@ -233,7 +233,7 @@ export const listings: Listing[] = [
         author: "Martha W.",
         rating: 4,
         comment: "Perfect for my graduate studies. Quick to walk to campus and lots of natural light.",
-        date: "Feb 2024",
+        date: "Feb 2025",
         relationship: "Tenant"
       },
       {
@@ -241,7 +241,7 @@ export const listings: Listing[] = [
         author: "Daniel K.",
         rating: 5,
         comment: "Furnished setup saved me a ton. Laundry service is reliable.",
-        date: "Jan 2024",
+        date: "Jan 2025",
         relationship: "Tenant"
       }
     ]
@@ -452,24 +452,24 @@ export const userFavorites: FavoriteListing[] = [
   {
     id: "fav-1",
     listingId: "listing-1",
-    addedAt: "2024-02-12",
+    addedAt: "2025-02-12",
     notes: "Perfect for relocating parents, confirm parking availability."
   },
   {
     id: "fav-2",
     listingId: "listing-3",
-    addedAt: "2024-02-05",
+    addedAt: "2025-02-05",
     notes: "Schedule second viewing with Elite Homes."
   },
   {
     id: "fav-3",
     listingId: "listing-5",
-    addedAt: "2024-01-22"
+    addedAt: "2025-01-22"
   },
   {
     id: "fav-4",
     listingId: "listing-4",
-    addedAt: "2024-01-18"
+    addedAt: "2025-01-18"
   },
   {
     id: "fav-5",
@@ -485,8 +485,8 @@ export const userInquiries: InquiryRecord[] = [
     listingId: "listing-1",
     brokerId: "broker-1",
     status: "Meeting Scheduled",
-    submittedAt: "2024-02-10",
-    lastUpdated: "2024-02-11",
+    submittedAt: "2025-02-10",
+    lastUpdated: "2025-02-11",
     preferredContact: "Phone",
     message:
       "Interested in a 12-month lease starting March. Could we do an evening viewing next week?"
@@ -496,8 +496,8 @@ export const userInquiries: InquiryRecord[] = [
     listingId: "listing-5",
     brokerId: "broker-2",
     status: "Awaiting Broker",
-    submittedAt: "2024-02-08",
-    lastUpdated: "2024-02-08",
+    submittedAt: "2025-02-08",
+    lastUpdated: "2025-02-08",
     preferredContact: "Email",
     message:
       "Do you allow signage customization for the retail space? Also need details on service charges."
@@ -507,8 +507,8 @@ export const userInquiries: InquiryRecord[] = [
     listingId: "listing-3",
     brokerId: "broker-3",
     status: "Broker Responded",
-    submittedAt: "2024-01-28",
-    lastUpdated: "2024-02-02",
+    submittedAt: "2025-01-28",
+    lastUpdated: "2025-02-02",
     preferredContact: "Email",
     message: "Could the villa be partially furnished? We're relocating from Nairobi."
   },
@@ -518,7 +518,7 @@ export const userInquiries: InquiryRecord[] = [
     brokerId: "broker-2",
     status: "Closed",
     submittedAt: "2023-12-18",
-    lastUpdated: "2024-01-05",
+    lastUpdated: "2025-01-05",
     preferredContact: "Phone",
     message: "Finalized purchase. Please share transfer checklist."
   }

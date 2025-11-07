@@ -30,7 +30,7 @@ export default function ComplianceReportDetailPage({ params }: { params: { id: s
               </div>
               <div>
                 <p className="text-sm text-gray-500">Type</p>
-                <p className="font-medium text-gray-900">Mock Type</p>
+                <p className="font-medium text-gray-900">Report type not provided</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Status</p>

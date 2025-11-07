@@ -13,6 +13,7 @@ export default async function BrokerShellLayout({
   const pathname = headersList.get('x-pathname') || '';
   
   // Allow public broker routes without authentication
+  // These routes should NOT have the dashboard layout (no sidebar)
   const isPublicRoute = pathname === '/broker/apply' || 
                         pathname.startsWith('/broker/apply/') || 
                         pathname === '/broker/pending' || 
@@ -20,13 +21,9 @@ export default async function BrokerShellLayout({
                         pathname === '/broker/signin' ||
                         pathname.startsWith('/broker/signin/');
   
-  // If it's a public route, render without authentication check
+  // If it's a public route, render without dashboard layout (no sidebar/topbar)
   if (isPublicRoute) {
-    return (
-      <div className="min-h-screen bg-slate-50">
-        {children}
-      </div>
-    );
+    return <>{children}</>;
   }
 
   // For all other broker routes, require authentication

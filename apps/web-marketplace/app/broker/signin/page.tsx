@@ -31,6 +31,15 @@ export default function BrokerSignInPage() {
     // Note: HTTP-only cookies cannot be read from client-side JavaScript
     // This check relies on middleware redirecting authenticated users away from signin
     // If user reaches this page, they're not authenticated
+    
+    // Also check localStorage and clear if exists (force fresh login)
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('afribrok-auth-user');
+      if (stored) {
+        // Clear any stale auth data
+        window.localStorage.removeItem('afribrok-auth-user');
+      }
+    }
   }, [router, searchParams]);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -63,8 +72,9 @@ export default function BrokerSignInPage() {
       // No need to set cookies client-side anymore
       // The backend sets ab_broker_session only if broker is APPROVED
 
-      // Redirect to broker dashboard
-      router.replace(redirectToRef.current || "/broker/dashboard");
+      // Force a hard refresh to ensure layout re-renders with sidebar
+      // This ensures the dashboard layout (sidebar/topbar) is properly rendered
+      window.location.href = redirectToRef.current || "/broker/dashboard";
     } catch (err) {
       console.error("Login error:", err);
       const errorMessage = err instanceof Error ? err.message : "An error occurred during login";

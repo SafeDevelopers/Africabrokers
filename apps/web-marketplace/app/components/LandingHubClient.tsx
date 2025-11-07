@@ -61,7 +61,7 @@ export function LandingHubClient() {
           <div className="mx-auto max-w-xl">
             <Link
               href="/verify"
-              className="group flex min-h-[48px] items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 text-base font-bold text-white shadow-2xl ring-2 ring-indigo-500/20 transition-all hover:shadow-3xl hover:scale-105 hover:from-indigo-700 hover:to-purple-700 active:scale-100 sm:px-8 sm:py-5 sm:text-lg"
+              className="group flex min-h-[48px] items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 text-base font-bold text-white shadow-2xl ring-2 ring-indigo-500/20 transition-all hover:shadow-2xl hover:scale-105 hover:from-indigo-700 hover:to-purple-700 active:scale-100 sm:px-8 sm:py-5 sm:text-lg"
             >
               <QrCode className="w-6 h-6" />
               <span>Verify Broker QR Code</span>

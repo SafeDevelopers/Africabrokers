@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlatformSettingsHelper } from '../super-platform-settings/platform-settings.helper';
 
@@ -177,5 +177,51 @@ export class ReviewsService {
     });
 
     return qrCode;
+  }
+
+  async getReviewById(id: string) {
+    const review = await this.prisma.kycReview.findUnique({
+      where: { id },
+      include: {
+        broker: {
+          include: {
+            user: true,
+          },
+        },
+        reviewer: true,
+      },
+    });
+
+    if (!review) {
+      throw new NotFoundException(`Review ${id} not found`);
+    }
+
+    return {
+      id: review.id,
+      decision: review.decision,
+      notes: review.notes,
+      createdAt: review.createdAt,
+      decidedAt: review.decidedAt,
+      broker: review.broker
+        ? {
+            id: review.broker.id,
+            licenseNumber: review.broker.licenseNumber,
+            status: review.broker.status,
+            licenseDocs: review.broker.licenseDocs,
+            user: {
+              id: review.broker.user.id,
+              email: review.broker.user.email,
+              role: review.broker.user.role,
+            },
+          }
+        : null,
+      reviewer: review.reviewer
+        ? {
+            id: review.reviewer.id,
+            email: review.reviewer.email,
+            role: review.reviewer.role,
+          }
+        : null,
+    };
   }
 }

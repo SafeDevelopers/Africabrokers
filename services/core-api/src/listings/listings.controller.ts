@@ -38,7 +38,21 @@ export class ListingsController {
 
   @Get('search')
   async searchListings(@Query() query: SearchListingsDto) {
-    return this.listingsService.searchListings(query);
+    try {
+      return await this.listingsService.searchListings(query);
+    } catch (error: any) {
+      console.error('Controller error in searchListings:', error);
+      // Return empty response on error
+      return {
+        listings: [],
+        pagination: {
+          page: query.page || 1,
+          limit: query.limit || 20,
+          total: 0,
+          totalPages: 0
+        }
+      };
+    }
   }
 
   @Get(':id')

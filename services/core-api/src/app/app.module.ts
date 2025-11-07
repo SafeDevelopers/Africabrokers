@@ -1,5 +1,5 @@
 import { Module, NestModule, MiddlewareConsumer } from "@nestjs/common";
-import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
+import { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
@@ -10,6 +10,7 @@ import { ListingsModule } from "../listings/listings.module";
 import { ReviewsModule } from "../reviews/reviews.module";
 import { VerifyModule } from "../verify/verify.module";
 import { HealthModule } from "../health/health.module";
+import { HealthService } from "../health/health.service";
 import { InspectionsModule } from "../inspections/inspections.module";
 import { AdminModule } from "../admin/admin.module";
 import { SuperAdminModule } from "../superadmin/superadmin.module";
@@ -19,15 +20,19 @@ import { SecurityModule } from "../security/security.module";
 import { BillingModule } from "../billing/billing.module";
 import { PublicModule } from "../public/public.module";
 import { InquiriesModule } from "../inquiries/inquiries.module";
+import { StatusModule } from "../status/status.module";
+import { MarketplaceModule } from "../marketplace/marketplace.module";
 import { JwtAuthMiddleware } from "../auth/jwt-auth.middleware";
 import { RateLimitMiddleware } from "../security/rate-limit.middleware";
 import { CsrfMiddleware } from "../security/csrf.middleware";
 import { TenantContextMiddleware } from "../tenancy/tenant-context.middleware";
 import { InquiryRateLimitMiddleware } from "../inquiries/inquiry-rate-limit.middleware";
 import { LeadRateLimitMiddleware } from "../public/lead-rate-limit.middleware";
+import { AuditLoggingMiddleware } from "../audit/audit-logging.middleware";
 import { ReqScopeInterceptor } from "../tenancy/req-scope.interceptor";
 import { RolesGuard } from "../tenancy/roles.guard";
 import { TenantGuard } from "../tenancy/tenant.guard";
+import { HttpExceptionFilter } from "../common/http-exception.filter";
 
 @Module({
   imports: [
@@ -51,10 +56,13 @@ import { TenantGuard } from "../tenancy/tenant.guard";
     BillingModule,
     PublicModule,
     InquiriesModule,
+    StatusModule,
+    MarketplaceModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
+    HealthService,
     // Register guards globally
     {
       provide: APP_GUARD,
@@ -70,6 +78,11 @@ import { TenantGuard } from "../tenancy/tenant.guard";
     {
       provide: APP_INTERCEPTOR,
       useClass: ReqScopeInterceptor,
+    },
+    // Register global exception filter
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
     },
   ],
 })
@@ -106,5 +119,10 @@ export class AppModule implements NestModule {
     consumer
       .apply(CsrfMiddleware)
       .forRoutes('/v1/admin/*', '/v1/superadmin/*');
+    
+    // Apply audit logging to admin routes (after all other middleware)
+    consumer
+      .apply(AuditLoggingMiddleware)
+      .forRoutes('/v1/admin/*');
   }
 }

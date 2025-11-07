@@ -78,19 +78,53 @@ export function AuthProvider({ children }: PropsWithChildren) {
     persistUser(payload);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // Clear user state immediately
     setUser(null);
     persistUser(null);
     
-    // Clear authentication cookies
+    // Clear all client-side cookies and call logout API
     if (typeof document !== "undefined") {
+      // Clear all cookies that start with 'afribrok-'
+      const cookiesToClear = ['afribrok-role', 'afribrok-token', 'afribrok-user-id', 'afribrok-tenant'];
+      cookiesToClear.forEach((name) => {
+        // Clear with different path and domain combinations
+        document.cookie = `${name}=;path=/;max-age=0;SameSite=Lax`;
+        document.cookie = `${name}=;path=/;max-age=0;SameSite=None;Secure`;
+        document.cookie = `${name}=;path=/;domain=${window.location.hostname};max-age=0`;
+        document.cookie = `${name}=;path=/;domain=.${window.location.hostname};max-age=0`;
+      });
+      
+      // Also clear any cookies that start with 'afribrok-'
       document.cookie.split(';').forEach((cookie) => {
         const eqPos = cookie.indexOf('=');
         const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
         if (name.startsWith('afribrok-')) {
-          document.cookie = `${name}=;path=/;max-age=0`;
+          document.cookie = `${name}=;path=/;max-age=0;SameSite=Lax`;
+          document.cookie = `${name}=;path=/;max-age=0;SameSite=None;Secure`;
+          document.cookie = `${name}=;path=/;domain=${window.location.hostname};max-age=0`;
         }
       });
+      
+      // Call logout API to clear HTTP-only cookies (ab_broker_session)
+      // This must be done before redirect
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'include',
+        }).catch(() => {
+          // Ignore errors - continue with logout even if API call fails
+        });
+        
+        // Small delay to ensure cookies are cleared
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        // Ignore errors
+      }
+      
+      // Force a hard redirect to clear all state and cookies
+      // This ensures a fresh page load without any cached state
+      window.location.href = '/';
     }
   };
 

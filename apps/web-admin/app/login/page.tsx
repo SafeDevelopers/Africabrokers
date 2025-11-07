@@ -20,7 +20,6 @@ const roleOptions: RoleOption[] = [
     label: "Super Admin",
     description: "Platform administrator with full access",
     icon: <Shield className="w-6 h-6" />,
-    badge: "Demo Account",
   },
   {
     value: "TENANT_ADMIN",
@@ -29,18 +28,6 @@ const roleOptions: RoleOption[] = [
     icon: <Building2 className="w-6 h-6" />,
   },
 ];
-
-// Demo credentials for testing
-const DEMO_ACCOUNTS: Record<LoginRole, { email: string; password: string }> = {
-  SUPER_ADMIN: {
-    email: "admin@afribrok.com",
-    password: "admin123",
-  },
-  TENANT_ADMIN: {
-    email: "tenant@afribrok.com",
-    password: "tenant123",
-  },
-};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -57,10 +44,11 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // For demo purposes, auto-fill credentials based on selected role
-      const demoAccount = DEMO_ACCOUNTS[selectedRole];
-      const loginEmail = email || demoAccount.email;
-      const loginPassword = password || demoAccount.password;
+      if (!email || !password) {
+        setError("Email and password are required");
+        setIsLoading(false);
+        return;
+      }
 
       // Call the login API
       const response = await fetch("/api/auth/login", {
@@ -68,8 +56,8 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         credentials: "include", // Important for cookies to be set
         body: JSON.stringify({
-          email: loginEmail,
-          password: loginPassword,
+          email,
+          password,
           role: selectedRole,
         }),
       });
@@ -78,6 +66,7 @@ export default function LoginPage() {
       const data = await response.json();
       
       if (!response.ok) {
+        console.error('Login failed:', response.status, data);
         throw new Error(data.message || "Login failed");
       }
 
@@ -86,7 +75,9 @@ export default function LoginPage() {
       // The API route already sets cookies via NextResponse.cookies.set
       // But we also set them here for immediate client-side access
       document.cookie = `afribrok-role=${selectedRole}; path=/; max-age=86400; SameSite=Lax`;
-      document.cookie = `afribrok-user-id=${data.user?.id || "demo-user"}; path=/; max-age=86400; SameSite=Lax`;
+      if (data.user?.id) {
+        document.cookie = `afribrok-user-id=${data.user.id}; path=/; max-age=86400; SameSite=Lax`;
+      }
       if (data.token) {
         document.cookie = `afribrok-token=${data.token}; path=/; max-age=86400; SameSite=Lax`;
       }
@@ -95,25 +86,41 @@ export default function LoginPage() {
       }
 
       // Set tenant-id cookie if needed (for compatibility with middleware)
-      if (data.tenantId && selectedRole !== "SUPER_ADMIN") {
-        document.cookie = `afribrok-tenant-id=${data.tenantId}; path=/; max-age=86400; SameSite=Lax`;
+      const tenantId = data.tenantId || data.tenant?.id;
+      if (tenantId && selectedRole !== "SUPER_ADMIN") {
+        document.cookie = `afribrok-tenant-id=${tenantId}; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `afribrok-tenant=${tenantId}; path=/; max-age=86400; SameSite=Lax`;
       }
 
       // Small delay to ensure cookies are set, then redirect
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Verify cookies are set before redirecting
+      const roleCookie = document.cookie.split(';').find(c => c.trim().startsWith('afribrok-role='));
+      console.log('Cookies after login:', {
+        role: roleCookie,
+        allCookies: document.cookie
+      });
+      
+      if (!roleCookie) {
+        console.error('Role cookie not set!');
+        setError("Failed to set authentication cookies. Please try again.");
+        setIsLoading(false);
+        return;
+      }
       
       // Redirect based on role
-      console.log('Selected role:', selectedRole);
+      console.log('Selected role:', selectedRole, 'User role:', data.user?.role);
       if (selectedRole === "SUPER_ADMIN") {
         console.log('Redirecting to super admin dashboard');
         setIsLoading(false);
         // /superadmin/dashboard redirects to /super, so go directly there
-        window.location.replace("/super");
+        window.location.href = "/super";
       } else if (selectedRole === "TENANT_ADMIN") {
         console.log('Redirecting to tenant admin dashboard');
         setIsLoading(false);
         // /admin/dashboard redirects to /, so go directly there
-        window.location.replace("/");
+        window.location.href = "/";
       } else {
         console.error('Invalid role selected:', selectedRole);
         setError("Invalid role. Only SUPER_ADMIN or TENANT_ADMIN can log in here. Brokers should sign in at the marketplace.");
@@ -127,12 +134,11 @@ export default function LoginPage() {
     }
   };
 
-  // Auto-fill demo credentials when role changes
+  // Handle role change
   const handleRoleChange = (role: LoginRole) => {
     setSelectedRole(role);
-    const demoAccount = DEMO_ACCOUNTS[role];
-    setEmail(demoAccount.email);
-    setPassword(demoAccount.password);
+    setEmail("");
+    setPassword("");
     setError(null);
   };
 
@@ -301,18 +307,6 @@ export default function LoginPage() {
                   </button>
                 </form>
 
-                {/* Demo Account Info */}
-                {selectedRole === "SUPER_ADMIN" && (
-                  <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-                    <p className="text-xs font-semibold text-indigo-900 mb-1">Demo Account Credentials</p>
-                    <p className="text-xs text-indigo-700">
-                      Email: <span className="font-mono">{DEMO_ACCOUNTS.SUPER_ADMIN.email}</span>
-                    </p>
-                    <p className="text-xs text-indigo-700">
-                      Password: <span className="font-mono">{DEMO_ACCOUNTS.SUPER_ADMIN.password}</span>
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -321,7 +315,7 @@ export default function LoginPage() {
         {/* Footer */}
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
-            © 2024 AfriBrok. All rights reserved.
+            © 2025 AfriBrok. All rights reserved.
           </p>
         </div>
       </div>

@@ -1,11 +1,9 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgis/postgis:15-3.3
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-afribrok}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-afribrok}
       POSTGRES_DB: ${POSTGRES_DB:-afribrok}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -15,46 +13,27 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - afribrok-network
-    # production: no host port exposure
-    # ports:
-    #   - "5432:5432"
-
+    networks: [afribrok-network]
+    ports: ["5432:5432"]
   redis:
     image: redis:7-alpine
-    command: >
-      sh -c "if [ -n \"$$REDIS_PASSWORD\" ]; then
-        redis-server --requirepass $$REDIS_PASSWORD;
-      else
-        redis-server;
-      fi"
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command: redis-server --requirepass ${REDIS_PASSWORD:-password}
     volumes:
       - redis_data:/data
     restart: unless-stopped
     healthcheck:
-      test: >
-        sh -c "if [ -n \"$$REDIS_PASSWORD\" ]; then
-          redis-cli --no-auth-warning -a $$REDIS_PASSWORD ping;
-        else
-          redis-cli ping;
-        fi"
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-password}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - afribrok-network
-    # production: no host port exposure
-    # ports:
-    #   - "6379:6379"
+    networks: [afribrok-network]
+    ports: ["6379:6379"]   # exposed locally for dev tools
 
   minio:
     image: minio/minio:latest
     environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
@@ -64,140 +43,40 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
-    networks:
-      - afribrok-network
-    # production: front via reverse proxy
-    # ports:
-    #   - "9000:9000"
-    #   - "9001:9001"
+    networks: [afribrok-network]
+    ports:
+      - "9000:9000"  # S3 API
+      - "9001:9001"  # Web console
 
   keycloak:
     image: quay.io/keycloak/keycloak:23.0
     environment:
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-afribrok}
       KC_DB_USERNAME: ${POSTGRES_USER:-afribrok}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
-      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
-      KC_HTTP_ENABLED: "true"
-      KC_HOSTNAME_STRICT: "false"
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-afribrok}
       KC_HEALTH_ENABLED: "true"
-    volumes:
-      - keycloak_data:/opt/keycloak/data
-    command: start
+    # dev mode is simplest for local admin console
+    command: start-dev --http-port=8080 --hostname-strict=false
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/master/.well-known/openid-configuration"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
-    networks:
-      - afribrok-network
-    # production: front via reverse proxy
-    # ports:
-    #   - "8080:8080"
-
-  core-api:
-    build:
-      context: ../..
-      dockerfile: services/core-api/Dockerfile
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
-      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT}
-      STORAGE_BUCKET: ${STORAGE_BUCKET}
-      STORAGE_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      STORAGE_SECRET_KEY: ${MINIO_SECRET_KEY}
-      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL}
-      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
-      TELEBIRR_SANDBOX_API_KEY: ${TELEBIRR_SANDBOX_API_KEY}
-      TELEBIRR_SANDBOX_SECRET: ${TELEBIRR_SANDBOX_SECRET}
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - afribrok-network
-    # production: front via reverse proxy only
-    # ports:
-    #   - "3000:3000"
-
-  media-service:
-    build:
-      context: ../..
-      dockerfile: services/media-service/Dockerfile
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT}
-      STORAGE_BUCKET: ${STORAGE_BUCKET}
-      STORAGE_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      STORAGE_SECRET_KEY: ${MINIO_SECRET_KEY}
-    restart: unless-stopped
-    depends_on:
-      minio:
-        condition: service_healthy
-    networks:
-      - afribrok-network
-    # production: front via reverse proxy only
-    # ports:
-    #   - "3000:3000"
-
-  web-marketplace:
-    build:
-      context: ../..
-      dockerfile: apps/web-marketplace/Dockerfile
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      NEXT_PUBLIC_APP_BASE_URL: ${NEXT_PUBLIC_APP_BASE_URL}
-      NEXT_PUBLIC_TENANT_KEY: ${NEXT_PUBLIC_TENANT_KEY:-ethiopia-addis}
-    restart: unless-stopped
-    depends_on:
-      - core-api
-    networks:
-      - afribrok-network
-    # production: front via reverse proxy only
-    # ports:
-    #   - "3000:3000"
-
-  web-admin:
-    build:
-      context: ../..
-      dockerfile: apps/web-admin/Dockerfile
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      NEXT_PUBLIC_APP_BASE_URL: ${NEXT_PUBLIC_APP_BASE_URL}
-    restart: unless-stopped
-    depends_on:
-      - core-api
-    networks:
-      - afribrok-network
-    # production: front via reverse proxy only
-    # ports:
-    #   - "3000:3000"
+    networks: [afribrok-network]
+    ports: ["8080:8080"]  # Keycloak admin & OIDC
 
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
   minio_data:
-    driver: local
-  keycloak_data:
-    driver: local
 
 networks:
   afribrok-network:

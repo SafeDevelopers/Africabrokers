@@ -18,6 +18,7 @@ import {
   Package,
   FileText,
 } from "lucide-react";
+import { ServiceStatus } from "./ServiceStatus";
 
 interface NavItem {
   name: string;
@@ -205,6 +206,7 @@ export default function SuperAdminSidebar({
               <Menu className="w-6 h-6" />
             </button>
             <div className="flex items-center gap-4 ml-auto">
+              <ServiceStatus />
               <Link
                 href="/super"
                 className="text-sm font-medium text-gray-700 hover:text-gray-900"

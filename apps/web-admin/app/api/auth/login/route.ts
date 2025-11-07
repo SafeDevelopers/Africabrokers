@@ -1,22 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Demo accounts for testing (in production, this should query the database)
-// Note: Brokers should login via the marketplace, not the admin app
-const DEMO_ACCOUNTS: Record<string, { email: string; password: string; role: string; userId: string; tenantId?: string }> = {
-  "admin@afribrok.com": {
-    email: "admin@afribrok.com",
-    password: "admin123",
-    role: "SUPER_ADMIN",
-    userId: "demo-super-admin-001",
-  },
-  "tenant@afribrok.com": {
-    email: "tenant@afribrok.com",
-    password: "tenant123",
-    role: "TENANT_ADMIN",
-    userId: "demo-tenant-admin-001",
-    tenantId: "et-addis",
-  },
-};
+const CORE_API_BASE_URL = process.env.NEXT_PUBLIC_CORE_API_BASE_URL || 'http://localhost:4000';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,90 +23,97 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if account exists in demo accounts
-    const account = DEMO_ACCOUNTS[email.toLowerCase()];
-
-    if (!account) {
-      return NextResponse.json(
-        { message: "Invalid email or password" },
-        { status: 401 }
-      );
-    }
-
-    // Verify password
-    if (account.password !== password) {
-      return NextResponse.json(
-        { message: "Invalid email or password" },
-        { status: 401 }
-      );
-    }
-
-    // Verify role matches
-    if (account.role !== role) {
-      return NextResponse.json(
-        { message: "Selected role does not match account type" },
-        { status: 403 }
-      );
-    }
-
-    // In production, generate a real JWT token here
-    const token = `demo-token-${Date.now()}-${account.userId}`;
-
-    // Create response with cookies
-    const response = NextResponse.json(
-      {
-        message: "Login successful",
-        user: {
-          id: account.userId,
-          email: account.email,
-          role: account.role,
+    // Call the backend API for authentication
+    try {
+      const response = await fetch(`${CORE_API_BASE_URL}/v1/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        token,
-        tenantId: account.tenantId,
-      },
-      { status: 200 }
-    );
-
-    // Set cookies
-    response.cookies.set("afribrok-role", account.role, {
-      path: "/",
-      maxAge: 60 * 60 * 24, // 24 hours
-      httpOnly: false, // Allow client-side access for demo
-      sameSite: "lax",
-    });
-
-    response.cookies.set("afribrok-user-id", account.userId, {
-      path: "/",
-      maxAge: 60 * 60 * 24,
-      httpOnly: false,
-      sameSite: "lax",
-    });
-
-    response.cookies.set("afribrok-token", token, {
-      path: "/",
-      maxAge: 60 * 60 * 24,
-      httpOnly: false,
-      sameSite: "lax",
-    });
-
-    if (account.tenantId) {
-      // Set both tenant cookies for compatibility
-      response.cookies.set("afribrok-tenant", account.tenantId, {
-        path: "/",
-        maxAge: 60 * 60 * 24,
-        httpOnly: false,
-        sameSite: "lax",
+        body: JSON.stringify({
+          email,
+          password,
+          role,
+        }),
       });
-      // Set tenant-id cookie (required by middleware for TENANT_ADMIN)
-      response.cookies.set("afribrok-tenant-id", account.tenantId, {
-        path: "/",
-        maxAge: 60 * 60 * 24,
-        httpOnly: false,
-        sameSite: "lax",
-      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Login failed" }));
+        return NextResponse.json(
+          { message: errorData.message || "Invalid email or password" },
+          { status: response.status }
+        );
+      }
+
+      const data = await response.json();
+
+      // Extract tenant ID from response
+      const tenantId = data.tenant?.id || data.tenantId || null;
+      
+      // Create response with cookies
+      const nextResponse = NextResponse.json(
+        {
+          message: "Login successful",
+          user: data.user,
+          token: data.token,
+          tenantId: tenantId,
+        },
+        { status: 200 }
+      );
+
+      // Set cookies from API response
+      if (data.user?.role) {
+        nextResponse.cookies.set("afribrok-role", data.user.role, {
+          path: "/",
+          maxAge: 60 * 60 * 24, // 24 hours
+          httpOnly: false,
+          sameSite: "lax",
+        });
+      }
+
+      if (data.user?.id) {
+        nextResponse.cookies.set("afribrok-user-id", data.user.id, {
+          path: "/",
+          maxAge: 60 * 60 * 24,
+          httpOnly: false,
+          sameSite: "lax",
+        });
+      }
+
+      if (data.token) {
+        nextResponse.cookies.set("afribrok-token", data.token, {
+          path: "/",
+          maxAge: 60 * 60 * 24,
+          httpOnly: false,
+          sameSite: "lax",
+        });
+      }
+
+      // Set tenant cookies - always set tenant-id for middleware compatibility
+      // For TENANT_ADMIN and AGENT roles, tenantId is required
+      if (tenantId && (data.user?.role === 'TENANT_ADMIN' || data.user?.role === 'AGENT')) {
+        nextResponse.cookies.set("afribrok-tenant", tenantId, {
+          path: "/",
+          maxAge: 60 * 60 * 24,
+          httpOnly: false,
+          sameSite: "lax",
+        });
+        nextResponse.cookies.set("afribrok-tenant-id", tenantId, {
+          path: "/",
+          maxAge: 60 * 60 * 24,
+          httpOnly: false,
+          sameSite: "lax",
+        });
+      }
+
+      return nextResponse;
+    } catch (apiError) {
+      console.error("Backend API error:", apiError);
+      return NextResponse.json(
+        { message: "Unable to connect to authentication service. Please try again later." },
+        { status: 503 }
+      );
     }
-
-    return response;
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(

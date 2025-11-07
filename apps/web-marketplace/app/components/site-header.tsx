@@ -22,9 +22,14 @@ export function SiteHeader() {
   const accountDropdownRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuth();
   
-  // Hide navigation menu on broker dashboard pages
-  const brokerDashboardRoutes = ['/dashboard', '/listings', '/billing', '/profile'];
-  const isBrokerDashboard = pathname && (brokerDashboardRoutes.includes(pathname) || brokerDashboardRoutes.some(route => pathname.startsWith(route + '/')) || (pathname.startsWith('/broker/') && pathname !== '/broker/apply'));
+  // Hide navigation menu on broker dashboard pages only
+  // Note: /listings is the public listings page, not a broker dashboard route
+  const isBrokerDashboard = pathname && (
+    pathname.startsWith('/broker/') && 
+    pathname !== '/broker/apply' && 
+    pathname !== '/broker/signin' &&
+    !pathname.startsWith('/broker/apply/')
+  );
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -43,10 +48,10 @@ export function SiteHeader() {
   }, [accountDropdownOpen]);
 
   const dashboardHref = (() => {
-    if (!user) return "/dashboard";
-    if (user.role === "broker") return user.status === "approved" ? "/dashboard" : "/broker/pending";
+    if (!user) return "/broker/dashboard";
+    if (user.role === "broker") return user.status === "approved" ? "/broker/dashboard" : "/broker/pending";
     // Only brokers have dashboards now
-    return "/dashboard";
+    return "/broker/dashboard";
   })();
 
   const isActive = (href: string) => {
@@ -166,10 +171,10 @@ export function SiteHeader() {
                       </Link>
                       <button
                         type="button"
-                        onClick={() => {
-                          logout();
+                        onClick={async () => {
                           setAccountDropdownOpen(false);
-                          router.push("/");
+                          await logout();
+                          // logout() already does a hard redirect, so we don't need router.push
                         }}
                         className="flex w-full items-center gap-3 px-5 py-3 text-sm font-semibold text-red-600 transition-all hover:bg-red-50"
                       >
@@ -256,10 +261,10 @@ export function SiteHeader() {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => {
-                    logout();
+                  onClick={async () => {
                     setOpen(false);
-                    router.push("/");
+                    await logout();
+                    // logout() already does a hard redirect, so we don't need router.push
                   }}
                   className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-red-600 transition-all hover:bg-red-50"
                 >

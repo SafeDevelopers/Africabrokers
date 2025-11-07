@@ -13,12 +13,25 @@ import { SuperAdminService } from './superadmin.service';
 import { Roles } from '../tenancy/roles.guard';
 import { BrokerApplicationStatus } from '@prisma/client';
 
-@Controller('superadmin/agents')
+@Controller('superadmin')
 @Roles('SUPER_ADMIN') // Only SUPER_ADMIN can access these routes
 export class SuperAdminController {
   constructor(private readonly superAdminService: SuperAdminService) {}
 
-  @Get()
+  @Get('tenants')
+  async getTenants(
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit?: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset?: number,
+  ) {
+    return this.superAdminService.getTenants({ limit, offset });
+  }
+
+  @Get('overview')
+  async getOverview() {
+    return this.superAdminService.getOverview();
+  }
+
+  @Get('agents')
   async getAgentApplications(
     @Query('status') status?: BrokerApplicationStatus,
     @Query('tenantId') tenantId?: string,
@@ -33,17 +46,19 @@ export class SuperAdminController {
     });
   }
 
-  @Get(':id')
+  // This must come AFTER all specific routes (tenants, overview, agents)
+  // Otherwise it will catch those routes first
+  @Get('agents/:id')
   async getAgentApplicationById(@Param('id') id: string) {
     return this.superAdminService.getAgentApplicationById(id);
   }
 
-  @Post(':id/approve')
+  @Post('agents/:id/approve')
   async approveAgentApplication(@Param('id') id: string) {
     return this.superAdminService.approveAgentApplication(id);
   }
 
-  @Post(':id/reject')
+  @Post('agents/:id/reject')
   async rejectAgentApplication(
     @Param('id') id: string,
     @Body() body?: { reason?: string },
@@ -51,7 +66,7 @@ export class SuperAdminController {
     return this.superAdminService.rejectAgentApplication(id, body?.reason);
   }
 
-  @Post(':id/request-info')
+  @Post('agents/:id/request-info')
   async requestMoreInfo(
     @Param('id') id: string,
     @Body() body?: { infoRequest?: string },

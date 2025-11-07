@@ -16,8 +16,8 @@ import {
 export class StripeAdapter implements PaymentAdapter {
   private config: any;
 
-  constructor(config?: any) {
-    this.config = config || {};
+  constructor() {
+    this.config = {};
   }
 
   getProviderId(): string {
@@ -94,4 +94,3 @@ export class StripeAdapter implements PaymentAdapter {
     return signature.startsWith('whsec_');
   }
 }
-

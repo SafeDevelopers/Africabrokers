@@ -1,9 +1,7 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { apiRequest } from "@/lib/api-server";
 
-interface DashboardStats {
+type DashboardStats = {
   pendingBrokers: number;
   activeBrokers: number;
   totalListings: number;
@@ -11,79 +9,56 @@ interface DashboardStats {
   monthlyRevenue: number;
   activeUsers: number;
   completedTransactions: number;
-  averageResponseTime: string;
-}
+  averageResponseTime: number | null;
+};
 
-interface RecentActivity {
+type RecentActivity = {
   id: string;
-  type: 'broker_applied' | 'listing_created' | 'review_submitted' | 'broker_approved';
-  message: string;
-  timestamp: string;
-  status: 'success' | 'warning' | 'info';
+  action: string;
+  entityType: string;
+  entityId: string;
+  createdAt: string;
+  actor: {
+    id: string;
+    email: string;
+    role: string;
+  } | null;
+  summary: string;
+};
+
+type DashboardResponse = {
+  generatedAt: string;
+  stats: DashboardStats;
+  recentActivity: RecentActivity[];
+};
+
+const formatNumber = (value?: number | null) =>
+  typeof value === "number" && !Number.isNaN(value) ? value.toLocaleString() : "—";
+
+const formatCurrency = (value?: number | null, currency: string = "ETB") => {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "—";
+  }
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value);
+};
+
+async function fetchDashboard(): Promise<DashboardResponse | null> {
+  try {
+    return await apiRequest<DashboardResponse>("/v1/admin/dashboard");
+  } catch (error) {
+    console.error("Failed to load tenant dashboard metrics", error);
+    return null;
+  }
 }
 
-export default function DashboardLanding() {
-  const [stats, setStats] = useState<DashboardStats>({
-    pendingBrokers: 0,
-    activeBrokers: 0,
-    totalListings: 0,
-    pendingReviews: 0,
-    monthlyRevenue: 0,
-    activeUsers: 0,
-    completedTransactions: 0,
-    averageResponseTime: "0h",
-  });
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Mock data for now - replace with actual API calls
-    setTimeout(() => {
-      setStats({
-        pendingBrokers: 12,
-        activeBrokers: 156,
-        totalListings: 1_247,
-        pendingReviews: 8,
-        monthlyRevenue: 2_450_000,
-        activeUsers: 3_240,
-        completedTransactions: 892,
-        averageResponseTime: "1.2h",
-      });
-      
-      setRecentActivity([
-        {
-          id: '1',
-          type: 'broker_applied',
-          message: 'New broker application from Alemayehu Tadesse',
-          timestamp: '5 minutes ago',
-          status: 'info'
-        },
-        {
-          id: '2', 
-          type: 'broker_approved',
-          message: 'Sara Mekonnen approved as certified broker',
-          timestamp: '1 hour ago',
-          status: 'success'
-        },
-        {
-          id: '3',
-          type: 'listing_created',
-          message: 'New property listing in Bole area - Premium Villa',
-          timestamp: '2 hours ago',
-          status: 'info'
-        },
-        {
-          id: '4',
-          type: 'review_submitted',
-          message: 'Review submitted for Dawit Kebede - pending decision',
-          timestamp: '3 hours ago',
-          status: 'warning'
-        }
-      ]);
-      
-      setLoading(false);
-    }, 1000);
-  }, []);
+export default async function DashboardLanding() {
+  const dashboard = await fetchDashboard();
+  const stats = dashboard?.stats;
+  const recentActivity = dashboard?.recentActivity ?? [];
 
   const currentTime = new Date().toLocaleString('en-US', {
     weekday: 'long',
@@ -143,8 +118,8 @@ export default function DashboardLanding() {
           <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard
               title="Pending Brokers"
-              value={loading ? "..." : stats.pendingBrokers.toString()}
-              change="+3 today"
+              value={formatNumber(stats?.pendingBrokers)}
+              change="Awaiting review"
               changeType="increase"
               description="Awaiting review"
               href="/brokers/pending"
@@ -153,8 +128,8 @@ export default function DashboardLanding() {
             />
             <MetricCard
               title="Active Brokers"
-              value={loading ? "..." : stats.activeBrokers.toLocaleString()}
-              change="+12 this week"
+              value={formatNumber(stats?.activeBrokers)}
+              change="Approved"
               changeType="increase"
               description="Verified & active"
               href="/brokers"
@@ -163,8 +138,8 @@ export default function DashboardLanding() {
             />
             <MetricCard
               title="Property Listings"
-              value={loading ? "..." : stats.totalListings.toLocaleString()}
-              change="+45 today"
+              value={formatNumber(stats?.totalListings)}
+              change="In review"
               changeType="increase"
               description="Total on platform"
               href="/listings"
@@ -173,8 +148,8 @@ export default function DashboardLanding() {
             />
             <MetricCard
               title="Monthly Revenue"
-              value={loading ? "..." : `${(stats.monthlyRevenue / 1000).toFixed(0)}K ETB`}
-              change="+8.2% vs last month"
+              value={formatCurrency(stats?.monthlyRevenue)}
+              change="Paid invoices"
               changeType="increase"
               description="Platform earnings"
               href="/reports"
@@ -195,7 +170,7 @@ export default function DashboardLanding() {
                     description="Process pending broker verifications"
                     href="/brokers/pending"
                     icon="📋"
-                    badge={stats.pendingBrokers > 0 ? stats.pendingBrokers.toString() : undefined}
+                    badge={stats && stats.pendingBrokers > 0 ? stats.pendingBrokers.toString() : undefined}
                     priority="high"
                   />
                   <ActionCard
@@ -210,7 +185,7 @@ export default function DashboardLanding() {
                     description="Review and approve listings"
                     href="/listings"
                     icon="🏠"
-                    badge={stats.pendingReviews > 0 ? stats.pendingReviews.toString() : undefined}
+                    badge={stats && stats.pendingReviews > 0 ? stats.pendingReviews.toString() : undefined}
                     priority="medium"
                   />
                   <ActionCard
@@ -228,17 +203,14 @@ export default function DashboardLanding() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-xl font-semibold text-gray-900 mb-6">Recent Activity</h3>
               <div className="space-y-4">
-                {loading ? (
-                  [...Array(4)].map((_, i) => (
-                    <div key={i} className="animate-pulse">
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  ))
-                ) : (
+                {recentActivity.length ? (
                   recentActivity.map((activity) => (
                     <ActivityItem key={activity.id} activity={activity} />
                   ))
+                ) : (
+                  <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                    No recent activity recorded for this tenant yet. Actions taken through the platform will appear here once audit logging captures them.
+                  </p>
                 )}
               </div>
               <Link 
@@ -331,26 +303,23 @@ function ActionCard({ title, description, href, icon, badge, priority }: ActionC
 }
 
 function ActivityItem({ activity }: { activity: RecentActivity }) {
-  const statusColors = {
-    success: 'bg-green-100 text-green-800',
-    warning: 'bg-yellow-100 text-yellow-800',
-    info: 'bg-blue-100 text-blue-800'
-  };
-
-  const statusIcons = {
-    success: '✅',
-    warning: '⚠️', 
-    info: 'ℹ️'
-  };
+  const activityTimestamp = new Date(activity.createdAt).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   return (
     <div className="flex items-start space-x-3">
-      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs ${statusColors[activity.status]}`}>
-        {statusIcons[activity.status]}
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 text-xs text-indigo-600">
+        ⓘ
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-gray-900">{activity.message}</p>
-        <p className="text-xs text-gray-500 mt-1">{activity.timestamp}</p>
+        <p className="text-sm text-gray-900">{activity.summary}</p>
+        <p className="text-xs text-gray-500 mt-1">
+          {activity.actor?.email ?? 'System'} &middot; {activityTimestamp}
+        </p>
       </div>
     </div>
   );

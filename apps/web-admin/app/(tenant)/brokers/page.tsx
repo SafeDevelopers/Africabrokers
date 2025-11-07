@@ -1,429 +1,229 @@
-"use client";
-
 import Link from "next/link";
-import { Badge } from "../../components/ui/Badge";
-import { useState, useEffect } from "react";
+import { Suspense } from "react";
+import { apiRequest } from "@/lib/api-server";
+import { formatDateTime, getBrokerStatusColor, getBrokerStatusLabel } from "@afribrok/lib";
 
-interface Broker {
+type Broker = {
   id: string;
-  user: {
-    authProviderId: string;
-  };
+  tenantId: string;
+  userId: string;
   licenseNumber: string;
-  licenseDocs: {
-    businessName: string;
-    licenseUrl?: string;
-    idUrl?: string;
-    selfieUrl?: string;
-  };
-  businessDocs?: {
-    businessLicense?: string;
-  };
-  status: 'draft' | 'submitted' | 'approved' | 'denied' | 'suspended';
+  licenseDocs: Record<string, unknown> | null;
+  businessDocs: Record<string, unknown> | null;
+  status: string;
   rating: number | null;
+  strikeCount: number;
   submittedAt: string | null;
   approvedAt: string | null;
-  qrCode?: {
+  user: {
     id: string;
+    email: string;
+    role: string;
     status: string;
   };
+  qrCode: {
+    id: string;
+    status: string;
+  } | null;
+  listingCount: number;
+};
+
+type BrokersResponse = {
+  items: Broker[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+async function getBrokers(): Promise<BrokersResponse> {
+  try {
+    const response = await api.get<BrokersResponse>("/admin/brokers?limit=100");
+    return response;
+  } catch (error) {
+    // Re-throw ApiError to be handled by the component
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError("Failed to fetch brokers", "UNKNOWN_ERROR", 0);
+  }
 }
 
-const mockBrokers: Broker[] = [
-  {
-    id: "broker-1",
-    user: { authProviderId: "alemayehu@example.com" },
-    licenseNumber: "ETH-AA-2024-001",
-    licenseDocs: {
-      businessName: "Tadesse Real Estate",
-      licenseUrl: "/uploads/license-1.pdf",
-      idUrl: "/uploads/id-1.pdf",
-      selfieUrl: "/uploads/selfie-1.jpg"
-    },
-    businessDocs: {
-      businessLicense: "/uploads/business-1.pdf"
-    },
-    status: "approved",
-    rating: 4.8,
-    submittedAt: "2024-01-15T10:30:00Z",
-    approvedAt: "2024-01-20T14:20:00Z",
-    qrCode: { id: "qr-1", status: "active" }
-  },
-  {
-    id: "broker-2",
-    user: { authProviderId: "sara.m@primeprops.et" },
-    licenseNumber: "ETH-AA-2024-002",
-    licenseDocs: {
-      businessName: "Prime Properties Ltd",
-      licenseUrl: "/uploads/license-2.pdf",
-      idUrl: "/uploads/id-2.pdf"
-    },
-    status: "submitted",
-    rating: null,
-    submittedAt: "2024-01-19T14:20:00Z",
-    approvedAt: null
-  },
-  {
-    id: "broker-3",
-    user: { authProviderId: "dawit@elitehomes.et" },
-    licenseNumber: "ETH-AA-2024-003",
-    licenseDocs: {
-      businessName: "Elite Homes",
-      licenseUrl: "/uploads/license-3.pdf",
-      idUrl: "/uploads/id-3.pdf",
-      selfieUrl: "/uploads/selfie-3.jpg"
-    },
-    status: "approved",
-    rating: 4.6,
-    submittedAt: "2024-01-10T09:15:00Z",
-    approvedAt: "2024-01-15T11:30:00Z",
-    qrCode: { id: "qr-3", status: "active" }
-  },
-  {
-    id: "broker-4",
-    user: { authProviderId: "kelebework@example.com" },
-    licenseNumber: "ETH-AA-2024-004",
-    licenseDocs: {
-      businessName: "Kelebework Consulting"
-    },
-    status: "denied",
-    rating: null,
-    submittedAt: "2024-01-08T16:45:00Z",
-    approvedAt: null
-  },
-  {
-    id: "broker-5",
-    user: { authProviderId: "hanna@goldproperties.et" },
-    licenseNumber: "ETH-AA-2024-005",
-    licenseDocs: {
-      businessName: "Gold Properties",
-      licenseUrl: "/uploads/license-5.pdf",
-      idUrl: "/uploads/id-5.pdf",
-      selfieUrl: "/uploads/selfie-5.jpg"
-    },
-    status: "suspended",
-    rating: 3.2,
-    submittedAt: "2023-12-20T10:00:00Z",
-    approvedAt: "2023-12-25T15:30:00Z",
-    qrCode: { id: "qr-5", status: "suspended" }
+const statusStyles: Record<string, string> = {
+  green: "bg-green-100 text-green-800",
+  blue: "bg-blue-100 text-blue-800",
+  yellow: "bg-yellow-100 text-yellow-800",
+  red: "bg-red-100 text-red-800",
+  gray: "bg-gray-100 text-gray-800",
+};
+
+async function BrokersContent() {
+  let data: BrokersResponse | null = null;
+  let error: ApiError | null = null;
+  
+  try {
+    data = await getBrokers();
+  } catch (err) {
+    error = err instanceof ApiError ? err : new ApiError("Failed to load brokers", "UNKNOWN_ERROR", 0);
   }
-];
-
-export default function AllBrokersPage() {
-  const [brokers, setBrokers] = useState<Broker[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("submittedAt");
-
-  useEffect(() => {
-    // Mock API call - replace with actual API
-    setTimeout(() => {
-      setBrokers(mockBrokers);
-      setLoading(false);
-    }, 1000);
-  }, []);
-
-  const filteredBrokers = brokers.filter(broker => {
-    const matchesSearch = !searchQuery || 
-      broker.licenseDocs.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      broker.licenseNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      broker.user.authProviderId.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || broker.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
-
-  const sortedBrokers = [...filteredBrokers].sort((a, b) => {
-    switch (sortBy) {
-      case "submittedAt":
-        return new Date(b.submittedAt || 0).getTime() - new Date(a.submittedAt || 0).getTime();
-      case "businessName":
-        return a.licenseDocs.businessName.localeCompare(b.licenseDocs.businessName);
-      case "rating":
-        return (b.rating || 0) - (a.rating || 0);
-      default:
-        return 0;
-    }
-  });
-
-  const statusCounts = {
-    all: brokers.length,
-    draft: brokers.filter(b => b.status === 'draft').length,
-    submitted: brokers.filter(b => b.status === 'submitted').length,
-    approved: brokers.filter(b => b.status === 'approved').length,
-    denied: brokers.filter(b => b.status === 'denied').length,
-    suspended: brokers.filter(b => b.status === 'suspended').length,
-  };
-
-  if (loading) {
+  
+  if (error) {
     return (
-      <div className="bg-gray-50 min-h-full">
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="px-6 py-4">
-            <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          </div>
-        </header>
-        
-        <main className="px-6 py-8">
-          <div className="space-y-6 animate-pulse">
-            <div className="h-12 bg-gray-200 rounded"></div>
-            <div className="h-16 bg-gray-200 rounded"></div>
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-24 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </main>
+      <div className="px-6 py-8">
+        <ErrorBanner error={error} route="/v1/admin/brokers" onRetry={() => window.location.reload()} />
       </div>
     );
   }
+  
+  const brokers = data?.items || [];
+  
+  if (brokers.length === 0) {
 
   return (
     <div className="bg-gray-50 min-h-full">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">All Brokers</h1>
-              <p className="text-sm text-gray-500">
-                Manage all broker accounts and their verification status
-              </p>
+              <h1 className="text-2xl font-bold text-gray-900">Tenant Brokers</h1>
+              <p className="text-sm text-gray-500">Directory of verified brokers under this regulator.</p>
             </div>
-            <div className="flex items-center space-x-3">
-              <Link
-                href="/brokers/pending"
-                className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-700"
-              >
-                Review Pending ({statusCounts.submitted})
-              </Link>
-              <Link
-                href="/qr-codes"
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700"
-              >
-                Generate QR Codes
-              </Link>
-            </div>
+            <Link
+              href="/"
+              className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
+            >
+              ← Back to Dashboard
+            </Link>
           </div>
         </div>
       </header>
 
       <main className="px-6 py-8">
-        <div className="space-y-6">
-          {/* Status Overview */}
-          <div className="grid gap-4 md:grid-cols-6">
-            <StatusCard
-              label="Total"
-              count={statusCounts.all}
-              color="gray"
-              active={statusFilter === "all"}
-              onClick={() => setStatusFilter("all")}
-            />
-            <StatusCard
-              label="Draft"
-              count={statusCounts.draft}
-              color="gray"
-              active={statusFilter === "draft"}
-              onClick={() => setStatusFilter("draft")}
-            />
-            <StatusCard
-              label="Submitted"
-              count={statusCounts.submitted}
-              color="blue"
-              active={statusFilter === "submitted"}
-              onClick={() => setStatusFilter("submitted")}
-            />
-            <StatusCard
-              label="Approved"
-              count={statusCounts.approved}
-              color="green"
-              active={statusFilter === "approved"}
-              onClick={() => setStatusFilter("approved")}
-            />
-            <StatusCard
-              label="Denied"
-              count={statusCounts.denied}
-              color="red"
-              active={statusFilter === "denied"}
-              onClick={() => setStatusFilter("denied")}
-            />
-            <StatusCard
-              label="Suspended"
-              count={statusCounts.suspended}
-              color="yellow"
-              active={statusFilter === "suspended"}
-              onClick={() => setStatusFilter("suspended")}
-            />
+        {brokers.length === 0 ? (
+          <div className="rounded-xl border-2 border-dashed border-gray-300 bg-white p-12 text-center shadow-sm">
+            <div className="max-w-md mx-auto">
+              <div className="text-6xl mb-4">👥</div>
+              <p className="text-xl font-semibold text-gray-900 mb-2">No brokers found</p>
+              <p className="text-sm text-gray-600">
+                No brokers have been registered yet. Brokers will appear here once they complete their registration.
+              </p>
+            </div>
           </div>
-
-          {/* Search and Filters */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  placeholder="Search by business name, license number, or email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-              <div className="flex gap-3">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="submittedAt">Sort by Date</option>
-                  <option value="businessName">Sort by Name</option>
-                  <option value="rating">Sort by Rating</option>
-                </select>
-                <button
-                  onClick={() => {
-                    setSearchQuery("");
-                    setStatusFilter("all");
-                    setSortBy("submittedAt");
-                  }}
-                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Clear Filters
-                </button>
+        ) : (
+          <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-700">
+                  Showing {brokers.length} of {data.total} brokers
+                </p>
               </div>
             </div>
-          </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Broker
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      License Number
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Rating
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Listings
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Submitted
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {brokers.map((broker) => {
+                    const statusColor = getBrokerStatusColor(broker.status);
+                    const statusLabel = getBrokerStatusLabel(broker.status);
+                    const businessName = (broker.licenseDocs as any)?.businessName || broker.user.email;
 
-          {/* Brokers List */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {filteredBrokers.length} Broker{filteredBrokers.length !== 1 ? 's' : ''} Found
-              </h3>
-            </div>
-            
-            <div className="divide-y divide-gray-200">
-              {sortedBrokers.length === 0 ? (
-                <div className="px-6 py-12 text-center">
-                  <p className="text-gray-500">No brokers found matching your criteria.</p>
-                </div>
-              ) : (
-                sortedBrokers.map((broker) => (
-                  <BrokerRow key={broker.id} broker={broker} />
-                ))
-              )}
+                    return (
+                      <tr key={broker.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{businessName}</div>
+                            <div className="text-sm text-gray-500">{broker.user.email}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{broker.licenseNumber}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              statusStyles[statusColor] || statusStyles.gray
+                            }`}
+                          >
+                            {statusLabel}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {broker.rating !== null ? `${broker.rating.toFixed(1)} ⭐` : "N/A"}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{broker.listingCount || 0}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {broker.submittedAt ? formatDateTime(broker.submittedAt) : "—"}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <Link
+                            href={`/brokers/${broker.id}`}
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
+                            View Details
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
-      </main>
     </div>
   );
 }
 
-function StatusCard({ 
-  label, 
-  count, 
-  color, 
-  active, 
-  onClick 
-}: { 
-  label: string; 
-  count: number; 
-  color: string; 
-  active: boolean; 
-  onClick: () => void; 
-}) {
-  const colorClasses = {
-    gray: active ? "bg-gray-100 border-gray-300" : "bg-white border-gray-200 hover:bg-gray-50",
-    blue: active ? "bg-blue-100 border-blue-300" : "bg-white border-gray-200 hover:bg-blue-50",
-    green: active ? "bg-green-100 border-green-300" : "bg-white border-gray-200 hover:bg-green-50",
-    red: active ? "bg-red-100 border-red-300" : "bg-white border-gray-200 hover:bg-red-50",
-    yellow: active ? "bg-yellow-100 border-yellow-300" : "bg-white border-gray-200 hover:bg-yellow-50",
-  };
-
+export default async function BrokersPage() {
   return (
-    <button
-      onClick={onClick}
-      className={`p-4 rounded-lg border text-center transition-colors ${colorClasses[color as keyof typeof colorClasses]}`}
-    >
-      <p className="text-2xl font-bold text-gray-900">{count}</p>
-      <p className="text-sm text-gray-600">{label}</p>
-    </button>
-  );
-}
-
-function BrokerRow({ broker }: { broker: Broker }) {
-  const statusVariant = {
-    draft: "gray",
-    submitted: "blue",
-    approved: "green",
-    denied: "red",
-    suspended: "yellow",
-  } as const;
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "—";
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  return (
-    <div className="px-6 py-4 hover:bg-gray-50">
-      <div className="flex items-center justify-between">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-3">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">
-                  {broker.licenseDocs.businessName.charAt(0)}
-                </span>
-              </div>
+    <div className="bg-gray-50 min-h-full">
+      <header className="bg-white shadow-sm border-b border-gray-200">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Broker Management</h1>
+              <p className="text-sm text-gray-500">View and manage all registered brokers</p>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2">
-                <h4 className="text-lg font-semibold text-gray-900 truncate">
-                  {broker.licenseDocs.businessName}
-                </h4>
-                <Badge variant={statusVariant[broker.status]}>{broker.status.toUpperCase()}</Badge>
-              </div>
-              
-              <div className="mt-1 flex items-center space-x-4 text-sm text-gray-600">
-                <span>📄 {broker.licenseNumber}</span>
-                <span>📧 {broker.user.authProviderId}</span>
-                {broker.rating && (
-                  <span>⭐ {broker.rating.toFixed(1)}</span>
-                )}
-                <span>📅 Submitted {formatDate(broker.submittedAt)}</span>
-                {broker.approvedAt && (
-                  <span>✅ Approved {formatDate(broker.approvedAt)}</span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          {broker.qrCode && (
             <Link
-              href={`/qr-codes/${broker.qrCode.id}`}
+              href="/"
               className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
             >
-              View QR
+              ← Back to Dashboard
             </Link>
-          )}
-          <Link
-            href={`/brokers/${broker.id}`}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700"
-          >
-            View Details
-          </Link>
+          </div>
         </div>
-      </div>
+      </header>
+      <Suspense fallback={<div className="px-6 py-8">Loading...</div>}>
+        <BrokersContent />
+      </Suspense>
     </div>
   );
 }

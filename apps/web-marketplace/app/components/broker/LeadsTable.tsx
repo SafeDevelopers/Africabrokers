@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Mail, Phone, MapPin, Clock, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 
-type LeadStatus = "NEW" | "CONTACTED" | "QUALIFIED" | "VIEWING" | "CLOSED" | "LOST";
+type LeadStatus = "NEW" | "READ" | "ARCHIVED";
 
 interface Lead {
   id: string;
@@ -26,15 +26,12 @@ interface LeadsTableProps {
   onAddNote?: (leadId: string, note: string) => void;
 }
 
-const statusOptions: LeadStatus[] = ["NEW", "CONTACTED", "QUALIFIED", "VIEWING", "CLOSED", "LOST"];
+const statusOptions: LeadStatus[] = ["NEW", "READ", "ARCHIVED"];
 
-const statusConfig = {
+const statusConfig: Record<LeadStatus, { color: string; icon: typeof AlertCircle }> = {
   NEW: { color: "bg-blue-100 text-blue-700", icon: AlertCircle },
-  CONTACTED: { color: "bg-purple-100 text-purple-700", icon: Clock },
-  QUALIFIED: { color: "bg-indigo-100 text-indigo-700", icon: CheckCircle2 },
-  VIEWING: { color: "bg-amber-100 text-amber-700", icon: Clock },
-  CLOSED: { color: "bg-emerald-100 text-emerald-700", icon: CheckCircle2 },
-  LOST: { color: "bg-red-100 text-red-700", icon: XCircle },
+  READ: { color: "bg-emerald-100 text-emerald-700", icon: CheckCircle2 },
+  ARCHIVED: { color: "bg-slate-200 text-slate-700", icon: XCircle },
 };
 
 export function LeadsTable({ leads, onStatusChange, onAddNote }: LeadsTableProps) {
@@ -171,11 +168,14 @@ export function LeadsTable({ leads, onStatusChange, onAddNote }: LeadsTableProps
                         onChange={(e) => handleStatusChange(lead.id, e.target.value as LeadStatus)}
                         className={`min-h-[36px] rounded-full px-3 py-1.5 text-xs font-semibold ${config.color} border-0 cursor-pointer`}
                       >
-                        {statusOptions.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
+                        {statusOptions.map((status) => {
+                          const label = status === "READ" ? "FOLLOWED UP" : status;
+                          return (
+                            <option key={status} value={status}>
+                              {label}
+                            </option>
+                          );
+                        })}
                       </select>
                     </td>
                     <td className="px-4 py-4 sm:px-6">
@@ -225,4 +225,3 @@ export function LeadsTable({ leads, onStatusChange, onAddNote }: LeadsTableProps
     </div>
   );
 }
-

@@ -1,6 +1,6 @@
 {
   "name": "@afribrok/web-admin",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
@@ -31,6 +31,8 @@
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "styled-jsx": "^5.1.1"
+
   }
 }

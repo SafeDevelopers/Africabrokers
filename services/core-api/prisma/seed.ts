@@ -7,22 +7,22 @@ async function main() {
 
   // Create tenant with brand configuration
   const tenant = await prisma.tenant.upsert({
-    where: { slug: 'et-addis' },
+    where: { key: 'et-addis' },
     update: {},
     create: {
       slug: 'et-addis',
       key: 'et-addis',
       name: 'AfriBrok Ethiopia - Addis Ababa',
       country: 'Ethiopia',
-      locales: ['en', 'am'],
+      locales: { default: 'en', supported: ['en', 'am'] } as any,
       policies: {
         dataRetention: '90 days',
         privacyPolicy: 'https://afribrok.com/privacy',
-      },
+      } as any,
       brandConfig: {
         primaryColor: '#1f2937',
         secondaryColor: '#4f46e5',
-      },
+      } as any,
       currency: 'ETB',
     },
   });
@@ -45,6 +45,21 @@ async function main() {
   });
 
   console.log('✅ Agent office ready:', agentOffice.city);
+
+  // Super Admin User (for platform-wide access)
+  const superAdmin = await prisma.user.upsert({
+    where: { email: 'admin@afribrok.com' },
+    update: {},
+    create: {
+      tenantId: tenant.id, // SUPER_ADMIN still needs a tenantId (required field)
+      email: 'admin@afribrok.com',
+      authProviderId: 'keycloak|super-admin',
+      role: 'SUPER_ADMIN',
+      status: 'ACTIVE',
+    },
+  });
+
+  console.log('✅ Super Admin ready:', superAdmin.email);
 
   // Users
   const tenantAdmin = await prisma.user.upsert({
@@ -90,9 +105,9 @@ async function main() {
   // Broker
   const broker = await prisma.broker.upsert({
     where: {
-      licenseNumber_tenantId: {
-        licenseNumber: 'ETH-AA-0001',
+      tenantId_licenseNumber: {
         tenantId: tenant.id,
+        licenseNumber: 'ETH-AA-0001',
       },
     },
     update: {
@@ -191,8 +206,9 @@ async function main() {
 
   console.log('🎉 Database seeding completed successfully!');
   console.log('\nSeed summary:');
-  console.log(`  - Tenant: ${tenant.slug} (${tenant.name})`);
-  console.log(`  - Admin: ${tenantAdmin.email}`);
+  console.log(`  - Tenant: ${tenant.key} (${tenant.name})`);
+  console.log(`  - Super Admin: ${superAdmin.email} (role: ${superAdmin.role})`);
+  console.log(`  - Tenant Admin: ${tenantAdmin.email}`);
   console.log(`  - Broker: ${broker.licenseNumber}`);
   console.log(`  - Listing: ${listing.id}`);
   console.log(`  - QR Code: ${qrCode.code}`);

@@ -22,6 +22,11 @@ export class ReviewsController {
     return this.reviewsService.getPendingReviews(query);
   }
 
+  @Get(':id')
+  async getReviewById(@Param('id') id: string) {
+    return this.reviewsService.getReviewById(id);
+  }
+
   @Post(':id/decision')
   async makeReviewDecision(@Param('id') id: string, @Body() dto: ReviewDecisionDto) {
     return this.reviewsService.makeReviewDecision(id, dto);

@@ -1,28 +1,39 @@
 /**
- * API client for broker pages
- * Automatically adds X-Tenant header from cookie
+ * Centralized API client for marketplace
+ * Handles error checking, content-type validation, and error mapping
  */
 
 import { getTenant } from './tenant';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_CORE_API_BASE_URL || 'http://localhost:8080';
+const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_CORE_API_BASE_URL;
+
+if (!baseURL) {
+  throw new Error('NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_CORE_API_BASE_URL is required but not configured');
+}
+
+export type NetworkError = {
+  kind: 'NetworkError';
+  status?: number;
+  url: string;
+  message: string;
+};
 
 export interface ApiOptions extends RequestInit {
   skipTenantHeader?: boolean;
 }
 
 /**
- * Make an API request with automatic X-Tenant header
+ * Make an API request with automatic error handling and content-type checking
  */
 export async function api<T = any>(
-  endpoint: string,
-  options: ApiOptions = {}
+  path: string,
+  init: ApiOptions = {}
 ): Promise<T> {
-  const { skipTenantHeader, ...fetchOptions } = options;
+  const { skipTenantHeader, ...fetchOptions } = init;
   
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...fetchOptions.headers,
+    'Accept': 'application/json',
+    ...(fetchOptions.headers || {}),
   };
 
   // Add X-Tenant header unless explicitly skipped
@@ -31,28 +42,115 @@ export async function api<T = any>(
     (headers as Record<string, string>)['X-Tenant'] = tenant;
   }
 
-  // Include credentials for cookie-based auth
-  const credentials: RequestCredentials = 'include';
+  const url = path.startsWith('http') ? path : new URL(path, baseURL).toString();
 
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...fetchOptions,
+      headers,
+      credentials: 'include',
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Network request failed';
+    throw { kind: 'NetworkError', url, message } as NetworkError;
+  }
 
-  const response = await fetch(url, {
-    ...fetchOptions,
-    headers,
-    credentials,
-  });
+  const contentType = response.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
 
+  // If response is not ok, handle error
   if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unknown error');
-    throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+    let message = `HTTP ${response.status} ${response.statusText}`;
+    try {
+      if (isJson) {
+        const j = await response.json();
+        message = j?.error?.message || j?.message || message;
+      } else {
+        // Try to get text error message
+        const text = await response.text().catch(() => '');
+        if (text && text.length < 500) {
+          // If it's a short HTML response, try to extract meaningful error
+          if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+            message = `Server returned HTML instead of JSON (status: ${response.status}). This usually means the endpoint doesn't exist or there's a server error.`;
+          } else {
+            message = text;
+          }
+        }
+      }
+    } catch {
+      // If parsing fails, use default message
+    }
+    
+    throw { 
+      kind: 'NetworkError', 
+      status: response.status, 
+      url, 
+      message 
+    } as NetworkError;
   }
 
-  // Handle empty responses
-  const contentType = response.headers.get('content-type');
-  if (contentType && contentType.includes('application/json')) {
-    return response.json();
+  // If response is ok but content-type is not JSON, throw error
+  if (!isJson) {
+    const text = await response.text().catch(() => '');
+    let message = `Bad content-type; expected JSON, got: ${contentType}`;
+    if (text) {
+      if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+        message = `Server returned HTML instead of JSON. This usually means the endpoint doesn't exist or there's a server error.`;
+      } else {
+        message = `${message}. First bytes: ${text.slice(0, 120)}`;
+      }
+    }
+    throw { 
+      kind: 'NetworkError', 
+      status: response.status, 
+      url, 
+      message 
+    } as NetworkError;
   }
 
-  return response.text() as any;
+  try {
+    return await response.json() as Promise<T>;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to parse JSON response';
+    throw { kind: 'NetworkError', url, message } as NetworkError;
+  }
 }
 
+/**
+ * Get user-friendly error message from API error
+ */
+export function getErrorMessage(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'kind' in error) {
+    const networkError = error as NetworkError;
+    if (networkError.kind === 'NetworkError') {
+      return networkError.message || 'Network request failed';
+    }
+  }
+  
+  if (error instanceof Error) {
+    return error.message;
+  }
+  
+  return 'An unknown error occurred';
+}
+
+/**
+ * Get error details for debugging (status, route, etc.)
+ */
+export function getErrorDetails(error: unknown): { status?: number; url?: string; message: string } {
+  if (typeof error === 'object' && error !== null && 'kind' in error) {
+    const networkError = error as NetworkError;
+    if (networkError.kind === 'NetworkError') {
+      return {
+        status: networkError.status,
+        url: networkError.url,
+        message: networkError.message || 'Network request failed',
+      };
+    }
+  }
+  
+  return {
+    message: getErrorMessage(error),
+  };
+}

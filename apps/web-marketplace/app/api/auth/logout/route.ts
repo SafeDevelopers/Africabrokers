@@ -10,13 +10,22 @@ export async function POST(request: NextRequest) {
     { status: 200 }
   );
 
-  // Clear ab_broker_session cookie
+  // Clear ab_broker_session cookie with multiple variations to ensure it's cleared
   response.cookies.set("ab_broker_session", "", {
     path: "/",
     maxAge: 0, // Expire immediately
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
+  });
+  
+  // Also clear with different SameSite settings
+  response.cookies.set("ab_broker_session", "", {
+    path: "/",
+    maxAge: 0,
+    httpOnly: true,
+    sameSite: "none",
+    secure: true,
   });
 
   // Also clear legacy cookies if they exist (cleanup)
