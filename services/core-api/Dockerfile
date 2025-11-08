@@ -66,11 +66,11 @@
   # pnpm will resolve all dependencies and create a proper node_modules structure
   RUN pnpm -w install --frozen-lockfile --prod --filter @afribrok/core-api...
 
-  # Generate Prisma client using npx (works without BuildKit)
-  # npx will download and run prisma@^5.10.2 without needing to install it first
-  # This is simpler than copying from build stage and works in all Docker environments
+  # Generate Prisma client using pnpm dlx (pnpm's equivalent of npx)
+  # pnpm dlx will download and run prisma without needing to install it first
+  # This is simpler and more reliable than installing prisma temporarily
   WORKDIR /app/services/core-api
-  RUN npx prisma@^5.10.2 generate
+  RUN pnpm dlx prisma@^5.10.2 generate
   WORKDIR /app
 
   # Set NODE_PATH to ensure module resolution works correctly
