@@ -23,7 +23,7 @@
   
   # prisma + build
   WORKDIR /app/services/core-api
-  RUN pnpm prisma generate
+  RUN pnpm exec prisma generate || pnpm dlx prisma@^5.10.2 generate
   RUN pnpm build
   
   # >>> RUN DEPLOY FROM INSIDE THE SERVICE (unambiguous; matches exactly one project)
