@@ -70,9 +70,10 @@
   # Prisma CLI is in devDependencies, but we need it to generate the client
   # The generated client is required at runtime, so we install prisma temporarily
   # Note: We can't use --frozen-lockfile here since we're adding a package
+  # Use pnpm exec to run prisma from node_modules/.bin
   WORKDIR /app/services/core-api
   RUN pnpm add -D prisma@^5.10.2 && \
-      pnpm prisma generate
+      pnpm exec prisma generate
   WORKDIR /app
 
   # Set NODE_PATH to ensure module resolution works correctly
