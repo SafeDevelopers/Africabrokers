@@ -1,0 +1,76 @@
+services:
+  # --- already have these ---
+  # srv-captain--afribrok-db, srv-captain--afribrok-redis, core-api
+
+  web-admin:
+    build:
+      context: ./services/web-admin         # or wherever your admin app lives
+      dockerfile: Dockerfile                # recommended: have a Dockerfile for admin
+    environment:
+      NODE_ENV: production
+      # Point admin at the API container by service name:
+      NEXT_PUBLIC_API_BASE_URL: http://core-api:8080
+      # If you use Keycloak locally, set these; otherwise leave unset:
+      # NEXT_PUBLIC_OIDC_ISSUER: http://keycloak:8080/realms/afribrok
+      # NEXT_PUBLIC_OIDC_CLIENT_ID: afribrok-admin
+    ports: ["3000:3000"]                    # admin on localhost:3000
+    depends_on:
+      core-api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks: [stack]
+
+  web-marketplace:
+    build:
+      context: ./services/web-marketplace
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_BASE_URL: http://core-api:8080
+      # Public site usually doesn’t need OIDC envs
+    ports: ["3001:3000"]                    # marketplace on localhost:3001
+    depends_on:
+      core-api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks: [stack]
+
+  media-service:
+    build:
+      context: ./services/media-service
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 8090
+      # Use MinIO in local (uncomment MinIO service if you added it earlier)
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_BUCKET: afribrok-media
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: minio
+      AWS_SECRET_ACCESS_KEY: minio123
+      S3_FORCE_PATH_STYLE: "true"
+      # If media-service calls API for auth, point to the container name:
+      CORE_API_URL: http://core-api:8080
+    ports: ["8090:8090"]
+    depends_on:
+      core-api:
+        condition: service_started
+      # minio:
+      #   condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8090/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks: [stack]

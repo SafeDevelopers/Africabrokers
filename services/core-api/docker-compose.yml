@@ -1,0 +1,92 @@
+version: "3.9"
+
+services:
+  afribrok-db:
+    image: postgis/postgis:15-3.4
+    container_name: srv-captain--afribrok-db
+    environment:
+      POSTGRES_USER: afribrok
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: afribrok_db
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U afribrok -d afribrok_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks: [stack]
+
+  afribrok-redis:
+    image: redis:7-alpine
+    container_name: srv-captain--afribrok-redis
+    command: ["redis-server", "--requirepass", "pass"]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "pass", "PING"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks: [stack]
+
+  # Optional: local S3 (MinIO). Comment out if you don't need storage locally.
+  # minio:
+  #   image: minio/minio:latest
+  #   command: server /data --console-address ":9001"
+  #   environment:
+  #     MINIO_ROOT_USER: minio
+  #     MINIO_ROOT_PASSWORD: minio123
+  #   ports: ["9000:9000", "9001:9001"]
+  #   volumes:
+  #     - minio:/data
+  #   restart: unless-stopped
+  #   networks: [stack]
+
+  core-api:
+    build:
+      context: .
+      dockerfile: Dockerfile          # your pnpm-deploy Dockerfile
+    environment:
+      NODE_ENV: development           # local
+      PORT: 8080
+      DATABASE_URL: postgresql://afribrok:pass@srv-captain--afribrok-db:5432/afribrok_db?sslmode=disable
+      REDIS_URL: redis://:pass@srv-captain--afribrok-redis:6379/0
+
+      # ⚠️ For local, don't point at production Keycloak.
+      # Use a local issuer or temporarily relax verification if your API supports it.
+      JWT_ISSUER: http://localhost:8080/dev-issuer
+      JWT_AUDIENCE: afribrok-api
+      OIDC_ISSUER: http://localhost:8080/dev-issuer
+
+      # CORS for local UIs (adjust as needed)
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173,http://localhost:8081
+
+      # If you enabled MinIO above, uncomment these and set STORAGE_ENDPOINT=http://minio:9000
+      # STORAGE_ENDPOINT: http://minio:9000
+      # STORAGE_BUCKET: afribrok-media
+      # AWS_REGION: us-east-1
+      # AWS_ACCESS_KEY_ID: minio
+      # AWS_SECRET_ACCESS_KEY: minio123
+      # S3_FORCE_PATH_STYLE: "true"
+
+    ports: ["8080:8080"]
+    depends_on:
+      afribrok-db:
+        condition: service_healthy
+      afribrok-redis:
+        condition: service_healthy
+      # minio:
+      #   condition: service_started
+    restart: unless-stopped
+    networks: [stack]
+
+networks:
+  stack:
+    driver: bridge
+
+volumes:
+  pgdata:
+  minio:
