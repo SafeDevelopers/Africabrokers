@@ -1,3 +1,8 @@
+// MOCK DATA - DO NOT USE IN PRODUCTION
+// Production builds never import or start mocks
+// In development, behind explicit flag (e.g., NEXT_PUBLIC_ENABLE_MOCKS=true)
+// This file contains synthetic review data - rely on real endpoints that return []
+
 export type ListingStatus = "Verified" | "Pending";
 export type ListingPurpose = "Rent" | "Sale";
 
@@ -57,7 +62,11 @@ export type Broker = {
   };
 };
 
-export const listings: Listing[] = [
+// Synthetic review data - removed in production
+// Rely on real endpoints that return []
+export const listings: Listing[] = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_ENABLE_MOCKS !== 'true'
+  ? [] // Production: empty array, mocks disabled
+  : [
   {
     id: "listing-1",
     title: "Modern 3BR Apartment in Bole",
@@ -295,7 +304,11 @@ export const listings: Listing[] = [
   }
 ];
 
-export const brokers: Broker[] = [
+// Synthetic broker data - removed in production
+// Rely on real endpoints that return []
+export const brokers: Broker[] = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_ENABLE_MOCKS !== 'true'
+  ? [] // Production: empty array, mocks disabled
+  : [
   {
     id: "broker-1",
     name: "Desta Real Estate",
@@ -364,12 +377,16 @@ export const brokers: Broker[] = [
   }
 ];
 
-export const brokerStats = [
-  { label: "Verified Brokers", value: "156+" },
-  { label: "Active Listings", value: "1,247" },
-  { label: "Successful Deals", value: "892" },
-  { label: "Avg Response Time", value: "< 2 hrs" }
-];
+// Synthetic stats - removed in production
+// Rely on real endpoints that return []
+export const brokerStats = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_ENABLE_MOCKS !== 'true'
+  ? [] // Production: empty array, mocks disabled
+  : [
+      { label: "Verified Brokers", value: "156+" },
+      { label: "Active Listings", value: "1,247" },
+      { label: "Successful Deals", value: "892" },
+      { label: "Avg Response Time", value: "< 2 hrs" }
+    ];
 
 export const getListingById = (id: string) => listings.find((listing) => listing.id === id);
 
@@ -416,110 +433,126 @@ export type InquiryRecord = {
   message: string;
 };
 
-export const currentUser: UserProfile = {
-  id: "user-1",
-  name: "Hanna Solomon",
-  email: "hanna.solomon@example.com",
-  avatar: "🧑🏾‍💼",
-  location: "Addis Ababa, Ethiopia",
-  plan: "Pro",
-  joinedAt: "June 2023",
-  phone: "+251 93 456 7890"
-};
+// Synthetic user data - removed in production
+// Rely on real endpoints that return []
+export const currentUser: UserProfile | null = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_ENABLE_MOCKS !== 'true'
+  ? null // Production: null, mocks disabled
+  : {
+      id: "user-1",
+      name: "Hanna Solomon",
+      email: "hanna.solomon@example.com",
+      avatar: "🧑🏾‍💼",
+      location: "Addis Ababa, Ethiopia",
+      plan: "Pro",
+      joinedAt: "June 2023",
+      phone: "+251 93 456 7890"
+    };
 
-export const userMetrics: UserMetric[] = [
-  {
-    label: "Saved Properties",
-    value: "6",
-    trend: "up",
-    helper: "+2 this month"
-  },
-  {
-    label: "Broker Replies",
-    value: "92%",
-    trend: "up",
-    helper: "Avg response within 3 hrs"
-  },
-  {
-    label: "Scheduled Visits",
-    value: "3",
-    trend: "steady",
-    helper: "2 upcoming this week"
-  }
-];
+// Synthetic metrics - removed in production
+// Rely on real endpoints that return []
+export const userMetrics: UserMetric[] = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_ENABLE_MOCKS !== 'true'
+  ? [] // Production: empty array, mocks disabled
+  : [
+      {
+        label: "Saved Properties",
+        value: "6",
+        trend: "up",
+        helper: "+2 this month"
+      },
+      {
+        label: "Broker Replies",
+        value: "92%",
+        trend: "up",
+        helper: "Avg response within 3 hrs"
+      },
+      {
+        label: "Scheduled Visits",
+        value: "3",
+        trend: "steady",
+        helper: "2 upcoming this week"
+      }
+    ];
 
-export const userFavorites: FavoriteListing[] = [
-  {
-    id: "fav-1",
-    listingId: "listing-1",
-    addedAt: "2025-02-12",
-    notes: "Perfect for relocating parents, confirm parking availability."
-  },
-  {
-    id: "fav-2",
-    listingId: "listing-3",
-    addedAt: "2025-02-05",
-    notes: "Schedule second viewing with Elite Homes."
-  },
-  {
-    id: "fav-3",
-    listingId: "listing-5",
-    addedAt: "2025-01-22"
-  },
-  {
-    id: "fav-4",
-    listingId: "listing-4",
-    addedAt: "2025-01-18"
-  },
-  {
-    id: "fav-5",
-    listingId: "listing-2",
-    addedAt: "2023-12-30",
-    notes: "Compare financing options with bank."
-  }
-];
+// Synthetic favorites - removed in production
+// Rely on real endpoints that return []
+export const userFavorites: FavoriteListing[] = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_ENABLE_MOCKS !== 'true'
+  ? [] // Production: empty array, mocks disabled
+  : [
+      {
+        id: "fav-1",
+        listingId: "listing-1",
+        addedAt: "2025-02-12",
+        notes: "Perfect for relocating parents, confirm parking availability."
+      },
+      {
+        id: "fav-2",
+        listingId: "listing-3",
+        addedAt: "2025-02-05",
+        notes: "Schedule second viewing with Elite Homes."
+      },
+      {
+        id: "fav-3",
+        listingId: "listing-5",
+        addedAt: "2025-01-22"
+      },
+      {
+        id: "fav-4",
+        listingId: "listing-4",
+        addedAt: "2025-01-18"
+      },
+      {
+        id: "fav-5",
+        listingId: "listing-2",
+        addedAt: "2023-12-30",
+        notes: "Compare financing options with bank."
+      }
+    ];
 
-export const userInquiries: InquiryRecord[] = [
-  {
-    id: "inq-1",
-    listingId: "listing-1",
-    brokerId: "broker-1",
-    status: "Meeting Scheduled",
-    submittedAt: "2025-02-10",
-    lastUpdated: "2025-02-11",
-    preferredContact: "Phone",
-    message:
-      "Interested in a 12-month lease starting March. Could we do an evening viewing next week?"
-  },
-  {
-    id: "inq-2",
-    listingId: "listing-5",
-    brokerId: "broker-2",
-    status: "Awaiting Broker",
-    submittedAt: "2025-02-08",
-    lastUpdated: "2025-02-08",
-    preferredContact: "Email",
-    message:
-      "Do you allow signage customization for the retail space? Also need details on service charges."
-  },
-  {
-    id: "inq-3",
-    listingId: "listing-3",
-    brokerId: "broker-3",
-    status: "Broker Responded",
-    submittedAt: "2025-01-28",
-    lastUpdated: "2025-02-02",
-    preferredContact: "Email",
-    message: "Could the villa be partially furnished? We're relocating from Nairobi."
-  },
-  {
-    id: "inq-4",
-    listingId: "listing-2",
-    brokerId: "broker-2",
-    status: "Closed",
-    submittedAt: "2023-12-18",
-    lastUpdated: "2025-01-05",
-    preferredContact: "Phone",
-    message: "Finalized purchase. Please share transfer checklist."
-  }
-];
+// Synthetic inquiries - removed in production
+// Rely on real endpoints that return []
+export const userInquiries: InquiryRecord[] = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_ENABLE_MOCKS !== 'true'
+  ? [] // Production: empty array, mocks disabled
+  : [
+      {
+        id: "inq-1",
+        listingId: "listing-1",
+        brokerId: "broker-1",
+        status: "Meeting Scheduled",
+        submittedAt: "2025-02-10",
+        lastUpdated: "2025-02-11",
+        preferredContact: "Phone",
+        message:
+          "Interested in a 12-month lease starting March. Could we do an evening viewing next week?"
+      },
+      {
+        id: "inq-2",
+        listingId: "listing-5",
+        brokerId: "broker-2",
+        status: "Awaiting Broker",
+        submittedAt: "2025-02-08",
+        lastUpdated: "2025-02-08",
+        preferredContact: "Email",
+        message:
+          "Do you allow signage customization for the retail space? Also need details on service charges."
+      },
+      {
+        id: "inq-3",
+        listingId: "listing-3",
+        brokerId: "broker-3",
+        status: "Broker Responded",
+        submittedAt: "2025-01-28",
+        lastUpdated: "2025-02-02",
+        preferredContact: "Email",
+        message: "Could the villa be partially furnished? We're relocating from Nairobi."
+      },
+      {
+        id: "inq-4",
+        listingId: "listing-2",
+        brokerId: "broker-2",
+        status: "Closed",
+        submittedAt: "2023-12-18",
+        lastUpdated: "2025-01-05",
+        preferredContact: "Phone",
+        message: "Finalized purchase. Please share transfer checklist."
+      }
+    ];

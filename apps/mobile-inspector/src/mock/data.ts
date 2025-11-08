@@ -11,7 +11,14 @@ export type MockBroker = {
   avatarColor?: string;
 };
 
-export const MOCK_BROKERS: MockBroker[] = [
+// MOCK DATA - DO NOT USE IN PRODUCTION
+// Production builds never import or start mocks
+// In development, behind explicit flag (e.g., EXPO_PUBLIC_ENABLE_MOCKS=true)
+// This file contains synthetic broker/scan data - rely on real endpoints that return []
+
+export const MOCK_BROKERS: MockBroker[] = process.env.NODE_ENV === 'production' || process.env.EXPO_PUBLIC_ENABLE_MOCKS !== 'true'
+  ? [] // Production: empty array, mocks disabled
+  : [
   {
     id: "BR-10293",
     name: "Jane K. Mbeki",
@@ -57,13 +64,22 @@ export type MockScan = {
   broker?: MockBroker;
 };
 
-export const MOCK_SCANS: MockScan[] = [
-  { id: "S-0007", at: new Date(Date.now() - 5 * 60 * 1000).toISOString(), status: "verified", broker: MOCK_BROKERS[0] },
-  { id: "S-0006", at: new Date(Date.now() - 25 * 60 * 1000).toISOString(), status: "warning", broker: MOCK_BROKERS[1] },
-  { id: "S-0005", at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), status: "invalid" },
-  { id: "S-0004", at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), status: "verified", broker: MOCK_BROKERS[2] },
-  { id: "S-0003", at: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString(), status: "verified", broker: MOCK_BROKERS[0] }
-];
+// Synthetic scan data - removed in production
+// Rely on real endpoints that return []
+export const MOCK_SCANS: MockScan[] = (() => {
+  if (process.env.NODE_ENV === 'production' || process.env.EXPO_PUBLIC_ENABLE_MOCKS !== 'true') {
+    return []; // Production: empty array, mocks disabled
+  }
+  // Development with mocks enabled: use mock data
+  const brokers = MOCK_BROKERS;
+  return [
+    { id: "S-0007", at: new Date(Date.now() - 5 * 60 * 1000).toISOString(), status: "verified" as const, broker: brokers[0] },
+    { id: "S-0006", at: new Date(Date.now() - 25 * 60 * 1000).toISOString(), status: "warning" as const, broker: brokers[1] },
+    { id: "S-0005", at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), status: "invalid" as const },
+    { id: "S-0004", at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), status: "verified" as const, broker: brokers[2] },
+    { id: "S-0003", at: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString(), status: "verified" as const, broker: brokers[0] }
+  ];
+})();
 
 export function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();

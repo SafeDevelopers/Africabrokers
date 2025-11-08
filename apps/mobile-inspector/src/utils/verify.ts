@@ -19,10 +19,17 @@ export type VerifyResult = {
  * Check if offline mode is enabled
  */
 function isOfflineModeEnabled(): boolean {
+  // Production builds never import or start mocks
+  // In development, behind explicit flag (e.g., EXPO_PUBLIC_ENABLE_MOCKS=true)
+  if (process.env.NODE_ENV === 'production') {
+    return false; // Never enable offline mode in production
+  }
+  
   const offlineFlag = Constants.expoConfig?.extra?.inspectorOffline ||
                       process.env.EXPO_PUBLIC_INSPECTOR_OFFLINE ||
+                      process.env.EXPO_PUBLIC_ENABLE_MOCKS ||
                       'disabled';
-  return offlineFlag.toLowerCase() === 'enabled';
+  return offlineFlag.toLowerCase() === 'enabled' || offlineFlag.toLowerCase() === 'true';
 }
 
 /**

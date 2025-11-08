@@ -2,16 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 
 const CORE_API_BASE_URL = process.env.NEXT_PUBLIC_CORE_API_BASE_URL || process.env.CORE_API_BASE_URL || "http://localhost:4000";
 
-// Demo broker accounts for testing (in production, this should query the database)
-const DEMO_BROKER_ACCOUNTS: Record<string, { email: string; password: string; userId: string; tenantId: string; brokerStatus?: string }> = {
-  "broker@marketplace.com": {
-    email: "broker@marketplace.com",
-    password: "broker123",
-    userId: "demo-broker-001",
-    tenantId: "et-addis",
-    brokerStatus: "approved", // Demo: approved broker
-  },
-};
+// Demo broker accounts for testing - ONLY enabled in development with explicit flag
+// Production builds never import or start mocks
+const DEMO_BROKER_ACCOUNTS: Record<string, { email: string; password: string; userId: string; tenantId: string; brokerStatus?: string }> = 
+  process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_ENABLE_MOCKS !== 'true'
+    ? {} // Production: empty object, mocks disabled
+    : {
+        // Development only: require NEXT_PUBLIC_ENABLE_MOCKS=true
+        "broker@marketplace.com": {
+          email: "broker@marketplace.com",
+          password: "broker123",
+          userId: "demo-broker-001",
+          tenantId: "et-addis",
+          brokerStatus: "approved", // Demo: approved broker
+        },
+      };
 
 /**
  * Check broker status from backend API
@@ -76,10 +81,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if account exists in demo accounts
-    const account = DEMO_BROKER_ACCOUNTS[email.toLowerCase()];
+    // Production: never use demo accounts, always call backend API
+    // Development: only use demo accounts if NEXT_PUBLIC_ENABLE_MOCKS=true
+    const isProduction = process.env.NODE_ENV === "production";
+    const mocksEnabled = process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true";
+    
+    // Check if account exists in demo accounts (only if mocks enabled in dev)
+    const account = !isProduction && mocksEnabled ? DEMO_BROKER_ACCOUNTS[email.toLowerCase()] : undefined;
 
     if (!account) {
+      // Production or mocks disabled: always call backend API
+      // Return error - backend authentication required
       return NextResponse.json(
         { message: "Invalid email or password" },
         { status: 401 }
@@ -95,11 +107,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Check broker status from backend
-    // In production, authenticate with backend first, then check broker status
+    // Production: always call backend API (mocks disabled)
+    // Development: only use demo accounts if NEXT_PUBLIC_ENABLE_MOCKS=true
     let brokerStatus: string | null = null;
     
-    if (process.env.NODE_ENV === "production" || process.env.CHECK_BROKER_STATUS === "true") {
-      // Call backend auth endpoint first
+    const isProduction = process.env.NODE_ENV === "production";
+    const mocksEnabled = process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true";
+    
+    if (isProduction || process.env.CHECK_BROKER_STATUS === "true" || !mocksEnabled) {
+      // Production or mocks disabled: always call backend API
       try {
         const authResponse = await fetch(`${CORE_API_BASE_URL}/v1/auth/login`, {
           method: "POST",
@@ -116,12 +132,20 @@ export async function POST(request: NextRequest) {
           brokerStatus = await checkBrokerStatus(authData.user?.id || account.userId, account.tenantId);
         }
       } catch (error) {
-        console.error("Backend auth error, using demo account:", error);
-        // Fallback to demo account status
-        brokerStatus = account.brokerStatus || null;
+        console.error("Backend auth error:", error);
+        // In production, fail if backend is unavailable
+        if (isProduction) {
+          throw error;
+        }
+        // In development with mocks enabled, fallback to demo account status
+        if (mocksEnabled) {
+          brokerStatus = account.brokerStatus || null;
+        } else {
+          throw error;
+        }
       }
     } else {
-      // Use demo account status
+      // Development with mocks enabled: use demo account status
       brokerStatus = account.brokerStatus || null;
     }
 

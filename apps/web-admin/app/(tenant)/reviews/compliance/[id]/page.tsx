@@ -44,8 +44,8 @@ export default function ComplianceReportDetailPage({ params }: { params: { id: s
 
             <div className="mt-6">
               <h3 className="text-md font-semibold text-gray-900">Summary</h3>
-              <p className="mt-2 text-sm text-gray-800">
-                Placeholder summary for the compliance report. Replace with server data when connected to the API.
+              <p className="mt-2 text-sm text-gray-600">
+                No summary available. Data will be loaded from the API.
               </p>
             </div>
           </section>

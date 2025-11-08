@@ -4,7 +4,41 @@ import { useRouter } from "expo-router";
 import { Card } from "../src/components/Card";
 import { colors, spacing } from "../src/theme";
 import { getHistory, clearHistory, type HistoryItem } from "../src/lib/storage";
-import { statusColor, timeAgo } from "../src/mock/data";
+// Import utility functions only (not mock data)
+// Production builds never import or start mocks
+// In development, behind explicit flag (e.g., EXPO_PUBLIC_ENABLE_MOCKS=true)
+const isProduction = process.env.NODE_ENV === 'production';
+const mocksEnabled = process.env.EXPO_PUBLIC_ENABLE_MOCKS === 'true';
+
+// Only import mock utilities if mocks are enabled in development
+let statusColor: (status: "verified" | "warning" | "invalid") => string;
+let timeAgo: (iso: string) => string;
+
+if (!isProduction && mocksEnabled) {
+  // Development with mocks enabled: import utility functions
+  const mockUtils = require("../src/mock/data");
+  statusColor = mockUtils.statusColor;
+  timeAgo = mockUtils.timeAgo;
+} else {
+  // Production or mocks disabled: use inline implementations
+  statusColor = (status: "verified" | "warning" | "invalid"): string => {
+    switch (status) {
+      case "verified": return "#16A34A";
+      case "warning": return "#F59E0B";
+      default: return "#EF4444";
+    }
+  };
+  timeAgo = (iso: string): string => {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.round(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.round(hours / 24);
+    return `${days}d ago`;
+  };
+}
 
 export default function HistoryScreen() {
   const router = useRouter();
