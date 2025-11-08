@@ -66,23 +66,12 @@
   # pnpm will resolve all dependencies and create a proper node_modules structure
   RUN pnpm -w install --frozen-lockfile --prod --filter @afribrok/core-api...
 
-  # Copy generated Prisma client from build stage (already generated during build)
-  # Prisma client is generated in node_modules/.prisma/client during build stage
-  # Since prisma CLI is in devDependencies, we can't run prisma generate in prod
-  # So we copy the generated client from the build stage
-  # Use RUN with mount to find and copy the Prisma client from multiple possible locations
-  RUN --mount=from=build,source=/app,target=/tmp/build \
-      mkdir -p /app/node_modules && \
-      if [ -d /tmp/build/node_modules/.prisma ]; then \
-        echo "✅ Found Prisma client at /tmp/build/node_modules/.prisma" && \
-        cp -r /tmp/build/node_modules/.prisma /app/node_modules/.prisma; \
-      elif [ -d /tmp/build/services/core-api/node_modules/.prisma ]; then \
-        echo "✅ Found Prisma client at /tmp/build/services/core-api/node_modules/.prisma" && \
-        cp -r /tmp/build/services/core-api/node_modules/.prisma /app/node_modules/.prisma; \
-      else \
-        echo "⚠️  Prisma client not found in build stage - checking if @prisma/client works without it" && \
-        node -e "require('@prisma/client')" 2>/dev/null && echo "✅ @prisma/client found" || echo "❌ @prisma/client not available"; \
-      fi
+  # Generate Prisma client using npx (works without BuildKit)
+  # npx will download and run prisma@^5.10.2 without needing to install it first
+  # This is simpler than copying from build stage and works in all Docker environments
+  WORKDIR /app/services/core-api
+  RUN npx prisma@^5.10.2 generate
+  WORKDIR /app
 
   # Set NODE_PATH to ensure module resolution works correctly
   ENV NODE_PATH=/app/node_modules
