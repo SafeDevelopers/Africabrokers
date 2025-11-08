@@ -5,10 +5,11 @@
 
 import { getTenant } from './tenant';
 
-const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_CORE_API_BASE_URL;
+// Enforce baseURL from NEXT_PUBLIC_API_BASE_URL (required)
+const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 if (!baseURL) {
-  throw new Error('NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_CORE_API_BASE_URL is required but not configured');
+  throw new Error('NEXT_PUBLIC_API_BASE_URL is required but not configured. Please set it in your .env.local file.');
 }
 
 export type NetworkError = {
@@ -16,6 +17,13 @@ export type NetworkError = {
   status?: number;
   url: string;
   message: string;
+};
+
+export type BadContentTypeError = {
+  kind: 'BadContentType';
+  url: string;
+  status: number;
+  contentType: string;
 };
 
 export interface ApiOptions extends RequestInit {
@@ -90,23 +98,15 @@ export async function api<T = any>(
     } as NetworkError;
   }
 
-  // If response is ok but content-type is not JSON, throw error
+  // If response is ok but content-type is not JSON, throw typed error
   if (!isJson) {
-    const text = await response.text().catch(() => '');
-    let message = `Bad content-type; expected JSON, got: ${contentType}`;
-    if (text) {
-      if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-        message = `Server returned HTML instead of JSON. This usually means the endpoint doesn't exist or there's a server error.`;
-      } else {
-        message = `${message}. First bytes: ${text.slice(0, 120)}`;
-      }
-    }
+    // Throw typed error: { kind:'BadContentType', url, status }
     throw { 
-      kind: 'NetworkError', 
-      status: response.status, 
+      kind: 'BadContentType', 
       url, 
-      message 
-    } as NetworkError;
+      status: response.status,
+      contentType
+    } as BadContentTypeError;
   }
 
   try {

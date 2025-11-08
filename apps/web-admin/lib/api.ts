@@ -9,17 +9,12 @@
  * Works in both server and client contexts
  */
 
-// Get BASE_URL - throw error if missing in development
+// Get BASE_URL - required, throw error if missing
 const getBaseUrl = (): string => {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_CORE_API_BASE_URL;
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   
   if (!baseUrl) {
-    if (process.env.NODE_ENV === 'development') {
-      throw new Error('NEXT_PUBLIC_API_BASE_URL is missing. Please set it in your .env.local file.');
-    }
-    // In production, fallback to a default (shouldn't happen)
-    console.error('NEXT_PUBLIC_API_BASE_URL is missing in production!');
-    return 'http://localhost:4000';
+    throw new Error('NEXT_PUBLIC_API_BASE_URL is required but not configured. Please set it in your .env.local file.');
   }
   
   return baseUrl;
@@ -79,12 +74,14 @@ async function getUserContext(): Promise<{ role: string | null; tenantId: string
 
 /**
  * Build request headers with Authorization and X-Tenant
+ * Enforces Accept: application/json header
  */
 async function buildHeaders(): Promise<HeadersInit> {
   const { role, tenantId, token } = await getUserContext();
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'Accept': 'application/json', // Enforce JSON-only responses
   };
   
   // Add Authorization header if token exists
@@ -160,13 +157,22 @@ async function apiRequest<T>(
       cache: 'no-store',
     });
     
+    // Check content-type before parsing
+    const contentType = response.headers.get('content-type') || '';
+    const isJson = contentType.includes('application/json');
+    
+    // If response is not JSON, throw typed error
+    if (!isJson) {
+      throw new BadContentTypeError(url, response.status, contentType);
+    }
+    
     // Handle non-2xx responses
     if (!response.ok) {
       const error = await parseError(response);
       throw new ApiError(error.message, error.code, response.status);
     }
     
-    // Parse JSON response
+    // Parse JSON response (content-type already verified)
     const data = await response.json();
     return data;
   } catch (error) {
@@ -216,6 +222,22 @@ export class ApiError extends Error {
   
   isAuthError(): boolean {
     return this.status === 401 || this.status === 403;
+  }
+}
+
+/**
+ * Bad Content Type Error - thrown when response is not JSON
+ */
+export class BadContentTypeError extends Error {
+  public readonly kind = 'BadContentType' as const;
+  
+  constructor(
+    public url: string,
+    public status: number,
+    public contentType: string
+  ) {
+    super(`Response is not JSON. Content-Type: ${contentType}, Status: ${status}, URL: ${url}`);
+    this.name = 'BadContentTypeError';
   }
 }
 

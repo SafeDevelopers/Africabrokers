@@ -1,10 +1,10 @@
-// apps/web-admin/app/broker/listings/page.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { ArrowUpRight, Loader2, MapPin, RefreshCw } from "lucide-react";
+import { ArrowUpRight, Loader2, MapPin, RefreshCw, AlertCircle } from "lucide-react";
+import { api, getErrorMessage, BadContentTypeError, NetworkError } from "../../../lib/api";
 
 type ListingAvailability = "active" | "pending_review" | "suspended" | "closed";
 
@@ -53,19 +53,7 @@ const STATUS_QUERY_MAP: Record<ListingAvailability, string> = {
   closed: "CLOSED",
 };
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_CORE_API_BASE_URL ??
-  process.env.NEXT_PUBLIC_API_URL ??
-  "http://localhost:8080";
-
-function getCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie
-    .split(";")
-    .map((c) => c.trim())
-    .find((c) => c.startsWith(`${name}=`));
-  return match ? decodeURIComponent(match.split("=")[1] ?? "") : null;
-}
+// Removed: API_BASE and getCookie - now using centralized API client
 
 function safeCurrencyFormat(amount: number, ccy: string) {
   try {
@@ -130,40 +118,32 @@ export default function BrokerListingsPage() {
       params.set("status", STATUS_QUERY_MAP[availability]);
       params.set("availability", availability);
 
-      const tenantHeader = getCookie("afribrok-tenant") || "et-addis";
-      const token = getCookie("afribrok-token");
-
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        "X-Tenant": tenantHeader,
-      };
-      if (token) headers.Authorization = `Bearer ${token}`;
-
-      const response = await fetch(`${API_BASE}/v1/listings/search?${params.toString()}`, {
-        headers,
-        credentials: "include",
+      // Use centralized API client
+      const payload = await api<ListingsResponse>(`/v1/listings/search?${params.toString()}`, {
         signal: ac.signal,
         cache: "no-store",
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to load listings (${response.status})`);
-      }
-
-      const payload = (await response.json()) as ListingsResponse;
+      
       setData(payload);
     } catch (err: any) {
       if (err?.name === "AbortError") return;
-      let errorMessage = "Failed to load listings";
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (err && typeof err === 'object' && 'message' in err) {
-        errorMessage = String(err.message);
+      
+      // Handle BadContentTypeError
+      if (err && typeof err === 'object' && 'kind' in err && err.kind === 'BadContentType') {
+        setError(`Server returned invalid content type. Please try again.`);
+        setData(null);
+        return;
       }
-      // Handle network errors
-      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
-        errorMessage = "Network error: Unable to connect to the API. Please check your connection and try again.";
+      
+      // Handle NetworkError
+      if (err && typeof err === 'object' && 'kind' in err && err.kind === 'NetworkError') {
+        setError("Network error: Unable to connect to the API. Please check your connection and try again.");
+        setData(null);
+        return;
       }
+      
+      // Handle other errors
+      const errorMessage = getErrorMessage(err);
       setError(errorMessage);
       setData(null);
     } finally {
@@ -250,21 +230,29 @@ export default function BrokerListingsPage() {
         </div>
       </section>
 
+      {/* Error banner - keep search bar and filters visible */}
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-900">{error}</p>
+              <button
+                type="button"
+                onClick={fetchListings}
+                className="mt-2 text-sm font-semibold text-red-700 hover:text-red-800 underline"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-20">
-            <p className="text-sm text-red-600">{error}</p>
-            <button
-              type="button"
-              onClick={fetchListings}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              Retry
-            </button>
           </div>
         ) : listings.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-20">
