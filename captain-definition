@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 2,
+  "dockerfilePath": "./services/core-api/Dockerfile",
+  "contextPath": "/",
+  "envVars": {
+    "PORT": "8080"
+  }
+}
+
