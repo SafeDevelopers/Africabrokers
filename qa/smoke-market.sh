@@ -54,10 +54,11 @@ function check_api() {
   fi
   status=$(curl -sS -D "$headers" -o "$body" -w "%{http_code}" "${auth_args[@]}" "$API_BASE$endpoint" || echo "000")
   ctype=$(grep -i '^content-type' "$headers" | tail -1 | cut -d' ' -f2- | tr -d '\r')
+  ctype_lower=$(echo "$ctype" | tr '[:upper:]' '[:lower:]')
   
   # Fail if /v1/* returns HTML or non-JSON content-type
   if [[ "$endpoint" == "/v1/"* ]]; then
-    if [[ ${ctype,,} != application/json* ]]; then
+    if [[ "$ctype_lower" != application/json* ]]; then
       fail "$label: /v1/* must return JSON, got '${ctype:-unknown}'"
       rm -f "$headers" "$body"
       return 1
@@ -76,7 +77,7 @@ function check_api() {
   done
   if [[ $ok -ne 0 ]]; then
     fail "$label expected [$expected_csv] got $status"
-  elif [[ ${ctype,,} != application/json* ]]; then
+  elif [[ "$ctype_lower" != application/json* ]]; then
     fail "$label expected JSON got '${ctype:-unknown}'"
   elif grep -qi '<html' "$body"; then
     fail "$label returned HTML"
@@ -115,6 +116,7 @@ function check_listings_structure() {
   fi
   status=$(curl -sS -D "$headers" -o "$body" -w "%{http_code}" "${auth_args[@]}" "$API_BASE$endpoint" || echo "000")
   ctype=$(grep -i '^content-type' "$headers" | tail -1 | cut -d' ' -f2- | tr -d '\r')
+  ctype_lower=$(echo "$ctype" | tr '[:upper:]' '[:lower:]')
   
   if [[ "$status" != "200" ]]; then
     fail "$label expected 200 got $status"
@@ -122,7 +124,7 @@ function check_listings_structure() {
     return 1
   fi
   
-  if [[ ${ctype,,} != application/json* ]]; then
+  if [[ "$ctype_lower" != application/json* ]]; then
     fail "$label must return JSON, got '${ctype:-unknown}'"
     rm -f "$headers" "$body"
     return 1
@@ -161,10 +163,11 @@ function check_preflight() {
     -H "Access-Control-Request-Method: GET" \
     "$url") || status="000"
   ctype=$(grep -i '^content-type' "$headers" | tail -1 | cut -d' ' -f2- | tr -d '\r')
+  ctype_lower=$(echo "$ctype" | tr '[:upper:]' '[:lower:]')
   
   if [[ "$status" != "200" ]]; then
     fail "$label OPTIONS expected 200 got $status"
-  elif [[ ${ctype,,} != application/json* ]]; then
+  elif [[ "$ctype_lower" != application/json* ]]; then
     fail "$label OPTIONS must return JSON, got '${ctype:-unknown}'"
   elif grep -qi '<html' "$body"; then
     fail "$label OPTIONS returned HTML instead of JSON"
