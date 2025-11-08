@@ -1,8 +1,33 @@
 import { Logger, ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app/app.module";
+import { loadServerEnv } from "@afribrok/env/server";
 
 async function bootstrap() {
+  // Validate required environment variables at startup
+  try {
+    const env = loadServerEnv();
+    Logger.log('✅ Environment variables validated', 'Bootstrap');
+    
+    // Warn about production secrets with default values
+    if (process.env.NODE_ENV === 'production') {
+      if (process.env.JWT_SECRET === 'dev-secret-change-in-production') {
+        Logger.warn('⚠️  JWT_SECRET is using default value. CHANGE IN PRODUCTION!', 'Bootstrap');
+      }
+      if (process.env.CSRF_SECRET === 'change-me-in-production') {
+        Logger.warn('⚠️  CSRF_SECRET is using default value. CHANGE IN PRODUCTION!', 'Bootstrap');
+      }
+    }
+  } catch (error) {
+    Logger.error('❌ Environment variable validation failed:', 'Bootstrap');
+    if (error instanceof Error) {
+      Logger.error(error.message, 'Bootstrap');
+    }
+    Logger.error('\n💡 Please check your .env file and ensure all required variables are set.', 'Bootstrap');
+    Logger.error('   See .env.example for reference.\n', 'Bootstrap');
+    process.exit(1);
+  }
+
   const port = process.env.PORT || 3000;
   const app = await NestFactory.create(AppModule, {
     rawBody: true, // Enable raw body for webhook signature verification

@@ -5,6 +5,15 @@
 
 import { getTenant } from './tenant';
 
+// Import validation (runs at module load time in server context)
+if (typeof window === 'undefined') {
+  try {
+    require('./validate-env');
+  } catch (e) {
+    // Ignore if validation file doesn't exist (e.g., in client bundle)
+  }
+}
+
 // Enforce baseURL from NEXT_PUBLIC_API_BASE_URL (required)
 const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL;
 

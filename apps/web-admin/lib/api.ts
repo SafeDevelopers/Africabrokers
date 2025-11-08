@@ -9,6 +9,15 @@
  * Works in both server and client contexts
  */
 
+// Import validation (runs at module load time in server context)
+if (typeof window === 'undefined') {
+  try {
+    require('./validate-env');
+  } catch (e) {
+    // Ignore if validation file doesn't exist (e.g., in client bundle)
+  }
+}
+
 // Get BASE_URL - required, throw error if missing
 const getBaseUrl = (): string => {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
