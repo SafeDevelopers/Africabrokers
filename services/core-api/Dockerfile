@@ -32,23 +32,17 @@
   # Build the NestJS service
   RUN pnpm build
   
-  # -------- runtime (no prisma, no installs) --------
+  # -------- runtime (copy node_modules from build) --------
   FROM node:20-alpine AS runtime
   WORKDIR /app
   ENV NODE_ENV=production
   ENV PORT=8080
   
-  # Install pnpm for production dependency installation
-  ENV PNPM_HOME=/root/.local/share/pnpm
-  ENV PATH=$PNPM_HOME:$PATH
-  RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
-  
-  # Copy root package files for workspace resolution
+  # Copy root package files (needed for module resolution)
   COPY --from=build /app/package.json ./package.json
-  COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
   COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
   
-  # Copy workspace package.json files and built packages
+  # Copy workspace packages (built packages needed at runtime)
   COPY --from=build /app/packages ./packages
   
   # Copy compiled app + prisma schema
@@ -56,12 +50,9 @@
   COPY --from=build /app/services/core-api/prisma ./prisma
   COPY --from=build /app/services/core-api/package.json ./services/core-api/package.json
   
-  # Install production dependencies only (pnpm will handle workspace resolution)
-  # This installs all dependencies including workspace packages
-  RUN pnpm -w install --frozen-lockfile --prod --filter @afribrok/core-api...
-  
-  # Verify critical dependencies are installed
-  RUN node -e "require('@nestjs/common')" || (echo "ERROR: @nestjs/common not found" && exit 1)
+  # Copy the ENTIRE node_modules from build stage (already has all dependencies installed)
+  # This includes all NestJS packages, Prisma client, and workspace dependencies
+  COPY --from=build /app/node_modules ./node_modules
   
   EXPOSE 8080
   HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
