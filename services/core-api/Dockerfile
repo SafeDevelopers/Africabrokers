@@ -1,11 +1,13 @@
-# -------- build --------
+# -------- base --------
   FROM node:20-alpine AS build
   WORKDIR /app
+  
+  # pnpm
   ENV PNPM_HOME=/root/.local/share/pnpm
   ENV PATH=$PNPM_HOME:$PATH
   RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
   
-  # workspace manifests (cache-friendly)
+  # workspace manifests (cache)
   COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
   COPY packages/config/env/package.json ./packages/config/env/
   COPY packages/config/design-tokens/package.json ./packages/config/design-tokens/
@@ -33,10 +35,10 @@
   ENV NODE_ENV=production
   ENV PORT=8080
   
-  # copy the pruned artifact (includes dist/ and node_modules)
+  # copy only the deploy output (contains dist/ and correct node_modules)
   COPY --from=build /app/.output/ ./
   
-  # build-time assertion so this never ships broken:
+  # build-time assertion: fail early if Nest isn't present
   RUN node -e "console.log(require.resolve('@nestjs/common'))"
   
   EXPOSE 8080
