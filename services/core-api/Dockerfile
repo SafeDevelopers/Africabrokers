@@ -43,35 +43,40 @@
   ENV PATH=$PNPM_HOME:$PATH
   RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
   
-  # Copy root package files (needed for module resolution)
+  # Copy root package files (needed for pnpm install)
   COPY --from=build /app/package.json ./package.json
   COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
   COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
-  
+
+  # Copy workspace package manifests (needed for workspace resolution)
+  COPY --from=build /app/packages/config/env/package.json ./packages/config/env/package.json
+  COPY --from=build /app/packages/config/design-tokens/package.json ./packages/config/design-tokens/package.json
+  COPY --from=build /app/packages/lib/package.json ./packages/lib/package.json
+  COPY --from=build /app/services/core-api/package.json ./services/core-api/package.json
+
   # Copy workspace packages (built packages needed at runtime)
   COPY --from=build /app/packages ./packages
-  
+
   # Copy compiled app + prisma schema
   COPY --from=build /app/services/core-api/dist ./dist
   COPY --from=build /app/services/core-api/prisma ./prisma
-  COPY --from=build /app/services/core-api/package.json ./services/core-api/package.json
-  
-  # Copy the ENTIRE node_modules from build stage (already has all dependencies installed)
-  # This includes all NestJS packages, Prisma client, and workspace dependencies
-  # NOTE: This is a Docker COPY operation (between build stages), NOT a git commit
-  # node_modules is correctly gitignored and never committed to git
-  # pnpm uses symlinks and a content-addressable store (.pnpm), so we need to copy both
-  # Docker COPY preserves symlinks by default, but we need to ensure the entire structure is copied
-  # Copy node_modules with all symlinks preserved
-  COPY --from=build /app/node_modules ./node_modules
-  
+
+  # Install production dependencies only (creates fresh node_modules without symlinks)
+  # This avoids symlink issues in Docker by creating a clean production install
+  # pnpm will resolve all dependencies and create a proper node_modules structure
+  RUN pnpm -w install --frozen-lockfile --prod --filter @afribrok/core-api...
+
+  # Copy generated Prisma client from build stage (generated during build with dev deps)
+  # Prisma client is generated in node_modules/.prisma/client during prisma generate
+  # We need to copy it from the build stage since we can't run prisma generate in prod
+  COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+  COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
+
   # Set NODE_PATH to ensure module resolution works correctly
   ENV NODE_PATH=/app/node_modules
-  
-  # Verify node_modules directory exists (lenient check - actual module resolution happens at runtime)
-  # This is a basic sanity check - if node_modules doesn't exist, the build should fail
-  RUN test -d /app/node_modules || (echo "❌ node_modules directory not found!" && exit 1) && \
-      echo "✅ node_modules directory found"
+
+  # Verify @nestjs/common can be resolved (strict check)
+  RUN node -e "try { const common = require('@nestjs/common'); console.log('✅ @nestjs/common found:', common.VERSION || 'loaded'); } catch(e) { console.error('❌ @nestjs/common NOT found:', e.message); console.error('Module resolution paths:', require.resolve.paths('@nestjs/common')); process.exit(1); }"
   
   EXPOSE 8080
   HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
