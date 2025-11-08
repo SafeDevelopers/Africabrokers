@@ -57,11 +57,13 @@
   # node_modules is correctly gitignored and never committed to git
   # pnpm uses symlinks and a content-addressable store (.pnpm), so we need to copy both
   # Docker COPY preserves symlinks by default, but we need to ensure the entire structure is copied
+  # Copy node_modules with all symlinks preserved
   COPY --from=build /app/node_modules ./node_modules
   
   # Verify critical dependencies are available (this will fail build if missing)
   # Test from the app directory to ensure path resolution works
-  RUN cd /app && node -e "try { require('@nestjs/common'); console.log('✅ @nestjs/common found'); } catch(e) { console.error('❌ @nestjs/common NOT found:', e.message); process.exit(1); }"
+  # This verification step will catch missing dependencies during build, not at runtime
+  RUN cd /app && node -e "try { const common = require('@nestjs/common'); console.log('✅ @nestjs/common found:', common.VERSION || 'loaded'); } catch(e) { console.error('❌ @nestjs/common NOT found:', e.message); console.error('Module resolution paths:', require.resolve.paths('@nestjs/common')); process.exit(1); }"
   
   # Set NODE_PATH to ensure module resolution works correctly
   ENV NODE_PATH=/app/node_modules
