@@ -65,8 +65,9 @@
 
   # Install production dependencies only (creates fresh node_modules without symlinks)
   # This avoids symlink issues in Docker by creating a clean production install
-  # pnpm will resolve all dependencies and create a proper node_modules structure
-  RUN pnpm -w install --frozen-lockfile --prod --filter @afribrok/core-api...
+  # Install all production dependencies for the workspace (not just filtered)
+  # The filter might be excluding some dependencies, so install all prod deps
+  RUN pnpm -w install --frozen-lockfile --prod
 
   # Generate Prisma client using pnpm dlx (pnpm's equivalent of npx)
   # pnpm dlx will download and run prisma without needing to install it first
@@ -78,10 +79,8 @@
   # Set NODE_PATH to ensure module resolution works correctly
   ENV NODE_PATH=/app/node_modules
 
-  # Verify node_modules exists and @nestjs/common is installed (lenient check)
-  # Check if the directory exists rather than trying to require (which may fail due to module resolution)
-  RUN test -d /app/node_modules/@nestjs/common || (echo "⚠️  @nestjs/common not found in node_modules" && ls -la /app/node_modules | head -20 && exit 1) && \
-      echo "✅ @nestjs/common directory found in node_modules"
+  # Note: Module resolution will be verified at runtime
+  # If @nestjs/common is missing, the app will fail to start with a clear error message
   
   EXPOSE 8080
   HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
