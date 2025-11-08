@@ -38,13 +38,32 @@
   ENV NODE_ENV=production
   ENV PORT=8080
   
+  # Install pnpm for production dependency installation
+  ENV PNPM_HOME=/root/.local/share/pnpm
+  ENV PATH=$PNPM_HOME:$PATH
+  RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+  
+  # Copy root package files for workspace resolution
+  COPY --from=build /app/package.json ./package.json
+  COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
+  COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+  
+  # Copy workspace package.json files
+  COPY --from=build /app/packages ./packages
+  
   # Copy compiled app + prisma schema
   COPY --from=build /app/services/core-api/dist ./dist
   COPY --from=build /app/services/core-api/prisma ./prisma
+  COPY --from=build /app/services/core-api/package.json ./services/core-api/package.json
   
-  # Copy the FULL node_modules from build (includes Nest + generated Prisma engines)
-  COPY --from=build /app/node_modules ./node_modules
-  COPY --from=build /app/package.json ./package.json
+  # Install production dependencies only (pnpm will handle workspace resolution)
+  RUN pnpm -w install --frozen-lockfile --prod --filter @afribrok/core-api...
+  
+  # Copy the FULL node_modules from build as fallback (includes generated Prisma engines)
+  # This ensures Prisma client and other generated files are available
+  COPY --from=build /app/node_modules/.pnpm ./node_modules/.pnpm 2>/dev/null || true
+  COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma 2>/dev/null || true
+  COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma 2>/dev/null || true
   
   EXPOSE 8080
   HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
