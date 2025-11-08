@@ -27,7 +27,13 @@ export class TenantGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<Request>();
+    const user = request.user;
     const tenantId = request.tenantId;
+
+    // SUPER_ADMIN can override tenant requirement (can access without tenant or with any tenant)
+    if (user && user.role === 'SUPER_ADMIN') {
+      return true;
+    }
 
     if (!tenantId) {
       throw new BadRequestException('Tenant ID is required');

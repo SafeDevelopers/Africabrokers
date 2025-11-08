@@ -61,25 +61,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // Handle internal server errors (500)
     // Uncaught errors: 500 with JSON { error:{ code:'INTERNAL_ERROR', message } }
     console.error('Internal server error:', exception);
-    const errorMessage = exception instanceof Error ? exception.message : 'An internal server error occurred';
+    const errorMessage = process.env.NODE_ENV === 'development' && exception instanceof Error 
+      ? exception.message 
+      : 'An internal server error occurred';
     
-    // Ensure JSON response for /v1/* routes
-    if (request.path.startsWith('/v1/')) {
-      response.setHeader('Content-Type', 'application/json');
-      response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: errorMessage,
-        },
-      });
-    } else {
-      response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: errorMessage,
-        },
-      });
-    }
+    // Ensure JSON response for /v1/* routes (and all routes since we use global prefix)
+    response.setHeader('Content-Type', 'application/json');
+    response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: errorMessage,
+      },
+    });
   }
 
   private getErrorCode(status: number): string {

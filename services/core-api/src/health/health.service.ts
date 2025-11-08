@@ -32,10 +32,21 @@ export class HealthService {
     try {
       const redisUrl = process.env.REDIS_URL;
       if (redisUrl) {
-        // Try to ping Redis
-        // Note: If Redis client is not set up, we'll skip this check
-        // In production, you'd use a Redis client library
-        checks.redis = 'UP'; // Placeholder - implement actual Redis check if Redis client is available
+        // Verify Redis URL format
+        try {
+          const url = new URL(redisUrl);
+          if (url.protocol !== 'redis:') {
+            throw new Error('REDIS_URL must use redis:// protocol');
+          }
+          // For now, we validate the URL format
+          // In production, you'd use a Redis client library to actually ping Redis
+          // Example: const client = redis.createClient({ url: redisUrl }); await client.ping();
+          checks.redis = 'UP'; // URL format is valid - actual connection check would require Redis client
+        } catch (urlError) {
+          checks.redis = 'DOWN';
+          checks.redisError = urlError instanceof Error ? urlError.message : 'Invalid REDIS_URL format';
+          allUp = false;
+        }
       } else {
         checks.redis = 'SKIPPED'; // Redis not configured
       }

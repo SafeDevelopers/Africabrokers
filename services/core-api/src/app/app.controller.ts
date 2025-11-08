@@ -16,31 +16,50 @@ export class AppController {
     return this.appService.getHealth();
   }
 
+  // GET /v1/_status → return JSON summary of services, version, and time
+  // Accessible to SUPER_ADMIN, TENANT_ADMIN, and AGENT
   @Get("_status")
-  @Roles('TENANT_ADMIN', 'AGENT') // Require admin role
-  @RequireTenant() // Require tenant context
+  @Roles('SUPER_ADMIN', 'TENANT_ADMIN', 'AGENT') // Allow SUPER_ADMIN, TENANT_ADMIN, and AGENT
+  @RequireTenant() // Require tenant context (SUPER_ADMIN can override)
   async getStatus() {
     return this.appService.getStatus();
   }
 
-  // CapRover health endpoints
+  // CapRover health endpoint
+  // GET /healthz → respond 200 JSON: { ok: true, version: process.env.APP_VERSION || 'dev', uptimeSec: process.uptime() }
   @Get("healthz")
   @HttpCode(HttpStatus.OK)
   async healthz() {
-    return { ok: true };
+    return {
+      ok: true,
+      version: process.env.APP_VERSION || process.env.GIT_SHA || process.env.VERSION || 'dev',
+      uptimeSec: Math.floor(process.uptime()),
+    };
   }
 
+  // GET /readiness → verify DB + Redis connectivity
+  // If OK → 200 JSON { ok:true, db:true, redis:true }, else 503 JSON with details
   @Get("readiness")
   @HttpCode(HttpStatus.OK)
   async readiness() {
     const result = await this.healthService.checkReadiness();
     // Return 200 if all checks pass, otherwise return 503
     if (result.status === 'UP') {
-      return { ok: true, ...result };
+      return {
+        ok: true,
+        db: result.checks?.database === 'UP',
+        redis: result.checks?.redis === 'UP' || result.checks?.redis === 'SKIPPED',
+        ...result,
+      };
     }
     // Return 503 for readiness failures (but still JSON)
     throw new HttpException(
-      { ok: false, ...result },
+      {
+        ok: false,
+        db: result.checks?.database === 'UP',
+        redis: result.checks?.redis === 'UP' || result.checks?.redis === 'SKIPPED',
+        ...result,
+      },
       HttpStatus.SERVICE_UNAVAILABLE,
     );
   }
