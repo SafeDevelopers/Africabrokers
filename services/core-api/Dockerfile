@@ -59,7 +59,9 @@
 
   # Copy compiled app + prisma schema
   COPY --from=build /app/services/core-api/dist ./dist
-  COPY --from=build /app/services/core-api/prisma ./prisma
+  # Copy prisma schema to the correct location (services/core-api/prisma)
+  # Prisma expects the schema to be in a prisma/ directory relative to where we run the command
+  COPY --from=build /app/services/core-api/prisma ./services/core-api/prisma
 
   # Install production dependencies only (creates fresh node_modules without symlinks)
   # This avoids symlink issues in Docker by creating a clean production install
@@ -68,7 +70,7 @@
 
   # Generate Prisma client using pnpm dlx (pnpm's equivalent of npx)
   # pnpm dlx will download and run prisma without needing to install it first
-  # This is simpler and more reliable than installing prisma temporarily
+  # Run from services/core-api where the prisma schema is located
   WORKDIR /app/services/core-api
   RUN pnpm dlx prisma@^5.10.2 generate
   WORKDIR /app
