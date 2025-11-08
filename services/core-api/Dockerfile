@@ -40,6 +40,7 @@
   
   # Copy root package files (needed for module resolution)
   COPY --from=build /app/package.json ./package.json
+  COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
   COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
   
   # Copy workspace packages (built packages needed at runtime)
@@ -54,7 +55,11 @@
   # This includes all NestJS packages, Prisma client, and workspace dependencies
   # NOTE: This is a Docker COPY operation (between build stages), NOT a git commit
   # node_modules is correctly gitignored and never committed to git
+  # pnpm uses a content-addressable store, so we need to copy the entire structure
   COPY --from=build /app/node_modules ./node_modules
+  
+  # Verify critical dependencies are available
+  RUN node -e "try { require('@nestjs/common'); console.log('✅ @nestjs/common found'); } catch(e) { console.error('❌ @nestjs/common NOT found:', e.message); process.exit(1); }"
   
   EXPOSE 8080
   HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
