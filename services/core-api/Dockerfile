@@ -69,8 +69,9 @@
   # Generate Prisma client (install prisma CLI temporarily)
   # Prisma CLI is in devDependencies, but we need it to generate the client
   # The generated client is required at runtime, so we install prisma temporarily
+  # Note: We can't use --frozen-lockfile here since we're adding a package
   WORKDIR /app/services/core-api
-  RUN pnpm add -D prisma@^5.10.2 --no-save && \
+  RUN pnpm add -D prisma@^5.10.2 && \
       pnpm prisma generate
   WORKDIR /app
 
