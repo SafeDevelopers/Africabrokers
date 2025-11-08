@@ -11,8 +11,23 @@ cd "$SCRIPT_DIR"
 
 echo "🚀 Setting up Captain Definition files for CapRover deployment..."
 
-# Core API
-echo "📦 Setting up core-api..."
+# Root captain-definition for core-api (CapRover looks for this in root)
+# IMPORTANT: CapRover Method 2 requires captain-definition in root
+echo "📦 Setting up root captain-definition for core-api..."
+cat > captain-definition <<EOF
+{
+  "schemaVersion": 2,
+  "dockerfilePath": "./services/core-api/Dockerfile",
+  "contextPath": "/",
+  "envVars": {
+    "PORT": "8080"
+  }
+}
+EOF
+echo "✅ Created captain-definition (root) for core-api"
+
+# Core API (subdirectory - for reference)
+echo "📦 Setting up core-api subdirectory..."
 mkdir -p services/core-api
 cat > services/core-api/captain-definition <<EOF
 {
