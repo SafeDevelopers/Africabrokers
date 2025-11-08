@@ -56,14 +56,20 @@
   # NOTE: This is a Docker COPY operation (between build stages), NOT a git commit
   # node_modules is correctly gitignored and never committed to git
   # pnpm uses symlinks and a content-addressable store (.pnpm), so we need to copy both
-  # Use --chown to preserve permissions and --link to preserve symlinks
-  COPY --from=build --chown=node:node /app/node_modules ./node_modules
+  # Docker COPY preserves symlinks by default, but we need to ensure the entire structure is copied
+  COPY --from=build /app/node_modules ./node_modules
   
   # Verify critical dependencies are available (this will fail build if missing)
-  RUN node -e "try { require('@nestjs/common'); console.log('✅ @nestjs/common found'); } catch(e) { console.error('❌ @nestjs/common NOT found:', e.message); process.exit(1); }"
+  # Test from the app directory to ensure path resolution works
+  RUN cd /app && node -e "try { require('@nestjs/common'); console.log('✅ @nestjs/common found'); } catch(e) { console.error('❌ @nestjs/common NOT found:', e.message); process.exit(1); }"
+  
+  # Set NODE_PATH to ensure module resolution works correctly
+  ENV NODE_PATH=/app/node_modules
   
   EXPOSE 8080
   HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD node -e "require('http').get('http://localhost:8080/healthz', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
   
+  # Run from /app directory (where node_modules and dist are located)
+  WORKDIR /app
   CMD ["node", "dist/main.js"]
