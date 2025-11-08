@@ -38,6 +38,11 @@
   ENV NODE_ENV=production
   ENV PORT=8080
   
+  # Install pnpm in runtime stage (needed to resolve pnpm symlinks)
+  ENV PNPM_HOME=/root/.local/share/pnpm
+  ENV PATH=$PNPM_HOME:$PATH
+  RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+  
   # Copy root package files (needed for module resolution)
   COPY --from=build /app/package.json ./package.json
   COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
