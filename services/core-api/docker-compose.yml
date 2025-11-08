@@ -47,8 +47,8 @@ services:
 
   core-api:
     build:
-      context: .
-      dockerfile: Dockerfile          # your pnpm-deploy Dockerfile
+      context: ../..                  # root of repository
+      dockerfile: services/core-api/Dockerfile
     environment:
       NODE_ENV: development           # local
       PORT: 8080
