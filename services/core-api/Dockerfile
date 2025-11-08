@@ -66,11 +66,13 @@
   # pnpm will resolve all dependencies and create a proper node_modules structure
   RUN pnpm -w install --frozen-lockfile --prod --filter @afribrok/core-api...
 
-  # Copy generated Prisma client from build stage (generated during build with dev deps)
-  # Prisma client is generated in node_modules/.prisma/client during prisma generate
-  # We need to copy it from the build stage since we can't run prisma generate in prod
-  COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
-  COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
+  # Generate Prisma client (install prisma CLI temporarily)
+  # Prisma CLI is in devDependencies, but we need it to generate the client
+  # The generated client is required at runtime, so we install prisma temporarily
+  WORKDIR /app/services/core-api
+  RUN pnpm add -D prisma@^5.10.2 --no-save && \
+      pnpm prisma generate
+  WORKDIR /app
 
   # Set NODE_PATH to ensure module resolution works correctly
   ENV NODE_PATH=/app/node_modules
