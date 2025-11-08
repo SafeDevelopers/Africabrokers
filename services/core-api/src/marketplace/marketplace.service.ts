@@ -86,7 +86,7 @@ export class MarketplaceService {
       ]);
 
       // Transform listings to response format
-      const items = listings.map((listing) => ({
+      const items = listings.map((listing: any) => ({
         id: listing.id,
         priceAmount: listing.priceAmount,
         priceCurrency: listing.priceCurrency,

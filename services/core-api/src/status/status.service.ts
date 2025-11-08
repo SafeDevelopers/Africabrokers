@@ -30,7 +30,7 @@ export class StatusService {
     
     try {
       const result = await Promise.race([
-        check(),
+        check.check(),
         new Promise<{ status: 'ok' | 'degraded' | 'down'; latencyMs: number }>((_, reject) =>
           setTimeout(() => reject(new Error('Check timeout')), this.CHECK_TIMEOUT_MS),
         ),
@@ -68,10 +68,10 @@ export class StatusService {
 
     // Run all checks in parallel
     const [reviews, verifications, payouts, notifications] = await Promise.all([
-      this.runCheckWithTimeout('reviews', () => this.reviewsCheck.check()),
-      this.runCheckWithTimeout('verifications', () => this.verificationsCheck.check()),
-      this.runCheckWithTimeout('payouts', () => this.payoutsCheck.check()),
-      this.runCheckWithTimeout('notifications', () => this.notificationsCheck.check()),
+      this.runCheckWithTimeout('reviews', this.reviewsCheck),
+      this.runCheckWithTimeout('verifications', this.verificationsCheck),
+      this.runCheckWithTimeout('payouts', this.payoutsCheck),
+      this.runCheckWithTimeout('notifications', this.notificationsCheck),
     ]);
 
     return {

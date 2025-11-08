@@ -7,8 +7,10 @@ export interface StatusCheckResult {
 }
 
 /**
- * Status check function interface
- * Each module should export a check function that implements this interface
+ * Status check interface
+ * Each module should export a class that implements this interface
  */
-export type StatusCheck = () => Promise<StatusCheckResult>;
+export interface StatusCheck {
+  check(): Promise<StatusCheckResult>;
+}
 
