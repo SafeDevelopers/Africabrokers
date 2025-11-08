@@ -48,7 +48,7 @@
   COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
   COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
   
-  # Copy workspace package.json files
+  # Copy workspace package.json files and built packages
   COPY --from=build /app/packages ./packages
   
   # Copy compiled app + prisma schema
@@ -57,13 +57,11 @@
   COPY --from=build /app/services/core-api/package.json ./services/core-api/package.json
   
   # Install production dependencies only (pnpm will handle workspace resolution)
+  # This installs all dependencies including workspace packages
   RUN pnpm -w install --frozen-lockfile --prod --filter @afribrok/core-api...
   
-  # Copy the FULL node_modules from build as fallback (includes generated Prisma engines)
-  # This ensures Prisma client and other generated files are available
-  COPY --from=build /app/node_modules/.pnpm ./node_modules/.pnpm 2>/dev/null || true
-  COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma 2>/dev/null || true
-  COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma 2>/dev/null || true
+  # Verify critical dependencies are installed
+  RUN node -e "require('@nestjs/common')" || (echo "ERROR: @nestjs/common not found" && exit 1)
   
   EXPOSE 8080
   HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
