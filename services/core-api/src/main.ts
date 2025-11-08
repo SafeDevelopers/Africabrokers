@@ -174,7 +174,7 @@ async function bootstrap() {
     : '*';
 
   // Handle OPTIONS preflight requests - must return 200 with correct headers, JSON Content-Type, and no HTML
-  app.use((req, res, next) => {
+  app.use((req: any, res: any, next: any) => {
     if (req.method === 'OPTIONS') {
       const origin = req.headers.origin as string | undefined;
       

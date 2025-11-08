@@ -337,7 +337,7 @@ export class AdminService {
     ]);
 
     return {
-      items: brokers.map((broker) => ({
+      items: brokers.map((broker: any) => ({
         id: broker.id,
         tenantId: broker.tenantId,
         userId: broker.userId,
@@ -438,7 +438,7 @@ export class AdminService {
             updatedAt: broker.qrCode.updatedAt.toISOString(),
           }
         : null,
-      kycReviews: broker.kycReviews.map((review) => ({
+      kycReviews: broker.kycReviews.map((review: any) => ({
         id: review.id,
         decision: review.decision,
         notes: review.notes,
@@ -492,7 +492,7 @@ export class AdminService {
     ]);
 
     return {
-      items: listings.map((listing) => ({
+      items: listings.map((listing: any) => ({
         id: listing.id,
         tenantId: listing.tenantId,
         property: listing.property,
@@ -546,7 +546,7 @@ export class AdminService {
     ]);
 
     return {
-      users: users.map((user) => ({
+      users: users.map((user: any) => ({
         id: user.id,
         tenantId: user.tenantId,
         email: user.email,
@@ -599,7 +599,7 @@ export class AdminService {
       });
 
       return {
-        items: reviews.map((review) => ({
+        items: reviews.map((review: any) => ({
           id: review.id,
           type: 'broker' as const, // KYC reviews are for brokers
           submittedBy: review.broker.user.email,
@@ -643,7 +643,7 @@ export class AdminService {
       });
 
       return {
-        items: inspections.map((inspection) => {
+        items: inspections.map((inspection: any) => {
           // Determine subjectType based on inspection data
           // For now, we support BROKER and AGENCY. DRIVER can be added when driver verification is implemented
           let subjectType: 'BROKER' | 'AGENCY' | 'DRIVER';
@@ -695,7 +695,7 @@ export class AdminService {
       });
 
       return {
-        items: paymentIntents.map((intent) => {
+        items: paymentIntents.map((intent: any) => {
           // Convert Decimal to number safely
           let amount: number;
           if (intent.amount && typeof intent.amount === 'object' && 'toNumber' in intent.amount) {
@@ -834,7 +834,7 @@ export class AdminService {
       });
 
       return {
-        items: reviews.map((review) => ({
+        items: reviews.map((review: any) => ({
           id: review.id,
           brokerId: review.brokerId,
           status: review.decision === 'approved' ? 'APPROVED' : 'REJECTED',

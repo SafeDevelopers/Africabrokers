@@ -23,7 +23,7 @@ export class MarketplaceController {
     }
 
     // Parse sort parameter (format: "field:direction")
-    const [sortField, sortDirection] = sort.split(':');
+    const [sortField, sortDirection] = (sort || 'createdAt:desc').split(':');
     const orderBy = sortDirection === 'asc' ? 'asc' : 'desc';
 
     return this.marketplaceService.getListings({
