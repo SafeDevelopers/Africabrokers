@@ -51,9 +51,11 @@ When using **Method 3: Deploy from GitHub/Bitbucket/GitLab**, CapRover will use 
    - **Context Path**: Leave empty (set in captain-definition)
    
    **If you DON'T see "Path to Captain Definition" field:**
-   - CapRover might look for `captain-definition` in the root by default
-   - In this case, you may need to specify the path in the repository URL or use a different method
-   - Try: **Repository URL**: `git@github.com:YOUR_USERNAME/YOUR_REPO.git#services/core-api`
+   - CapRover looks for `captain-definition` in the root of the repository by default
+   - Since our captain-definition is in `services/core-api/`, we need to either:
+     - **Option 1**: Use Method 2 (Deploy from Dockerfile) instead - see Option B below
+     - **Option 2**: Check if there's a "Subdirectory" or "Path" field in the form
+     - **Option 3**: Put captain-definition in the root (not recommended for multiple apps)
    
 4. Click **Deploy**
 
@@ -70,17 +72,25 @@ When using **Method 3: Deploy from GitHub/Bitbucket/GitLab**, CapRover will use 
 2. Try specifying the path explicitly if there's a "Path to Captain Definition" field
 3. Check CapRover logs for the exact error message
 
-### Option B: Deploy from Dockerfile (Local Build)
+### Option B: Deploy from Dockerfile (Method 2) - RECOMMENDED
+
+If Method 3 doesn't work because CapRover can't find the captain-definition file in a subdirectory, use **Method 2: Deploy from Dockerfile** instead. This method allows you to specify the Dockerfile path directly.
 
 1. Go to CapRover Dashboard → **Apps** → **One-Click Apps/Dockerfile**
-2. Click **Deploy from Dockerfile**
+2. Click **Deploy from Dockerfile** (Method 2)
 3. Configure:
    - **App Name**: `core-api`
-   - **Dockerfile Path**: `services/core-api/Dockerfile`
-   - **Context Path**: `/` (root of repo) ✅ (set by captain-definition)
+   - **Repository URL**: `git@github.com:YOUR_USERNAME/YOUR_REPO.git` (SSH format)
+   - **Branch**: `main` (or your deployment branch)
+   - **Dockerfile Path**: `services/core-api/Dockerfile` ✅
+   - **Context Path**: `/` (root of repository) ✅
+   - **Deploy Key**: Select the deploy key you added to CapRover
 4. Click **Deploy**
 
-**Note**: The `captain-definition` file in `services/core-api/` already sets `contextPath: "/"`, so CapRover will use the root of the repository as the build context.
+**Note**: 
+- This method directly specifies the Dockerfile path, so CapRover doesn't need to find captain-definition
+- The context path `/` means CapRover will use the root of the repository as the build context
+- The Dockerfile at `services/core-api/Dockerfile` will be used, and it will have access to the entire repository root
 
 ## Step 4: Configure HTTP Settings
 
