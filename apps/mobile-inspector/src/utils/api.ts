@@ -23,6 +23,7 @@ export interface VerifyQrResponse {
   message?: string;
   broker?: {
     id: string;
+    name?: string;
     licenseNumber: string;
     status: string;
     rating: number | null;
@@ -102,7 +103,7 @@ export async function verifyQrCodeViaApi(qrCodeId: string): Promise<{
       status: isApproved ? 'verified' : 'warning',
       broker: {
         id: data.broker.id,
-        name: data.broker.licenseNumber, // You may want to fetch broker details separately
+        name: data.broker.name || data.broker.licenseNumber,
         license: data.broker.licenseNumber,
         approved: isApproved,
         rating: data.broker.rating ?? undefined,

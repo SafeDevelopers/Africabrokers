@@ -37,6 +37,7 @@ export class JwtAuthMiddleware implements NestMiddleware {
     }
 
     // Extract token from Authorization header
+    // Return JSON error (401) for unauthenticated requests (per RBAC-MATRIX.md)
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       // For development, allow requests without auth but mark them
@@ -44,6 +45,7 @@ export class JwtAuthMiddleware implements NestMiddleware {
         req.user = undefined;
         return next();
       }
+      // Return JSON error (401) for unauthenticated requests
       throw new UnauthorizedException('Missing or invalid authorization header');
     }
 
@@ -67,6 +69,7 @@ export class JwtAuthMiddleware implements NestMiddleware {
       const decoded = jwt.verify(token, jwtSecret, verifyOptions) as JwtPayload;
 
       // For admin routes, assert role === 'admin'
+      // Return JSON error (403) for forbidden requests (per RBAC-MATRIX.md)
       const isAdminRoute = req.path.startsWith('/v1/admin') || req.path.startsWith('/admin');
       if (isAdminRoute && decoded.role !== 'admin') {
         throw new ForbiddenException('Admin role required for this route');

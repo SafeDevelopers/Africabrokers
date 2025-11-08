@@ -11,9 +11,11 @@ export default async function SuperAdminLayout({
 }) {
   const userContext = await getUserContext();
 
+  // Block TENANT_ADMIN from SUPER_ADMIN routes (per RBAC-MATRIX.md)
   // Redirect if not super admin
   if (!userContext.isSuperAdmin) {
-    if (userContext.tenantId) {
+    // TENANT_ADMIN should be redirected to tenant routes, not super admin routes
+    if (userContext.isTenantAdmin || userContext.isAgent) {
       redirect('/');
     }
     redirect('/login');

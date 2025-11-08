@@ -17,7 +17,19 @@ export class VerifyService {
       include: {
         broker: {
           include: {
-            user: true,
+            user: {
+              include: {
+                brokerApplications: {
+                  where: {
+                    status: 'APPROVED',
+                  },
+                  orderBy: {
+                    submittedAt: 'desc',
+                  },
+                  take: 1,
+                },
+              },
+            },
             tenant: true
           }
         },
@@ -57,10 +69,20 @@ export class VerifyService {
       // This should be replaced with proper cryptographic signature validation
     }
 
+    // Get broker name from application payload
+    const application = qrCode.broker.user.brokerApplications[0];
+    const payload = application?.payload as any;
+    const brokerName = payload?.fullName || 
+                      payload?.companyName || 
+                      payload?.businessName || 
+                      qrCode.broker.user.email.split('@')[0] || 
+                      'Broker';
+
     return {
       valid: true,
       broker: {
         id: qrCode.broker.id,
+        name: brokerName,
         licenseNumber: qrCode.broker.licenseNumber,
         status: qrCode.broker.status,
         rating: qrCode.broker.rating,

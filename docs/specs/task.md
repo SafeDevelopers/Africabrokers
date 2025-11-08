@@ -6,7 +6,7 @@
    - Add root scripts `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm typecheck`, `pnpm test`.
    - Provide `.editorconfig`, `.prettierrc`, `.eslintrc` aligned with strict TS.
 2. **Environment & Tooling**
-   - `infrastructure/compose`: docker-compose with Postgres (RLS ready), Redis, MinIO, Keycloak.
+   - `infrastructure/compose`: docker-compose with Postgres (RLS ready), Redis, Keycloak, plus configuration for external S3.
    - Seed script for tenants (`Ethiopia/Addis`) and default admin/broker.
    - Document local setup in `docs/README-dev.md`.
 3. **Design Tokens & UI Kit**
@@ -21,7 +21,7 @@
    - Endpoints for broker draft creation, document upload via media-service, submit.
    - Queue stub for duplicate/fraud check (BullMQ job writes audit log).
 6. **Review & QR Issuance**
-   - Admin endpoints: pending reviews list, decision API, QR generation (SVG) stored in MinIO.
+   - Admin endpoints: pending reviews list, decision API, QR generation (SVG) stored in S3.
    - Public verify endpoint + Next.js page in `apps/web-marketplace` using theme.
 7. **Marketplace Listings MVP**
    - Property + listing models, create/list APIs with verification rules.

@@ -69,7 +69,7 @@ GET /v1/verify/{qrCodeId}
     "licenseNumber": "LIC-AB-0001",
     "status": "approved",
     "rating": 4.8,
-    "approvedAt": "2024-01-15T10:00:00Z",
+    "approvedAt": "2025-01-15T10:00:00Z",
     "strikeCount": 0
   },
   "tenant": {
@@ -77,7 +77,7 @@ GET /v1/verify/{qrCodeId}
     "key": "ethiopia-addis",
     "brandConfig": {...}
   },
-  "verifiedAt": "2024-01-20T12:00:00Z",
+  "verifiedAt": "2025-01-20T12:00:00Z",
   "qrCodeId": "AFR-QR-156"
 }
 ```

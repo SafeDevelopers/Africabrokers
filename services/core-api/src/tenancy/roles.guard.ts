@@ -31,7 +31,7 @@ export class RolesGuard implements CanActivate {
 
     if (!user) {
       // In development, allow requests without auth for testing
-      // In production, require authentication
+      // In production, require authentication - return JSON error (401) for unauthenticated
       if (process.env.NODE_ENV === 'production') {
         throw new ForbiddenException('User not authenticated');
       }
@@ -41,6 +41,7 @@ export class RolesGuard implements CanActivate {
     }
 
     // Super admin has access to everything
+    // Block TENANT_ADMIN from SUPER_ADMIN routes (per RBAC-MATRIX.md)
     if (user.role === 'SUPER_ADMIN') {
       return true;
     }
@@ -57,6 +58,8 @@ export class RolesGuard implements CanActivate {
     }).flat();
 
     // Check if user has required role
+    // Return JSON error (403) for forbidden requests (per RBAC-MATRIX.md)
+    // This blocks TENANT_ADMIN from SUPER_ADMIN routes (SUPER_ADMIN only)
     if (!allowedRoles.includes(normalizedRole) && !allowedRoles.includes(user.role)) {
       throw new ForbiddenException(
         `Access denied. Required role: ${requiredRoles.join(' or ')}`,

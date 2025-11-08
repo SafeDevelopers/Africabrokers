@@ -1,0 +1,35 @@
+# QA API probes
+# Usage:
+#   1. VS Code REST Client extension: open this file and click "Send Request" above any block.
+#   2. curl alternative: source ./qa/env.sample.json values and run
+#        curl -H "Authorization: Bearer $JWT_SUPER_ADMIN" -H "Accept: application/json" "$API_BASE/v1/_status"
+#      repeating for the endpoints below.
+
+@API_BASE={{API_BASE}}
+@JWT_SUPER_ADMIN={{JWT_SUPER_ADMIN}}
+@JWT_TENANT_ADMIN={{JWT_TENANT_ADMIN}}
+@JWT_BROKER={{JWT_BROKER}}
+
+###
+GET {{API_BASE}}/v1/_status
+Authorization: Bearer {{JWT_SUPER_ADMIN}}
+Accept: application/json
+
+###
+GET {{API_BASE}}/v1/marketplace/listings?limit=1
+Accept: application/json
+
+###
+GET {{API_BASE}}/v1/admin/reviews/pending
+Authorization: Bearer {{JWT_TENANT_ADMIN}}
+Accept: application/json
+
+###
+GET {{API_BASE}}/v1/admin/verifications/pending
+Authorization: Bearer {{JWT_TENANT_ADMIN}}
+Accept: application/json
+
+###
+GET {{API_BASE}}/v1/broker/listings
+Authorization: Bearer {{JWT_BROKER}}
+Accept: application/json

@@ -12,8 +12,8 @@ declare global {
 @Injectable()
 export class TenantContextMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
-    // Skip tenant context for public auth routes
-    const publicAuthRoutes = ['/auth/login', '/auth/callback', '/health', '/healthz', '/readiness'];
+    // Skip tenant context for public auth routes and verify endpoint
+    const publicAuthRoutes = ['/auth/login', '/auth/callback', '/health', '/healthz', '/readiness', '/verify'];
     if (publicAuthRoutes.some(route => req.path.startsWith(`/v1${route}`) || req.path.startsWith(route))) {
       return next();
     }
@@ -37,6 +37,8 @@ export class TenantContextMiddleware implements NestMiddleware {
           );
         }
         // Ensure X-Tenant header matches user's tenantId from JWT
+        // Forbid cross-tenant access (per RBAC-MATRIX.md: TENANT_ADMIN routes forbid cross-tenant)
+        // Return JSON error (403) for forbidden requests
         if (tenantHeader !== user.tenantId) {
           throw new ForbiddenException(
             'X-Tenant header must match your assigned tenant',

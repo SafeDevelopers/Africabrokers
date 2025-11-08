@@ -6,6 +6,12 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "scheme": "afribrokinspector",
+    "icon": "./assets/image/icon.png",
+    "splash": {
+      "image": "./assets/image/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#184C8C"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -21,7 +27,17 @@
       }
     },
     "android": {
-      "package": "com.afribrok.inspector"
+      "package": "com.afribrok.inspector",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/image/icon.png",
+        "backgroundColor": "#184C8C"
+      },
+      "permissions": [
+        "CAMERA",
+        "INTERNET",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {},
     "extra": {

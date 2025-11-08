@@ -39,3 +39,9 @@ web-build
 *.app
 ios/
 android/
+
+# Android Keystore (NEVER commit these!)
+*.keystore
+!debug.keystore
+keystore.properties
+**/keystore.properties

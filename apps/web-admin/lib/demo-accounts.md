@@ -1,28 +1,38 @@
-# Demo Accounts for Testing
+# Demo Accounts for Local Development
+
+> **Note**: This file is for documentation purposes only. These accounts are created by the database seed file for local development and testing.
 
 ## Super Admin Account
 - **Email**: `admin@afribrok.com`
-- **Password**: `admin123`
+- **Password**: Any (not checked - system only verifies email and role)
 - **Role**: `SUPER_ADMIN`
 - **Access**: Full platform access, can view all tenants and manage system-wide settings
 
-## Broker Account (Tenant Admin)
-- **Email**: `broker@afribrok.com`
-- **Password**: `broker123`
+## Tenant Admin Account
+- **Email**: `admin@afribrok.et`
+- **Password**: Any (not checked - system only verifies email and role)
 - **Role**: `TENANT_ADMIN`
 - **Tenant**: `et-addis`
 - **Access**: Tenant-scoped access, can manage brokers, listings, QR codes within their tenant
 
-## Agency Account (Agent)
-- **Email**: `agency@afribrok.com`
-- **Password**: `agency123`
+## Agent Account
+- **Email**: `agent@afribrok.et`
+- **Password**: Any (not checked - system only verifies email and role)
 - **Role**: `AGENT`
 - **Tenant**: `et-addis`
 - **Access**: Agent-level access for government agencies, can perform inspections and verifications
 
+## Broker Account
+- **Email**: `broker@afribrok.et`
+- **Password**: Any (not checked - system only verifies email and role)
+- **Role**: `BROKER`
+- **Tenant**: `et-addis`
+- **Access**: Broker access for marketplace
+
 ## Notes
-- These are demo accounts for development and testing
-- In production, replace with real authentication using the backend API
-- Passwords should be hashed and stored securely in the database
-- JWT tokens should be properly signed and verified
+- These accounts are created by the seed file (`services/core-api/prisma/seed.ts`)
+- Passwords are NOT checked - the system only verifies email and role match
+- All accounts are in the `et-addis` tenant
+- **In production, replace with real authentication using Keycloak/OIDC**
+- This file is documentation only - no code references these accounts
 

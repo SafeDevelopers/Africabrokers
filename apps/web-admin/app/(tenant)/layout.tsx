@@ -53,6 +53,7 @@ export default async function TenantAdminLayout({
   }
 
   // Ensure tenant context exists for tenant admin and agent
+  // Forbid cross-tenant access: tenant must be set and match user's assigned tenant
   if ((userContext.isTenantAdmin || userContext.isAgent) && !userContext.tenantId) {
     console.warn('[TenantAdminLayout] Redirecting to login: Missing tenantId', {
       role: userContext.role,
@@ -60,6 +61,9 @@ export default async function TenantAdminLayout({
     });
     redirect('/login');
   }
+  
+  // Note: Cross-tenant access is enforced by API middleware (tenant-context.middleware.ts)
+  // which validates X-Tenant header matches JWT tenantId
 
   return (
     <TenantAdminSidebar>

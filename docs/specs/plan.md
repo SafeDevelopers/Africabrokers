@@ -37,7 +37,7 @@
 - Role-based access enforced; tenancy isolation covered by automated tests.
 - CI pipeline runs lint, type-check, unit tests, Docker builds for `web-admin`, `web-marketplace`, `core-api`.
 - Design tokens applied in both web apps, matching theme spec, responsive on desktop/tablet.
-- Local dev via `pnpm dev` brings up stack (Next.js apps, Nest API, Postgres, Redis, MinIO).
+- Local dev via `pnpm dev` brings up stack (Next.js apps, Nest API, Postgres, Redis, Keycloak; object storage points to S3).
 
 ## UI Theme & Brand Guardrails
 - Color tokens:

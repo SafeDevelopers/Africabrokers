@@ -5,7 +5,7 @@
 - Client apps: `apps/web-admin` & `apps/web-marketplace` (Next.js 14 App Router), `apps/mobile-inspector` (Expo/React Native stub with offline cache mock).
 - API: `services/core-api` (NestJS) exposes REST + GraphQL (optional) behind single gateway; background jobs via BullMQ in same service.
 - Media: `services/media-service` (NestJS lightweight) handles upload validation, presigned URLs, file type scanning (stub for AV).
-- Data layer: PostgreSQL 15 + PostGIS; Redis 7 for cache/queues; MinIO for object storage dev.
+- Data layer: PostgreSQL 15 + PostGIS; Redis 7 for cache/queues; AWS S3 (or compatible) for object storage.
 - Observability: OpenTelemetry tracing, structured JSON logs, health endpoints.
 
 ## Repository Modules
@@ -84,7 +84,7 @@
 - Design tokens defined in `packages/config/design-tokens/{tenant}.json`.
 - Tailwind config pulls tokens via preset; use CSS variables on `html` per tenant.
 - Theme fields: `primary`, `secondary`, `accent`, `neutral.{50,100,200,400,600,800}`, `danger`, `success`, `info`.
-- Logo placeholder stored per tenant in S3/minio; fallback to AfriBrok.com logotype.
+- Logo placeholder stored per tenant in S3; fallback to AfriBrok.com logotype.
 - Typography: Inter; fallback to `system-ui`; text sizes aligned to 4px scale.
 
 ## Integrations & Adapters

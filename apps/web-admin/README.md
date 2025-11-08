@@ -14,10 +14,10 @@ See `docs/specs/spec.md` (Frontend Specification) and `docs/specs/wireframes.md`
 Create a `.env.local` file in this directory with the following variables:
 
 ```bash
-# Core API Base URL
-# For local development, use http://localhost:8080
-# For production, update to your production API URL
-NEXT_PUBLIC_CORE_API_BASE_URL=http://localhost:8080
+# API Base URL
+# For production, use: https://api.afribrok.com
+# For local development, use: http://localhost:4000
+NEXT_PUBLIC_API_BASE_URL=https://api.afribrok.com
 
 # Verify Base URL
 # This is the base URL for the verification page where QR codes point to
@@ -25,6 +25,8 @@ NEXT_PUBLIC_CORE_API_BASE_URL=http://localhost:8080
 # For production, use https://verify.afribrok.com
 NEXT_PUBLIC_VERIFY_BASE_URL=https://verify.afribrok.com
 ```
+
+**Note**: The API client will throw an error if `NEXT_PUBLIC_API_BASE_URL` is missing in development mode.
 
 ## Required Backend Endpoints
 

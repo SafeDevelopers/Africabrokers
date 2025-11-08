@@ -65,14 +65,34 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Public pages pass
+  // Public pages pass (per RBAC-MATRIX.md: PUBLIC routes accessible without auth)
   if (isPublic(pathname)) {
     res.headers.set("x-pathname", pathname);
     return res;
   }
 
+  // Protect /dashboard and /broker root routes (per RBAC-MATRIX.md: BROKER routes require auth)
+  // These routes redirect to /broker/dashboard but must require broker auth
+  if (pathname === "/dashboard" || pathname === "/broker") {
+    const brokerSessionCookie = req.cookies.get("ab_broker_session");
+    if (!brokerSessionCookie) {
+      url.pathname = "/broker/signin";
+      return NextResponse.redirect(url);
+    }
+    // Redirect to broker dashboard if authenticated
+    if (pathname === "/dashboard") {
+      url.pathname = "/broker/dashboard";
+      return NextResponse.redirect(url);
+    }
+    if (pathname === "/broker") {
+      url.pathname = "/broker/dashboard";
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Broker-only routes: require a valid broker session cookie (HTTP-only)
   // Only honor ab_broker_session cookie - no query param auth
+  // Deny public access (per RBAC-MATRIX.md: BROKER routes deny public)
   if (isBrokerOnly(pathname)) {
     const brokerSessionCookie = req.cookies.get("ab_broker_session");
     

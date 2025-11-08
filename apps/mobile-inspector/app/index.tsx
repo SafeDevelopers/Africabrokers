@@ -1,91 +1,245 @@
-// app/index.tsx (Scan screen)
-import { useEffect, useState, useCallback, useRef } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Alert } from "react-native";
+// app/index.tsx (Home screen)
+import React from "react";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from "react-native";
 import { useRouter } from "expo-router";
-import { CameraView, Camera } from "expo-camera";
-import { verifyByQr } from "../src/lib/api";
-import { addHistory } from "../src/lib/storage";
+import { colors, spacing, radii } from "../src/theme";
 
-export default function ScanScreen() {
+export default function HomeScreen() {
   const router = useRouter();
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [scanning, setScanning] = useState(false);
-  const scannedOnceRef = useRef(false);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const { granted } = await Camera.requestCameraPermissionsAsync();
-        setHasPermission(!!granted);
-      } catch (e) {
-        setHasPermission(false);
-      }
-    })();
-  }, []);
-
-  const onScan = useCallback(async (payload: { data: string; type: string }) => {
-    if (scanning || scannedOnceRef.current) return;
-    // Process only real QR codes
-    if (payload.type !== "qr") return;
-
-    setScanning(true);
-    scannedOnceRef.current = true;
-
-    try {
-      // Accept either raw ids or deep links .../verify/{id}
-      const match = payload.data.match(/\/verify\/([^/?#]+)/);
-      const qrCodeId = match ? match[1] : payload.data;
-
-      const resp = await verifyByQr(qrCodeId);
-      await addHistory({ ...resp, qrCodeId });
-      
-      // Include qrCodeId in the payload for violation reporting
-      const payloadWithQrId = { ...resp, qrCodeId };
-      router.push({ pathname: "/result", params: { payload: JSON.stringify(payloadWithQrId) } });
-    } catch (e: any) {
-      Alert.alert("Verification failed", e?.response?.data?.message ?? "Invalid or unreachable code.");
-      // Enable re-scan after error
-      scannedOnceRef.current = false;
-    } finally {
-      setScanning(false);
-    }
-  }, [scanning, router]);
-
-  if (hasPermission === null) {
-    return <View style={styles.center}><ActivityIndicator /><Text>Requesting camera permission…</Text></View>;
-  }
-  if (hasPermission === false) {
-    return <View style={styles.center}><Text>No access to camera.</Text></View>;
-  }
 
   return (
-    <View style={{ flex: 1 }}>
-      <CameraView
-        onBarcodeScanned={onScan}
-        barcodeScannerSettings={{
-          barcodeTypes: ["qr"],
-        }}
-        style={{ flex: 1 }}
-      />
-      <View style={styles.overlay}>
-        <View style={styles.overlayButtons}>
-          <TouchableOpacity style={styles.btn} onPress={() => router.push("/history")}>
-            <Text style={styles.btnText}>History</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.btn} onPress={() => router.push("/settings")}>
-            <Text style={styles.btnText}>Settings</Text>
-          </TouchableOpacity>
-        </View>
+    <ScrollView 
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.header}>
+        <Image 
+          source={require("../assets/image/logo.png")} 
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.subtitle}>Verify broker licenses with QR codes</Text>
       </View>
-    </View>
+
+      <View style={styles.cardsContainer}>
+        {/* Scan QR Code Card */}
+        <TouchableOpacity 
+          style={styles.cardWrapper}
+          onPress={() => router.push("/scan")}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.card, styles.scanCard]}>
+            <View style={styles.cardContent}>
+              <View style={styles.scanIconContainer}>
+                <Text style={styles.scanIcon}>📷</Text>
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.cardTitle}>Scan QR Code</Text>
+                <Text style={styles.cardDescription}>
+                  Scan a broker's QR code to verify their license status
+                </Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* History Card */}
+        <TouchableOpacity 
+          style={styles.cardWrapper}
+          onPress={() => router.push("/history")}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.card, styles.historyCard]}>
+            <View style={styles.cardContent}>
+              <View style={styles.historyIconContainer}>
+                <Text style={styles.historyIcon}>📋</Text>
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.cardTitle}>History</Text>
+                <Text style={styles.cardDescription}>
+                  View your scan history and verification records
+                </Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Settings Card */}
+        <TouchableOpacity 
+          style={styles.cardWrapper}
+          onPress={() => router.push("/settings")}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.card, styles.settingsCard]}>
+            <View style={styles.cardContent}>
+              <View style={styles.settingsIconContainer}>
+                <Text style={styles.settingsIcon}>⚙️</Text>
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.cardTitle}>Settings</Text>
+                <Text style={styles.cardDescription}>
+                  Manage your account and inspector preferences
+                </Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  overlay: { position: "absolute", bottom: 24, width: "100%", alignItems: "center" },
-  overlayButtons: { flexDirection: "row", gap: 12 },
-  btn: { backgroundColor: "black", paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12, opacity: 0.85 },
-  btnText: { color: "white", fontWeight: "600" }
+  container: {
+    flexGrow: 1,
+    backgroundColor: "#F1F5F9",
+    padding: spacing.xl,
+  },
+  header: {
+    marginTop: spacing.xl,
+    marginBottom: spacing.xl * 2,
+    alignItems: "center",
+  },
+  logo: {
+    width: "90%",
+    maxWidth: 320,
+    height: 80,
+    marginBottom: spacing.md,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  subtitle: {
+    fontSize: 16,
+    color: colors.fg.muted,
+    textAlign: "center",
+  },
+  cardsContainer: {
+    gap: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  cardWrapper: {
+    height: 160,
+  },
+  card: {
+    height: "100%",
+    borderRadius: 20, // Slightly larger radius for modern look
+    padding: spacing.lg,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 10, // Enhanced Android shadow for depth
+  },
+  // Scan QR Code Card - Blue gradient style
+  scanCard: {
+    borderLeftWidth: 5,
+    borderLeftColor: "#2563EB",
+    shadowColor: "#2563EB",
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+  },
+  scanIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: radii.full,
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: spacing.lg,
+    shadowColor: "#2563EB",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  scanIcon: {
+    fontSize: 36,
+  },
+  // History Card - Green gradient style
+  historyCard: {
+    borderLeftWidth: 5,
+    borderLeftColor: "#10B981",
+    shadowColor: "#10B981",
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+  },
+  historyIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: radii.full,
+    backgroundColor: "#ECFDF5",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: spacing.lg,
+    shadowColor: "#10B981",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  historyIcon: {
+    fontSize: 36,
+  },
+  // Settings Card - Orange gradient style
+  settingsCard: {
+    borderLeftWidth: 5,
+    borderLeftColor: "#F59E0B",
+    shadowColor: "#F59E0B",
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+  },
+  settingsIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: radii.full,
+    backgroundColor: "#FFFBEB",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: spacing.lg,
+    shadowColor: "#F59E0B",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  settingsIcon: {
+    fontSize: 36,
+  },
+  cardContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+  },
+  textContainer: {
+    flex: 1,
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  cardTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: colors.fg.strong,
+    marginBottom: spacing.xs,
+    textAlign: "left",
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: colors.fg.muted,
+    textAlign: "left",
+    lineHeight: 20,
+  },
 });
-

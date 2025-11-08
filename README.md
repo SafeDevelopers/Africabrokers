@@ -16,7 +16,7 @@
   - `ui/` — shadcn/Tailwind component kit bound to design tokens.
   - `lib/` — shared utilities (API client, auth helpers, form schemas).
 - `infrastructure/`
-  - `compose/` — docker-compose stack for local dev (Postgres, Redis, MinIO, Keycloak).
+  - `compose/` — docker-compose stack for local dev (Postgres, Redis, Keycloak).
   - `iac/` — Terraform/Kubernetes scaffolding (single-env skeleton for M1).
 - `docs/` — specifications, guides, diagrams.
 
@@ -26,7 +26,7 @@
 # Install dependencies
 pnpm install
 
-# Start infrastructure (Postgres, Redis, MinIO, Keycloak)
+# Start infrastructure (Postgres, Redis, Keycloak)
 pnpm infra:up
 
 # Run database migrations
