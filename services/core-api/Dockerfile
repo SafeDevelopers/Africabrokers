@@ -32,24 +32,38 @@ RUN pnpm prisma generate
 # Build the NestJS service
 RUN pnpm build
 
-# -------- deploy (create self-contained production directory) --------
-FROM build AS deploy
-WORKDIR /app
-# Use pnpm deploy to create a self-contained production directory
-# This creates a flattened node_modules structure without symlinks or pnpm store
-RUN pnpm -w deploy --filter @afribrok/core-api... --prod /app/deploy
-# Copy built dist files to deploy directory (pnpm deploy doesn't include built files)
-RUN cp -r /app/services/core-api/dist /app/deploy/services/core-api/dist || true
-RUN cp -r /app/services/core-api/prisma /app/deploy/services/core-api/prisma || true
-
-# -------- runtime (copy from deploy) --------
+# -------- runtime (copy from build) --------
 FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
 
-# Copy the self-contained deployment from deploy stage
-COPY --from=deploy /app/deploy ./
+# Install pnpm in runtime stage
+ENV PNPM_HOME=/root/.local/share/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+
+# Copy root package files (needed for pnpm install)
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+
+# Copy workspace package manifests (needed for workspace resolution)
+COPY --from=build /app/packages/config/env/package.json ./packages/config/env/package.json
+COPY --from=build /app/packages/config/design-tokens/package.json ./packages/config/design-tokens/package.json
+COPY --from=build /app/packages/lib/package.json ./packages/lib/package.json
+COPY --from=build /app/services/core-api/package.json ./services/core-api/package.json
+
+# Copy workspace packages (built packages needed at runtime)
+COPY --from=build /app/packages ./packages
+
+# Copy compiled app + prisma schema
+COPY --from=build /app/services/core-api/dist ./dist
+COPY --from=build /app/services/core-api/prisma ./services/core-api/prisma
+
+# Install production dependencies only (creates fresh node_modules without symlinks)
+# This avoids symlink issues in Docker by creating a clean production install
+RUN pnpm -w install --frozen-lockfile --prod
 
 # Generate Prisma client in runtime (schema is already copied)
 WORKDIR /app/services/core-api
