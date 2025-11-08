@@ -122,12 +122,11 @@ async function bootstrap() {
 
   // Server binding: listen on 0.0.0.0 and port (process.env.PORT || 8080)
   // CapRover expects port 8080 by default (matches Dockerfile EXPOSE 8080)
-  const port = process.env.PORT || 8080;
-  const host = '0.0.0.0'; // Bind to all interfaces for Docker/CapRover
-  
   const app = await NestFactory.create(AppModule, {
     rawBody: true, // Enable raw body for webhook signature verification
   });
+  
+  const port = Number(process.env.PORT) || 8080;
   app.setGlobalPrefix("v1");
   
   // Enable global validation pipe with transform
@@ -218,10 +217,12 @@ async function bootstrap() {
     optionsSuccessStatus: 200, // Preflight must return 200
   });
   
-  const resolvedPort = typeof port === "string" ? parseInt(port, 10) || 8080 : port;
-  await app.listen(resolvedPort, host);
-  Logger.log(`🚀 API listening on :${resolvedPort}`, "Bootstrap");
-  Logger.log(`📚 API Documentation: http://${host}:${resolvedPort}/v1`, "Bootstrap");
+  // Add /healthz route directly via HTTP adapter (before listen)
+  app.getHttpAdapter().get('/healthz', (_req, res) => res.status(200).json({ ok: true }));
+  
+  await app.listen(port, '0.0.0.0');
+  Logger.log(`🚀 API listening on :${port}`, "Bootstrap");
+  Logger.log(`📚 API Documentation: http://0.0.0.0:${port}/v1`, "Bootstrap");
 }
 
 bootstrap();
