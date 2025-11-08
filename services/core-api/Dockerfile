@@ -55,10 +55,11 @@
   # This includes all NestJS packages, Prisma client, and workspace dependencies
   # NOTE: This is a Docker COPY operation (between build stages), NOT a git commit
   # node_modules is correctly gitignored and never committed to git
-  # pnpm uses a content-addressable store, so we need to copy the entire structure
-  COPY --from=build /app/node_modules ./node_modules
+  # pnpm uses symlinks and a content-addressable store (.pnpm), so we need to copy both
+  # Use --chown to preserve permissions and --link to preserve symlinks
+  COPY --from=build --chown=node:node /app/node_modules ./node_modules
   
-  # Verify critical dependencies are available
+  # Verify critical dependencies are available (this will fail build if missing)
   RUN node -e "try { require('@nestjs/common'); console.log('✅ @nestjs/common found'); } catch(e) { console.error('❌ @nestjs/common NOT found:', e.message); process.exit(1); }"
   
   EXPOSE 8080
