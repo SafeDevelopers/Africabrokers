@@ -51,15 +51,29 @@ function check_json_endpoint() {
     "$url") || status="000"
   ctype=$(grep -i '^content-type' "$headers" | tail -1 | cut -d' ' -f2- | tr -d '\r')
 
+  # Fail if /v1/* returns HTML or non-JSON content-type
+  if [[ "$url" == *"/v1/"* ]]; then
+    if [[ ${ctype,,} != application/json* ]]; then
+      fail "$label: /v1/* must return JSON, got '${ctype:-unknown}'"
+      rm -f "$headers" "$body"
+      return 1
+    fi
+    if grep -qi '<html' "$body"; then
+      fail "$label: /v1/* returned HTML instead of JSON"
+      rm -f "$headers" "$body"
+      return 1
+    fi
+  fi
+
   if [[ "$status" != "$expected_status" ]]; then
-    fail "$label expected $expected_status got $status ($url)"
+    fail "$label expected $expected_status got $status"
   elif [[ ${ctype,,} != application/json* ]]; then
     fail "$label expected JSON content-type, got '${ctype:-unknown}'"
   elif grep -qi '<html' "$body"; then
     fail "$label returned HTML instead of JSON"
   else
     local summary=$(jq 'if type=="object" and has("items") then (.items|length) else length end' "$body" 2>/dev/null || cat "$body")
-    pass "$label ok status=$status items=$summary"
+    pass "$label status=$status"
   fi
   rm -f "$headers" "$body"
 }
@@ -123,15 +137,48 @@ for ep in "${ADMIN_ENDPOINTS[@]}"; do
   check_json_endpoint "${ep} (SA)" "$API_BASE$ep" "$JWT_SUPER_ADMIN" "200"
 done
 
-note "Re-check RBAC expectations with TENANT_ADMIN token"
+note "Checking RBAC: TENANT_ADMIN access (per RBAC-MATRIX.md)"
 declare -A TA_EXPECTED=(
   ["/v1/admin/reviews/pending"]=200
   ["/v1/admin/verifications/pending"]=403
   ["/v1/admin/payouts/pending"]=200
+  ["/v1/superadmin/tenants"]=403
+  ["/v1/admin/settings"]=403
 )
 for ep in "${!TA_EXPECTED[@]}"; do
   check_json_endpoint "${ep} (TA)" "$API_BASE$ep" "$JWT_TENANT_ADMIN" "${TA_EXPECTED[$ep]}"
 done
+
+note "Checking RBAC: SUPER_ADMIN access (per RBAC-MATRIX.md)"
+check_json_endpoint "/v1/superadmin/tenants (SA)" "$API_BASE/v1/superadmin/tenants" "$JWT_SUPER_ADMIN" "200"
+
+note "Checking preflight OPTIONS for key routes"
+function check_preflight() {
+  local label=$1
+  local url=$2
+  local headers body status ctype
+  headers=$(mktemp)
+  body=$(mktemp)
+  status=$(curl -sS -X OPTIONS -D "$headers" -o "$body" -w "%{http_code}" \
+    -H "Origin: https://admin.afribrok.com" \
+    -H "Access-Control-Request-Method: GET" \
+    "$url") || status="000"
+  ctype=$(grep -i '^content-type' "$headers" | tail -1 | cut -d' ' -f2- | tr -d '\r')
+  
+  if [[ "$status" != "200" ]]; then
+    fail "$label OPTIONS expected 200 got $status"
+  elif [[ ${ctype,,} != application/json* ]]; then
+    fail "$label OPTIONS must return JSON, got '${ctype:-unknown}'"
+  elif grep -qi '<html' "$body"; then
+    fail "$label OPTIONS returned HTML instead of JSON"
+  else
+    pass "$label OPTIONS status=$status"
+  fi
+  rm -f "$headers" "$body"
+}
+
+check_preflight "/v1/admin/reviews/pending" "$API_BASE/v1/admin/reviews/pending"
+check_preflight "/v1/superadmin/tenants" "$API_BASE/v1/superadmin/tenants"
 
 note "Finished: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

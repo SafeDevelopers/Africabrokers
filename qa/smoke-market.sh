@@ -54,6 +54,21 @@ function check_api() {
   fi
   status=$(curl -sS -D "$headers" -o "$body" -w "%{http_code}" "${auth_args[@]}" "$API_BASE$endpoint" || echo "000")
   ctype=$(grep -i '^content-type' "$headers" | tail -1 | cut -d' ' -f2- | tr -d '\r')
+  
+  # Fail if /v1/* returns HTML or non-JSON content-type
+  if [[ "$endpoint" == "/v1/"* ]]; then
+    if [[ ${ctype,,} != application/json* ]]; then
+      fail "$label: /v1/* must return JSON, got '${ctype:-unknown}'"
+      rm -f "$headers" "$body"
+      return 1
+    fi
+    if grep -qi '<html' "$body"; then
+      fail "$label: /v1/* returned HTML instead of JSON"
+      rm -f "$headers" "$body"
+      return 1
+    fi
+  fi
+  
   local ok=1
   IFS=',' read -ra allowed <<<"$expected_csv"
   for cand in "${allowed[@]}"; do
@@ -82,9 +97,85 @@ for route in "${MARKET_PAGES[@]}"; do
   check_page "$route"
 done
 
-note "Checking broker APIs"
-check_api "broker inquiries (auth)" "/v1/broker/inquiries" "$JWT_BROKER" "200"
-check_api "broker inquiries (anon)" "/v1/broker/inquiries" "" "401,403"
+note "Checking RBAC: broker APIs (per RBAC-MATRIX.md)"
+check_api "broker inquiries (BROKER)" "/v1/broker/inquiries" "$JWT_BROKER" "200"
+check_api "broker inquiries (PUBLIC)" "/v1/broker/inquiries" "" "401,403"
+
+note "Checking marketplace listings endpoint structure"
+function check_listings_structure() {
+  local label=$1
+  local endpoint=$2
+  local token=$3
+  local headers body status ctype
+  headers=$(mktemp)
+  body=$(mktemp)
+  local auth_args=()
+  if [[ -n "$token" ]]; then
+    auth_args=(-H "Authorization: Bearer $token" -H "X-Tenant: $TENANT" -H "x-tenant-id: $TENANT")
+  fi
+  status=$(curl -sS -D "$headers" -o "$body" -w "%{http_code}" "${auth_args[@]}" "$API_BASE$endpoint" || echo "000")
+  ctype=$(grep -i '^content-type' "$headers" | tail -1 | cut -d' ' -f2- | tr -d '\r')
+  
+  if [[ "$status" != "200" ]]; then
+    fail "$label expected 200 got $status"
+    rm -f "$headers" "$body"
+    return 1
+  fi
+  
+  if [[ ${ctype,,} != application/json* ]]; then
+    fail "$label must return JSON, got '${ctype:-unknown}'"
+    rm -f "$headers" "$body"
+    return 1
+  fi
+  
+  if grep -qi '<html' "$body"; then
+    fail "$label returned HTML instead of JSON"
+    rm -f "$headers" "$body"
+    return 1
+  fi
+  
+  # Verify structure: must have {items, count} even when empty
+  if ! jq -e 'has("items") and has("count")' "$body" >/dev/null 2>&1; then
+    fail "$label must return {items, count}, got: $(jq -c . "$body" 2>/dev/null || cat "$body" | head -c 100)"
+    rm -f "$headers" "$body"
+    return 1
+  fi
+  
+  local items_count=$(jq -r '.items | length' "$body" 2>/dev/null || echo "0")
+  local count=$(jq -r '.count // 0' "$body" 2>/dev/null || echo "0")
+  pass "$label items=$items_count count=$count"
+  rm -f "$headers" "$body"
+}
+
+check_listings_structure "marketplace listings" "/v1/marketplace/listings" ""
+
+note "Checking preflight OPTIONS for key routes"
+function check_preflight() {
+  local label=$1
+  local url=$2
+  local headers body status ctype
+  headers=$(mktemp)
+  body=$(mktemp)
+  status=$(curl -sS -X OPTIONS -D "$headers" -o "$body" -w "%{http_code}" \
+    -H "Origin: https://afribrok.com" \
+    -H "Access-Control-Request-Method: GET" \
+    "$url") || status="000"
+  ctype=$(grep -i '^content-type' "$headers" | tail -1 | cut -d' ' -f2- | tr -d '\r')
+  
+  if [[ "$status" != "200" ]]; then
+    fail "$label OPTIONS expected 200 got $status"
+  elif [[ ${ctype,,} != application/json* ]]; then
+    fail "$label OPTIONS must return JSON, got '${ctype:-unknown}'"
+  elif grep -qi '<html' "$body"; then
+    fail "$label OPTIONS returned HTML instead of JSON"
+  else
+    pass "$label OPTIONS status=$status"
+  fi
+  rm -f "$headers" "$body"
+}
+
+check_preflight "/v1/marketplace/listings" "$API_BASE/v1/marketplace/listings"
+check_preflight "/v1/broker/inquiries" "$API_BASE/v1/broker/inquiries"
 
 note "Finished: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
