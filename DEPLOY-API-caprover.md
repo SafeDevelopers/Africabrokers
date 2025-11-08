@@ -28,7 +28,11 @@ The Dockerfile is already configured correctly:
 ./set-captain-definition.sh
 ```
 
-This script creates captain-definition files for all apps with the correct `contextPath: "/"` (root of repository).
+This script creates:
+- **Root `captain-definition`** file (required by CapRover Method 2) pointing to `./services/core-api/Dockerfile`
+- Subdirectory captain-definition files for reference
+
+**Note**: CapRover Method 2 looks for `captain-definition` in the **root of the repository**, so the root file is essential.
 
 ## Step 3: Create/Update Core API App in CapRover
 
