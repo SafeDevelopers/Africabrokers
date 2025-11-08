@@ -52,6 +52,8 @@
   
   # Copy the ENTIRE node_modules from build stage (already has all dependencies installed)
   # This includes all NestJS packages, Prisma client, and workspace dependencies
+  # NOTE: This is a Docker COPY operation (between build stages), NOT a git commit
+  # node_modules is correctly gitignored and never committed to git
   COPY --from=build /app/node_modules ./node_modules
   
   EXPOSE 8080
