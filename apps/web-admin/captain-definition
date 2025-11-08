@@ -1,7 +1,8 @@
 {
   "schemaVersion": 2,
   "dockerfilePath": "./Dockerfile",
-  "dockerBuildArgs": {
-    "NEXT_PUBLIC_CORE_API_BASE_URL": "$NEXT_PUBLIC_CORE_API_BASE_URL"
+  "contextPath": "/",
+  "envVars": {
+    "PORT": "3000"
   }
 }

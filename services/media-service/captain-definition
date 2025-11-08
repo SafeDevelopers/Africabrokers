@@ -1,4 +1,8 @@
 {
   "schemaVersion": 2,
-  "dockerfilePath": "./Dockerfile"
+  "dockerfilePath": "./Dockerfile",
+  "contextPath": "/",
+  "envVars": {
+    "PORT": "3001"
+  }
 }

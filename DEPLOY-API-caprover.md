@@ -20,7 +20,17 @@ The Dockerfile is already configured correctly:
 
 **No changes needed** - Dockerfile is production-ready.
 
-## Step 2: Create/Update Core API App in CapRover
+## Step 2: Run Setup Script (REQUIRED)
+
+**IMPORTANT**: Before deploying, you must run the setup script to create/update captain-definition files:
+
+```bash
+./set-captain-definition.sh
+```
+
+This script creates captain-definition files for all apps with the correct `contextPath: "/"` (root of repository).
+
+## Step 3: Create/Update Core API App in CapRover
 
 ### Option A: Deploy from GitHub/Bitbucket/GitLab
 
@@ -31,8 +41,10 @@ The Dockerfile is already configured correctly:
    - **Repository**: Your GitHub repo URL
    - **Branch**: `main` (or your deployment branch)
    - **Dockerfile Path**: `services/core-api/Dockerfile`
-   - **Context Path**: `/` (root of repo)
+   - **Context Path**: `/` (root of repo) ✅ (set by captain-definition)
 4. Click **Deploy**
+
+**Note**: The `captain-definition` file in `services/core-api/` already sets `contextPath: "/"`, so CapRover will use the root of the repository as the build context.
 
 ### Option B: Deploy from Dockerfile (Local Build)
 
@@ -41,10 +53,12 @@ The Dockerfile is already configured correctly:
 3. Configure:
    - **App Name**: `core-api`
    - **Dockerfile Path**: `services/core-api/Dockerfile`
-   - **Context Path**: `/` (root of repo)
+   - **Context Path**: `/` (root of repo) ✅ (set by captain-definition)
 4. Click **Deploy**
 
-## Step 3: Configure HTTP Settings
+**Note**: The `captain-definition` file in `services/core-api/` already sets `contextPath: "/"`, so CapRover will use the root of the repository as the build context.
+
+## Step 4: Configure HTTP Settings
 
 Go to `core-api` app → **App Configs** → **HTTP Settings**:
 
@@ -56,7 +70,7 @@ Go to `core-api` app → **App Configs** → **HTTP Settings**:
 
 **Important**: Container Port must be `8080` to match the Dockerfile.
 
-## Step 4: Configure Custom Domain
+## Step 5: Configure Custom Domain
 
 Go to `core-api` app → **App Configs** → **Custom Domain**:
 
@@ -66,7 +80,7 @@ Go to `core-api` app → **App Configs** → **Custom Domain**:
 
 **Note**: DNS must be configured before enabling SSL.
 
-## Step 5: Set Environment Variables
+## Step 6: Set Environment Variables
 
 Go to `core-api` app → **App Configs** → **Environment Variables**:
 
@@ -132,7 +146,7 @@ APP_VERSION=1.0.0
 
 **Important**: Replace all placeholder values with actual credentials.
 
-## Step 6: Run Database Migrations
+## Step 7: Run Database Migrations
 
 After the app is deployed, run Prisma migrations:
 
@@ -156,7 +170,7 @@ cd /app
 npx prisma migrate deploy
 ```
 
-## Step 7: Verify Deployment
+## Step 8: Verify Deployment
 
 ### Check App Status
 
