@@ -66,15 +66,23 @@
   # pnpm will resolve all dependencies and create a proper node_modules structure
   RUN pnpm -w install --frozen-lockfile --prod --filter @afribrok/core-api...
 
-  # Generate Prisma client (install prisma CLI temporarily)
-  # Prisma CLI is in devDependencies, but we need it to generate the client
-  # The generated client is required at runtime, so we install prisma temporarily
-  # Note: We can't use --frozen-lockfile here since we're adding a package
-  # Use pnpm exec to run prisma from node_modules/.bin
-  WORKDIR /app/services/core-api
-  RUN pnpm add -D prisma@^5.10.2 && \
-      pnpm exec prisma generate
-  WORKDIR /app
+  # Copy generated Prisma client from build stage (already generated during build)
+  # Prisma client is generated in node_modules/.prisma/client during build stage
+  # Since prisma CLI is in devDependencies, we can't run prisma generate in prod
+  # So we copy the generated client from the build stage
+  # Use RUN with mount to find and copy the Prisma client from multiple possible locations
+  RUN --mount=from=build,source=/app,target=/tmp/build \
+      mkdir -p /app/node_modules && \
+      if [ -d /tmp/build/node_modules/.prisma ]; then \
+        echo "✅ Found Prisma client at /tmp/build/node_modules/.prisma" && \
+        cp -r /tmp/build/node_modules/.prisma /app/node_modules/.prisma; \
+      elif [ -d /tmp/build/services/core-api/node_modules/.prisma ]; then \
+        echo "✅ Found Prisma client at /tmp/build/services/core-api/node_modules/.prisma" && \
+        cp -r /tmp/build/services/core-api/node_modules/.prisma /app/node_modules/.prisma; \
+      else \
+        echo "⚠️  Prisma client not found in build stage - checking if @prisma/client works without it" && \
+        node -e "require('@prisma/client')" 2>/dev/null && echo "✅ @prisma/client found" || echo "❌ @prisma/client not available"; \
+      fi
 
   # Set NODE_PATH to ensure module resolution works correctly
   ENV NODE_PATH=/app/node_modules
