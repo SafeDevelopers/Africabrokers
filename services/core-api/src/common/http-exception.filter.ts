@@ -15,8 +15,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
+    // Enforce JSON-only policy for all /v1/* responses
     // Set Content-Type to application/json for all error responses
-    response.setHeader('Content-Type', 'application/json');
+    if (request.path.startsWith('/v1/')) {
+      response.setHeader('Content-Type', 'application/json');
+    }
 
     // Handle 404 for unhandled routes under /v1/*
     if (
@@ -56,13 +59,27 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     // Handle internal server errors (500)
+    // Uncaught errors: 500 with JSON { error:{ code:'INTERNAL_ERROR', message } }
     console.error('Internal server error:', exception);
-    response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'An internal server error occurred',
-      },
-    });
+    const errorMessage = exception instanceof Error ? exception.message : 'An internal server error occurred';
+    
+    // Ensure JSON response for /v1/* routes
+    if (request.path.startsWith('/v1/')) {
+      response.setHeader('Content-Type', 'application/json');
+      response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: errorMessage,
+        },
+      });
+    } else {
+      response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: errorMessage,
+        },
+      });
+    }
   }
 
   private getErrorCode(status: number): string {

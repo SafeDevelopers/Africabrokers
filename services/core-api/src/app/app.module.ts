@@ -33,6 +33,7 @@ import { ReqScopeInterceptor } from "../tenancy/req-scope.interceptor";
 import { RolesGuard } from "../tenancy/roles.guard";
 import { TenantGuard } from "../tenancy/tenant.guard";
 import { HttpExceptionFilter } from "../common/http-exception.filter";
+import { JsonResponseInterceptor } from "../common/json-response.interceptor";
 
 @Module({
   imports: [
@@ -74,7 +75,11 @@ import { HttpExceptionFilter } from "../common/http-exception.filter";
     },
     // Note: IdorGuard is applied per-route via @UseGuards decorator
     // rather than globally to avoid performance impact
-    // Register interceptor globally
+    // Register interceptors globally
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: JsonResponseInterceptor,
+    },
     {
       provide: APP_INTERCEPTOR,
       useClass: ReqScopeInterceptor,
