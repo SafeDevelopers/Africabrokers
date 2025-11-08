@@ -32,19 +32,43 @@ This script creates captain-definition files for all apps with the correct `cont
 
 ## Step 3: Create/Update Core API App in CapRover
 
-### Option A: Deploy from GitHub/Bitbucket/GitLab
+### Option A: Deploy from GitHub/Bitbucket/GitLab (Method 3)
+
+When using **Method 3: Deploy from GitHub/Bitbucket/GitLab**, CapRover will use the `captain-definition` file. The form fields you see may vary, but here's what to fill:
 
 1. Go to CapRover Dashboard → **Apps** → **One-Click Apps/Dockerfile**
-2. Click **Deploy from GitHub/Bitbucket/GitLab**
-3. Configure:
+2. Click **Deploy from GitHub/Bitbucket/GitLab** (Method 3)
+3. Configure the form:
    - **App Name**: `core-api`
-   - **Repository**: Your GitHub repo URL
+   - **Repository URL**: `git@github.com:YOUR_USERNAME/YOUR_REPO.git` (SSH format)
    - **Branch**: `main` (or your deployment branch)
-   - **Dockerfile Path**: `services/core-api/Dockerfile`
-   - **Context Path**: `/` (root of repo) ✅ (set by captain-definition)
+   - **Deploy Key**: Select the deploy key you added to CapRover
+   - **User/Password**: Leave empty (using deploy key)
+   
+   **If you see these fields, fill them:**
+   - **Path to Captain Definition** (or **Captain Definition Path**): `services/core-api/captain-definition`
+   - **Dockerfile Path**: Leave empty (set in captain-definition)
+   - **Context Path**: Leave empty (set in captain-definition)
+   
+   **If you DON'T see "Path to Captain Definition" field:**
+   - CapRover might look for `captain-definition` in the root by default
+   - In this case, you may need to specify the path in the repository URL or use a different method
+   - Try: **Repository URL**: `git@github.com:YOUR_USERNAME/YOUR_REPO.git#services/core-api`
+   
 4. Click **Deploy**
 
-**Note**: The `captain-definition` file in `services/core-api/` already sets `contextPath: "/"`, so CapRover will use the root of the repository as the build context.
+**Important**: 
+- The `captain-definition` file at `services/core-api/captain-definition` contains:
+  - `dockerfilePath: "./Dockerfile"` (relative to `services/core-api/`)
+  - `contextPath: "/"` (root of repository)
+  - `envVars.PORT: "8080"`
+- Make sure you ran `./set-captain-definition.sh` before pushing to GitHub
+- The file must be committed and pushed to the branch you're deploying
+
+**Troubleshooting**: If CapRover can't find the captain-definition file:
+1. Check that `services/core-api/captain-definition` exists in your repository
+2. Try specifying the path explicitly if there's a "Path to Captain Definition" field
+3. Check CapRover logs for the exact error message
 
 ### Option B: Deploy from Dockerfile (Local Build)
 
