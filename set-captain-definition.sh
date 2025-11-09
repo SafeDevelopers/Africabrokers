@@ -2,6 +2,9 @@
 
 # Set Captain Definition files for CapRover deployment
 # This script creates captain-definition files in the root of each app
+# Usage: ./set-captain-definition.sh [app-name]
+#   app-name: core-api, web-admin, web-marketplace, media-service
+#   If no argument provided, defaults to core-api
 # Run this script before deploying to CapRover
 
 set -e
@@ -9,12 +12,19 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo "🚀 Setting up Captain Definition files for CapRover deployment..."
+# Get the app name from argument, default to core-api
+APP_NAME="${1:-core-api}"
 
-# Root captain-definition for core-api (CapRover looks for this in root)
+echo "🚀 Setting up Captain Definition files for CapRover deployment..."
+echo "📦 Root captain-definition will be set for: $APP_NAME"
+
+# Root captain-definition (CapRover looks for this in root)
 # IMPORTANT: CapRover Method 2 requires captain-definition in root
-echo "📦 Setting up root captain-definition for core-api..."
-cat > captain-definition <<EOF
+# This determines which app gets deployed when using root captain-definition
+case "$APP_NAME" in
+  core-api)
+    echo "📦 Setting up root captain-definition for core-api..."
+    cat > captain-definition <<EOF
 {
   "schemaVersion": 2,
   "dockerfilePath": "./services/core-api/Dockerfile",
@@ -24,7 +34,56 @@ cat > captain-definition <<EOF
   }
 }
 EOF
-echo "✅ Created captain-definition (root) for core-api"
+    echo "✅ Created captain-definition (root) for core-api"
+    ;;
+  web-admin)
+    echo "📦 Setting up root captain-definition for web-admin..."
+    cat > captain-definition <<EOF
+{
+  "schemaVersion": 2,
+  "dockerfilePath": "./apps/web-admin/Dockerfile",
+  "contextPath": "/",
+  "envVars": {
+    "PORT": "3000"
+  }
+}
+EOF
+    echo "✅ Created captain-definition (root) for web-admin"
+    ;;
+  web-marketplace)
+    echo "📦 Setting up root captain-definition for web-marketplace..."
+    cat > captain-definition <<EOF
+{
+  "schemaVersion": 2,
+  "dockerfilePath": "./apps/web-marketplace/Dockerfile",
+  "contextPath": "/",
+  "envVars": {
+    "PORT": "3000"
+  }
+}
+EOF
+    echo "✅ Created captain-definition (root) for web-marketplace"
+    ;;
+  media-service)
+    echo "📦 Setting up root captain-definition for media-service..."
+    cat > captain-definition <<EOF
+{
+  "schemaVersion": 2,
+  "dockerfilePath": "./services/media-service/Dockerfile",
+  "contextPath": "/",
+  "envVars": {
+    "PORT": "3001"
+  }
+}
+EOF
+    echo "✅ Created captain-definition (root) for media-service"
+    ;;
+  *)
+    echo "❌ Error: Unknown app name: $APP_NAME"
+    echo "   Valid options: core-api, web-admin, web-marketplace, media-service"
+    exit 1
+    ;;
+esac
 
 # Core API (subdirectory - for reference)
 echo "📦 Setting up core-api subdirectory..."
