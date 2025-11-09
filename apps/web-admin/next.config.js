@@ -23,10 +23,12 @@ const nextConfig = {
   output: 'standalone',
   // Ensure standalone output is always generated
   experimental: {
+    externalDir: true,
     outputFileTracingIncludes: {
       '/': ['**/*'],
     },
   },
+  transpilePackages: ['@afribrok/lib'],
 };
 
 module.exports = nextConfig;

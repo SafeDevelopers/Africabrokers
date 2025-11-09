@@ -225,7 +225,7 @@ importers:
   packages/lib:
     dependencies:
       zod:
-        specifier: ^3.22.4
+        specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
       typescript:

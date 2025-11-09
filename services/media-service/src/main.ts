@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from "express";
 import { MediaModule } from "./media.module";
 
 async function bootstrap() {
-  const port = process.env.MEDIA_PORT || "3001";
+  const port = process.env.MEDIA_PORT || "3000";
   const app = await NestFactory.create(MediaModule);
   app.setGlobalPrefix("v1");
   
