@@ -24,10 +24,18 @@
   WORKDIR /app
   ENV DOCKER_BUILD=true
   ENV SKIP_ENV_VALIDATION=true
+  ENV NODE_ENV=production
+  # Set required env vars for build (use placeholder values if not provided)
+  ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+  ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+  # Limit Node.js memory to prevent Jest worker errors
+  ENV NODE_OPTIONS="--max-old-space-size=4096"
+  ENV NEXT_TELEMETRY_DISABLED=1
   RUN pnpm -F @afribrok/lib build
   RUN pnpm -F @afribrok/env build
   # Build web-admin
   WORKDIR /app/apps/web-admin
+  # Build with limited concurrency to avoid worker errors
   RUN pnpm build
   
   # ---------- runtime ----------
