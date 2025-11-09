@@ -35,6 +35,8 @@
   RUN pnpm -F @afribrok/env build
   # Build web-admin
   WORKDIR /app/apps/web-admin
+  # Create public directory if it doesn't exist (Next.js requires it)
+  RUN mkdir -p public
   # Build with limited concurrency to avoid worker errors
   RUN pnpm build
   
