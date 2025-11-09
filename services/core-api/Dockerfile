@@ -60,14 +60,21 @@
   
   # ---------- runtime ----------
   FROM base AS runner
-  WORKDIR /app/services/core-api
+  # Ensure pnpm is available for workspace resolution
+  RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+  WORKDIR /app
+  # Copy workspace configuration files (needed for pnpm workspace resolution)
+  COPY --from=build /app/package.json ./
+  COPY --from=build /app/pnpm-workspace.yaml ./
+  COPY --from=build /app/pnpm-lock.yaml ./
+  # Copy built workspace packages with full structure (package.json + dist)
+  COPY --from=build /app/packages/config/env ./packages/config/env
+  COPY --from=build /app/packages/lib ./packages/lib
+  # Copy node_modules (includes workspace dependencies and symlinks)
+  COPY --from=deps /app/node_modules ./node_modules
   # Copy built service
+  WORKDIR /app/services/core-api
   COPY --from=build /app/services/core-api ./
-  # Copy node_modules (includes workspace dependencies)
-  COPY --from=deps /app/node_modules /app/node_modules
   COPY --from=deps /app/services/core-api/node_modules ./node_modules
-  # Copy built workspace packages (they need dist/ folders for runtime)
-  COPY --from=build /app/packages/config/env/dist /app/packages/config/env/dist
-  COPY --from=build /app/packages/lib/dist /app/packages/lib/dist
   # Use start:prod to run the compiled JavaScript directly
   CMD ["pnpm","run","start:prod"]
