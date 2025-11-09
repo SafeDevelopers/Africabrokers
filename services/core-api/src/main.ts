@@ -88,8 +88,22 @@ async function bootstrap() {
       Logger.error(`   ${error.message}`, 'Bootstrap');
     }
     Logger.error('   Check DATABASE_URL and ensure database is accessible.', 'Bootstrap');
+    Logger.error('   Current DATABASE_URL format:', 'Bootstrap');
+    if (process.env.DATABASE_URL) {
+      try {
+        const dbUrl = new URL(process.env.DATABASE_URL);
+        Logger.error(`   Host: ${dbUrl.hostname}:${dbUrl.port || 5432}`, 'Bootstrap');
+        Logger.error(`   Database: ${dbUrl.pathname.slice(1)}`, 'Bootstrap');
+        Logger.error(`   Username: ${dbUrl.username || '(not set)'}`, 'Bootstrap');
+      } catch (e) {
+        Logger.error(`   ${process.env.DATABASE_URL.substring(0, 50)}...`, 'Bootstrap');
+      }
+    } else {
+      Logger.error('   DATABASE_URL is not set', 'Bootstrap');
+    }
     Logger.error('   For CapRover, use: postgresql://postgres:PASSWORD@postgres.captain:5432/postgres', 'Bootstrap');
-    Logger.error('   Or: postgresql://postgres:PASSWORD@srv-captain--afribrok-db:5432/postgres\n', 'Bootstrap');
+    Logger.error('   Or: postgresql://postgres:PASSWORD@srv-captain--afribrok-db:5432/postgres', 'Bootstrap');
+    Logger.error('   Note: Username must be "postgres" (not "afribrok" or "afribrok_user")\n', 'Bootstrap');
     if (process.env.NODE_ENV === 'production') {
       process.exit(1);
     }
