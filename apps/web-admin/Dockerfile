@@ -64,10 +64,10 @@
       pnpm --filter @afribrok/lib build || \
       (echo "ERROR: Failed to build workspace dependencies" && exit 1)
   # Build the app
-  WORKDIR /app
+  WORKDIR /app/apps/web-admin
   ENV NEXT_TELEMETRY_DISABLED=1
   ENV NODE_ENV=production
-  RUN pnpm --filter @afribrok/web-admin build
+  RUN pnpm build
   # Ensure public exists to make COPY robust
   RUN mkdir -p /app/apps/web-admin/public
   
