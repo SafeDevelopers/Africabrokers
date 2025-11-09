@@ -62,7 +62,7 @@ mkdir -p apps/web-admin
 cat > apps/web-admin/captain-definition <<EOF
 {
   "schemaVersion": 2,
-  "dockerfilePath": "./Dockerfile",
+  "dockerfilePath": "./apps/web-admin/Dockerfile",
   "contextPath": "/",
   "envVars": {
     "PORT": "3000"
