@@ -48,11 +48,13 @@
       test -f packages/lib/index.ts && echo "✅ @afribrok/lib source found" || \
       (echo "❌ @afribrok/lib source not found" && ls -la packages/lib/ && exit 1)
   # Verify TypeScript is available before building
+  # TypeScript is in package node_modules, so we use --filter to access it
   RUN echo "=== Verifying TypeScript before build ===" && \
-      pnpm exec tsc --version || \
-      (echo "ERROR: TypeScript not found" && \
-       find /app -path "*/node_modules/.bin/tsc" 2>/dev/null | head -5 && \
-       exit 1)
+      (pnpm --filter @afribrok/env exec tsc --version || \
+       pnpm --filter @afribrok/lib exec tsc --version || \
+       (echo "ERROR: TypeScript not found" && \
+        find /app -path "*/node_modules/.bin/tsc" 2>/dev/null | head -5 && \
+        exit 1))
   # Build workspace dependencies
   RUN echo "=== Building workspace dependencies ===" && \
       pnpm --filter @afribrok/env build && \
