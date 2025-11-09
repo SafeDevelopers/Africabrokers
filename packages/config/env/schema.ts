@@ -10,6 +10,7 @@ export const serverEnvSchema = z.object({
   AWS_REGION: z.string().min(1),
   AWS_ACCESS_KEY_ID: z.string().min(1),
   AWS_SECRET_ACCESS_KEY: z.string().min(1),
+  S3_PUBLIC_BASE_URL: z.string().url().optional(), // Optional: Public base URL for generating file URLs
   OIDC_ISSUER_URL: z.string().url(),
   OIDC_CLIENT_ID: z.string(),
   OIDC_CLIENT_SECRET: z.string(),
