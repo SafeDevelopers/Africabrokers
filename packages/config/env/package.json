@@ -2,12 +2,26 @@
   "name": "@afribrok/env",
   "version": "1.0.0",
   "private": true,
-  "main": "server.ts",
+  "main": "dist/server.js",
+  "types": "dist/server.d.ts",
+  "exports": {
+    ".": "./dist/server.js",
+    "./server": "./dist/server.js",
+    "./client": "./dist/client.js",
+    "./schema": "./dist/schema.js"
+  },
   "files": [
-    "**/*.ts",
+    "dist",
     "README.md"
   ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
   "dependencies": {
     "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "typescript": "^5.3.3"
   }
 }

@@ -32,23 +32,13 @@ services:
     restart: unless-stopped
     networks: [stack]
 
-  # Optional: local S3 (MinIO). Comment out if you don't need storage locally.
-  # minio:
-  #   image: minio/minio:latest
-  #   command: server /data --console-address ":9001"
-  #   environment:
-  #     MINIO_ROOT_USER: minio
-  #     MINIO_ROOT_PASSWORD: minio123
-  #   ports: ["9000:9000", "9001:9001"]
-  #   volumes:
-  #     - minio:/data
-  #   restart: unless-stopped
-  #   networks: [stack]
-
   core-api:
     build:
       context: ../..                  # root of repository
       dockerfile: services/core-api/Dockerfile
+      # Ensure consistent platform builds (uncomment and set to your deployment platform)
+      # platform: linux/amd64  # Use for x86_64 servers
+      # platform: linux/arm64  # Use for ARM64 servers (e.g., Apple Silicon, AWS Graviton)
     environment:
       NODE_ENV: development           # local
       PORT: 8080
@@ -60,17 +50,21 @@ services:
       JWT_ISSUER: http://localhost:8080/dev-issuer
       JWT_AUDIENCE: afribrok-api
       OIDC_ISSUER: http://localhost:8080/dev-issuer
+      OIDC_ISSUER_URL: http://localhost:8080/dev-issuer
 
       # CORS for local UIs (adjust as needed)
       CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173,http://localhost:8081
 
-      # If you enabled MinIO above, uncomment these and set STORAGE_ENDPOINT=http://minio:9000
-      # STORAGE_ENDPOINT: http://minio:9000
-      # STORAGE_BUCKET: afribrok-media
-      # AWS_REGION: us-east-1
-      # AWS_ACCESS_KEY_ID: minio
-      # AWS_SECRET_ACCESS_KEY: minio123
-      # S3_FORCE_PATH_STYLE: "true"
+      # AWS S3 configuration (defaults are placeholders; override with real values)
+      STORAGE_ENDPOINT: https://s3.amazonaws.com
+      STORAGE_BUCKET: local-media
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local-secret
+      OIDC_CLIENT_ID: local-client
+      OIDC_CLIENT_SECRET: local-secret
+      TELEBIRR_SANDBOX_API_KEY: sandbox-key
+      TELEBIRR_SANDBOX_SECRET: sandbox-secret
 
     ports: ["8080:8080"]
     depends_on:
@@ -78,8 +72,6 @@ services:
         condition: service_healthy
       afribrok-redis:
         condition: service_healthy
-      # minio:
-      #   condition: service_started
     restart: unless-stopped
     networks: [stack]
 
@@ -89,4 +81,3 @@ networks:
 
 volumes:
   pgdata:
-  minio:

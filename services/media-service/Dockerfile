@@ -2,7 +2,8 @@
   FROM node:20-alpine AS base
   ENV PNPM_HOME=/root/.local/share/pnpm
   ENV PATH=$PNPM_HOME:$PATH
-  RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+  RUN apk add --no-cache openssl1.1-compat && \
+      corepack enable && corepack prepare pnpm@8.15.0 --activate
   WORKDIR /app
   
   # -------- deps (workspace-aware; dev+prod) --------

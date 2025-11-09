@@ -52,21 +52,19 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8090
-      # Use MinIO in local (uncomment MinIO service if you added it earlier)
-      STORAGE_ENDPOINT: http://minio:9000
+      # AWS S3 storage configuration
+      STORAGE_ENDPOINT: https://s3.amazonaws.com
       STORAGE_BUCKET: afribrok-media
       AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: minio
-      AWS_SECRET_ACCESS_KEY: minio123
-      S3_FORCE_PATH_STYLE: "true"
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local-secret
+      S3_FORCE_PATH_STYLE: "false"
       # If media-service calls API for auth, point to the container name:
       CORE_API_URL: http://core-api:8080
     ports: ["8090:8090"]
     depends_on:
       core-api:
         condition: service_started
-      # minio:
-      #   condition: service_started
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8090/healthz"]
       interval: 10s
