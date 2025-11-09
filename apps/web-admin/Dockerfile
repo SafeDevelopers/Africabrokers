@@ -12,13 +12,21 @@
   # ---------- deps ----------
   FROM base AS deps
   COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+  COPY packages packages/
   COPY apps/web-admin/package.json apps/web-admin/
-  # change filter to your actual package name if different
-  RUN pnpm -F @afribrok/web-admin install --frozen-lockfile
+  # Install all workspace dependencies
+  RUN pnpm install --frozen-lockfile
   
   # ---------- build ----------
   FROM deps AS build
   COPY . .
+  # Build workspace packages first
+  WORKDIR /app
+  ENV DOCKER_BUILD=true
+  ENV SKIP_ENV_VALIDATION=true
+  RUN pnpm -F @afribrok/lib build
+  RUN pnpm -F @afribrok/env build
+  # Build web-admin
   WORKDIR /app/apps/web-admin
   RUN pnpm build
   
