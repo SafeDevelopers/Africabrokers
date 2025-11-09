@@ -1,77 +1,62 @@
-# -------- build --------
-  FROM node:20-alpine AS build
+# ---------- base ----------
+  FROM node:20-bookworm-slim AS base
   WORKDIR /app
+  RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+  RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
   
-  # pnpm
-  ENV PNPM_HOME=/root/.local/share/pnpm
-  ENV PATH=$PNPM_HOME:$PATH
-  RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+  # ---------- deps (install only what we need for this workspace) ----------
+  FROM base AS deps
+  # Copy workspace manifests (repo root)
+  COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+  # Copy workspace package.json files so pnpm can resolve workspace dependencies
+  COPY packages/config/env/package.json packages/config/env/
+  COPY packages/lib/package.json packages/lib/
+  # Copy the service manifest so pnpm can filter-install
+  COPY services/core-api/package.json services/core-api/
+  # Install deps for the service (includes prisma & @prisma/client)
+  # Use --include-workspace-root to ensure all dependencies are installed
+  # This will also install workspace dependencies (@afribrok/env, @afribrok/lib)
+  RUN pnpm -F @afribrok/core-api install --frozen-lockfile --include-workspace-root
+  # Verify Prisma was installed (check multiple possible locations)
+  RUN echo "=== Verifying Prisma installation ===" && \
+      (test -f /app/services/core-api/node_modules/.bin/prisma && echo "Found in service node_modules" || \
+       test -f /app/node_modules/.bin/prisma && echo "Found in root node_modules" || \
+       (find /app -path "*/node_modules/.bin/prisma" 2>/dev/null | head -1 && echo "Found via search")) && \
+      echo "Prisma binary verified" || \
+      (echo "WARNING: Prisma binary not found after install" && \
+       echo "Checking service node_modules..." && \
+       ls -la /app/services/core-api/node_modules/.bin/ 2>/dev/null | head -10 || true && \
+       echo "Checking root node_modules..." && \
+       ls -la /app/node_modules/.bin/ 2>/dev/null | head -10 || true)
   
-  # workspace manifests (cache)
-  COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-  COPY packages/config/env/package.json ./packages/config/env/
-  COPY packages/config/design-tokens/package.json ./packages/config/design-tokens/
-  COPY packages/lib/package.json ./packages/lib/
-  COPY services/core-api/package.json ./services/core-api/
-  
-  RUN pnpm -w install --frozen-lockfile
-  
-  # bring source and build
+  # ---------- build (generate prisma, build TS) ----------
+  FROM deps AS build
+  # Copy the full repo so prisma/schema etc are available
   COPY . .
-  RUN pnpm -w --filter @afribrok/lib build || true
-  RUN pnpm -w --filter @afribrok/config... build || true
-  
-  # prisma + build
+  # Avoid any workspace-level postinstall from firing too early
+  ENV PRISMA_SKIP_POSTINSTALL=1
+  # Sanity: schema must exist
+  RUN test -f services/core-api/prisma/schema.prisma || (echo "ERROR: prisma/schema.prisma not found" && ls -la services/core-api/prisma/ && exit 1)
+  # Generate Prisma Client
+  # Change to service directory where prisma schema is located
   WORKDIR /app/services/core-api
-  RUN pnpm exec prisma generate || pnpm dlx prisma@^5.10.2 generate
-  RUN pnpm build
+  # Verify Prisma is available
+  RUN echo "=== Checking Prisma installation ===" && \
+      pnpm exec prisma --version || \
+      (echo "ERROR: Prisma CLI not found" && \
+       find /app -path "*/node_modules/.bin/prisma" 2>/dev/null | head -5 && \
+       exit 1)
+  # Generate Prisma Client (schema.prisma is in prisma/ directory relative to service root)
+  RUN pnpm exec prisma generate
+  # Build TypeScript to JavaScript
+  RUN pnpm run build
   
-  # Create production output directory manually (pnpm deploy has issues with workspace filters)
-  # Copy built files and install production dependencies
-  WORKDIR /app
-  RUN mkdir -p /app/.output/services/core-api && \
-      cp -r /app/services/core-api/dist /app/.output/dist && \
-      cp -r /app/services/core-api/prisma /app/.output/services/core-api/prisma && \
-      cp /app/services/core-api/package.json /app/.output/services/core-api/package.json && \
-      cp /app/package.json /app/.output/package.json && \
-      cp /app/pnpm-lock.yaml /app/.output/pnpm-lock.yaml && \
-      cp /app/pnpm-workspace.yaml /app/.output/pnpm-workspace.yaml && \
-      cp -r /app/packages /app/.output/packages && \
-      cp /app/packages/config/env/package.json /app/.output/packages/config/env/package.json && \
-      cp /app/packages/config/design-tokens/package.json /app/.output/packages/config/design-tokens/package.json && \
-      cp /app/packages/lib/package.json /app/.output/packages/lib/package.json
-  WORKDIR /app/.output
-  RUN pnpm -w install --frozen-lockfile --prod
-  
-  # -------- runtime --------
-  FROM node:20-alpine AS runtime
-  WORKDIR /app
-  ENV NODE_ENV=production
-  ENV PORT=8080
-  
-  # Install pnpm in runtime stage (needed for prisma generate)
-  ENV PNPM_HOME=/root/.local/share/pnpm
-  ENV PATH=$PNPM_HOME:$PATH
-  RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
-  
-  # copy the pruned artifact (includes dist/ and correct node_modules)
-  COPY --from=build /app/.output/ ./
-  
-  # Generate Prisma client in runtime (schema is already copied)
+  # ---------- runtime ----------
+  FROM base AS runner
   WORKDIR /app/services/core-api
-  RUN pnpm dlx prisma@^5.10.2 generate
-  WORKDIR /app
-  
-  # Set NODE_PATH to ensure module resolution works correctly
-  ENV NODE_PATH=/app/node_modules
-  
-  # Verify node_modules structure (debug if needed)
-  RUN ls -la /app/node_modules | head -20 || echo "node_modules not found" && \
-      test -d /app/node_modules/@nestjs/common || (echo "⚠️  @nestjs/common not found" && ls -la /app/node_modules/@nestjs 2>/dev/null || echo "No @nestjs directory") && \
-      echo "✅ Build complete"
-  
-  EXPOSE 8080
-  HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:8080/healthz', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
-  
-  CMD ["node", "dist/main.js"]
+  COPY --from=build /app/services/core-api ./
+  COPY --from=deps /app/node_modules /app/node_modules
+  COPY --from=deps /app/services/core-api/node_modules ./node_modules
+  # Use start:prod to run the compiled JavaScript directly
+  CMD ["pnpm","run","start:prod"]
