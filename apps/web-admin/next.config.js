@@ -31,4 +31,4 @@ const nextConfig = {
   transpilePackages: ['@afribrok/lib'],
 };
 
-module.exports = nextConfig;
+export default nextConfig;

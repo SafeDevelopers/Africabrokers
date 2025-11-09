@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7-labs
+
 # ---------- base ----------
   FROM node:20-bookworm-slim AS base
   WORKDIR /app
@@ -15,6 +17,7 @@
   # copy only web-admin manifest first for better cache hits
   COPY apps/web-admin/package.json apps/web-admin/
   # IMPORTANT: install only the web-admin workspace deps
+  # (change the filter if your package name differs)
   RUN pnpm -F @afribrok/web-admin install --frozen-lockfile
   
   # ---------- build ----------
@@ -22,8 +25,8 @@
   # now copy the rest of the repo
   COPY . .
   WORKDIR /app/apps/web-admin
-  # if you need env during build, set them via CapRover build args or here
-  RUN pnpm build
+  # Use BuildKit cache mount for Next.js incremental build cache
+  RUN --mount=type=cache,target=/app/apps/web-admin/.next/cache pnpm build
   
   # ---------- runtime ----------
   FROM base AS runner
