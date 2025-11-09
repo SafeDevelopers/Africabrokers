@@ -43,11 +43,17 @@
   # ---------- runtime ----------
   FROM base AS runner
   ENV NODE_ENV=production
+  WORKDIR /app
+  # Copy standalone output from Next.js build (includes server.js and node_modules)
+  COPY --from=build /app/apps/web-admin/.next/standalone ./
+  # Copy static files to the correct location
+  COPY --from=build /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
+  # Copy public directory
+  COPY --from=build /app/apps/web-admin/public ./apps/web-admin/public
+  # Set working directory to the app location
   WORKDIR /app/apps/web-admin
-  COPY --from=build /app/apps/web-admin/.next ./.next
-  COPY --from=build /app/apps/web-admin/public ./public
-  COPY --from=deps  /app/apps/web-admin/node_modules ./node_modules
-  COPY --from=build /app/apps/web-admin/package.json ./
   EXPOSE 3000
   ENV PORT=3000
-  CMD ["pnpm", "start"]
+  ENV HOSTNAME="0.0.0.0"
+  # Run the standalone server
+  CMD ["node", "server.js"]
