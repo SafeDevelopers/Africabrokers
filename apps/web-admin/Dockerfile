@@ -19,6 +19,15 @@
   # Install deps for the app (includes workspace dependencies)
   # Use --include-workspace-root to ensure all dependencies are installed
   RUN pnpm -F @afribrok/web-admin install --frozen-lockfile --include-workspace-root
+  # Verify TypeScript was installed (needed for building workspace packages)
+  RUN echo "=== Verifying TypeScript installation ===" && \
+      (test -f /app/node_modules/.bin/tsc && echo "Found TypeScript in root node_modules" || \
+       test -f /app/apps/web-admin/node_modules/.bin/tsc && echo "Found TypeScript in app node_modules" || \
+       (find /app -path "*/node_modules/.bin/tsc" 2>/dev/null | head -1 && echo "Found TypeScript via search")) && \
+      echo "TypeScript binary verified" || \
+      (echo "WARNING: TypeScript binary not found after install" && \
+       echo "Checking root node_modules..." && \
+       ls -la /app/node_modules/.bin/ 2>/dev/null | head -10 || true)
   
   # ---------- build ----------
   FROM deps AS build
@@ -29,6 +38,19 @@
   # Build workspace dependencies first (they need to be compiled before web-admin can use them)
   # Note: design-tokens and ui don't have build scripts, only env and lib need building
   WORKDIR /app
+  # Verify workspace packages' source files are present
+  RUN echo "=== Verifying workspace packages ===" && \
+      test -f packages/config/env/schema.ts && echo "✅ @afribrok/env source found" || \
+      (echo "❌ @afribrok/env source not found" && ls -la packages/config/env/ && exit 1) && \
+      test -f packages/lib/index.ts && echo "✅ @afribrok/lib source found" || \
+      (echo "❌ @afribrok/lib source not found" && ls -la packages/lib/ && exit 1)
+  # Verify TypeScript is available before building
+  RUN echo "=== Verifying TypeScript before build ===" && \
+      pnpm exec tsc --version || \
+      (echo "ERROR: TypeScript not found" && \
+       find /app -path "*/node_modules/.bin/tsc" 2>/dev/null | head -5 && \
+       exit 1)
+  # Build workspace dependencies
   RUN echo "=== Building workspace dependencies ===" && \
       pnpm --filter @afribrok/env build && \
       pnpm --filter @afribrok/lib build || \
