@@ -50,15 +50,8 @@
   COPY --from=build /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
   # Copy public directory
   COPY --from=build /app/apps/web-admin/public ./apps/web-admin/public
-  # Ensure all dependencies are available - copy @swc from build stage
-  # The standalone output might miss some dependencies, so we copy from build
-  # Copy @swc/helpers which is required by Next.js
-  COPY --from=build /app/node_modules/@swc ./node_modules/@swc
-  # Also ensure the helpers are available in the app's node_modules if needed
-  RUN mkdir -p ./apps/web-admin/node_modules/@swc && \
-      if [ -d ./node_modules/@swc ]; then \
-        cp -r ./node_modules/@swc/* ./apps/web-admin/node_modules/@swc/ 2>/dev/null || true; \
-      fi
+  # The standalone output should include all necessary dependencies
+  # If @swc/helpers is missing, it should be in the standalone's node_modules
   # Set working directory to the app location
   WORKDIR /app/apps/web-admin
   EXPOSE 3000

@@ -26,6 +26,7 @@ const nextConfig = {
     externalDir: true,
     outputFileTracingIncludes: {
       '/': ['**/*'],
+      '/node_modules/@swc/helpers': ['**/*'],
     },
   },
   transpilePackages: ['@afribrok/lib'],
