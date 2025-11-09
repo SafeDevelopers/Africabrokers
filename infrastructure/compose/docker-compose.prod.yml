@@ -29,25 +29,6 @@ services:
     networks: [afribrok-network]
     ports: ["6379:6379"]   # exposed locally for dev tools
 
-  minio:
-    image: minio/minio:latest
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
-    volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-    networks: [afribrok-network]
-    ports:
-      - "9000:9000"  # S3 API
-      - "9001:9001"  # Web console
-
   keycloak:
     image: quay.io/keycloak/keycloak:23.0
     environment:
@@ -76,7 +57,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  minio_data:
 
 networks:
   afribrok-network:
