@@ -18,7 +18,10 @@
   COPY apps/web-admin/package.json apps/web-admin/
   # Install deps for the app (includes workspace dependencies)
   # Use --include-workspace-root to ensure all dependencies are installed
-  RUN pnpm -F @afribrok/web-admin install --frozen-lockfile --include-workspace-root
+  # Install with devDependencies to ensure TypeScript is available for building workspace packages
+  # Note: TypeScript is a devDependency of @afribrok/env and @afribrok/lib, so we need to install devDependencies
+  # Install all dependencies including devDependencies for the entire workspace
+  RUN pnpm install --frozen-lockfile
   # Verify TypeScript was installed (needed for building workspace packages)
   RUN echo "=== Verifying TypeScript installation ===" && \
       (test -f /app/node_modules/.bin/tsc && echo "Found TypeScript in root node_modules" || \
