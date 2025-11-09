@@ -70,11 +70,13 @@
   # Copy built workspace packages with full structure (package.json + dist)
   COPY --from=build /app/packages/config/env ./packages/config/env
   COPY --from=build /app/packages/lib ./packages/lib
-  # Copy node_modules (includes workspace dependencies and symlinks)
-  COPY --from=deps /app/node_modules ./node_modules
+  # Copy node_modules from build stage (includes generated Prisma Client)
+  # This is critical: Prisma Client is generated during build, so we need node_modules from build stage
+  COPY --from=build /app/node_modules ./node_modules
   # Copy built service
   WORKDIR /app/services/core-api
   COPY --from=build /app/services/core-api ./
-  COPY --from=deps /app/services/core-api/node_modules ./node_modules
+  # Copy service node_modules from build stage (includes generated Prisma Client)
+  COPY --from=build /app/services/core-api/node_modules ./node_modules
   # Use start:prod to run the compiled JavaScript directly
   CMD ["pnpm","run","start:prod"]
