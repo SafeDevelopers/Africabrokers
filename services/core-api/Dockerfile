@@ -36,6 +36,12 @@
   COPY . .
   # Avoid any workspace-level postinstall from firing too early
   ENV PRISMA_SKIP_POSTINSTALL=1
+  # Build workspace dependencies first (they need to be compiled before core-api can use them)
+  WORKDIR /app
+  RUN echo "=== Building workspace dependencies ===" && \
+      pnpm --filter @afribrok/env build && \
+      pnpm --filter @afribrok/lib build || \
+      (echo "ERROR: Failed to build workspace dependencies" && exit 1)
   # Sanity: schema must exist
   RUN test -f services/core-api/prisma/schema.prisma || (echo "ERROR: prisma/schema.prisma not found" && ls -la services/core-api/prisma/ && exit 1)
   # Generate Prisma Client
@@ -55,8 +61,13 @@
   # ---------- runtime ----------
   FROM base AS runner
   WORKDIR /app/services/core-api
+  # Copy built service
   COPY --from=build /app/services/core-api ./
+  # Copy node_modules (includes workspace dependencies)
   COPY --from=deps /app/node_modules /app/node_modules
   COPY --from=deps /app/services/core-api/node_modules ./node_modules
+  # Copy built workspace packages (they need dist/ folders for runtime)
+  COPY --from=build /app/packages/config/env/dist /app/packages/config/env/dist
+  COPY --from=build /app/packages/lib/dist /app/packages/lib/dist
   # Use start:prod to run the compiled JavaScript directly
   CMD ["pnpm","run","start:prod"]
