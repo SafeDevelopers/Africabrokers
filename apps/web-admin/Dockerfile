@@ -22,13 +22,16 @@
   
   # ---------- build ----------
   FROM deps AS build
+  # Copy the full repo so workspace packages are available
   COPY . .
+  # Avoid any workspace-level postinstall from firing too early
+  ENV PRISMA_SKIP_POSTINSTALL=1
   # Build workspace dependencies first (they need to be compiled before web-admin can use them)
+  # Note: design-tokens and ui don't have build scripts, only env and lib need building
   WORKDIR /app
   RUN echo "=== Building workspace dependencies ===" && \
-      pnpm --filter @afribrok/config... build && \
-      pnpm --filter @afribrok/lib... build && \
-      pnpm --filter @afribrok/ui... build || \
+      pnpm --filter @afribrok/env build && \
+      pnpm --filter @afribrok/lib build || \
       (echo "ERROR: Failed to build workspace dependencies" && exit 1)
   # Build the app
   WORKDIR /app/apps/web-admin
