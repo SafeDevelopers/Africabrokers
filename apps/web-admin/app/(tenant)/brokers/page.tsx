@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { apiRequest } from "@/lib/api-server";
 import { formatDateTime, getBrokerStatusColor, getBrokerStatusLabel } from "@afribrok/lib";
+import { ErrorBanner } from "@/app/components/ErrorBanner";
 
 type Broker = {
   id: string;
@@ -37,14 +38,11 @@ type BrokersResponse = {
 
 async function getBrokers(): Promise<BrokersResponse> {
   try {
-    const response = await api.get<BrokersResponse>("/admin/brokers?limit=100");
+    const response = await apiRequest<BrokersResponse>("/v1/admin/brokers?limit=100");
     return response;
   } catch (error) {
-    // Re-throw ApiError to be handled by the component
-    if (error instanceof ApiError) {
-      throw error;
-    }
-    throw new ApiError("Failed to fetch brokers", "UNKNOWN_ERROR", 0);
+    // Re-throw error to be handled by the component
+    throw error;
   }
 }
 
@@ -58,12 +56,12 @@ const statusStyles: Record<string, string> = {
 
 async function BrokersContent() {
   let data: BrokersResponse | null = null;
-  let error: ApiError | null = null;
+  let error: Error | null = null;
   
   try {
     data = await getBrokers();
   } catch (err) {
-    error = err instanceof ApiError ? err : new ApiError("Failed to load brokers", "UNKNOWN_ERROR", 0);
+    error = err instanceof Error ? err : new Error("Failed to load brokers");
   }
   
   if (error) {
@@ -76,8 +74,6 @@ async function BrokersContent() {
   
   const brokers = data?.items || [];
   
-  if (brokers.length === 0) {
-
   return (
     <div className="bg-gray-50 min-h-full">
       <header className="bg-white shadow-sm border-b border-gray-200">
