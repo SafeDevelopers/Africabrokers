@@ -38,6 +38,9 @@
   COPY . .
   # Avoid any workspace-level postinstall from firing too early
   ENV PRISMA_SKIP_POSTINSTALL=1
+  # Reinstall dependencies after copying full repo to ensure all dependencies are available
+  # This ensures Next.js and other dependencies are properly installed
+  RUN pnpm install --frozen-lockfile
   # Build workspace dependencies first (they need to be compiled before web-admin can use them)
   # Note: design-tokens and ui don't have build scripts, only env and lib need building
   WORKDIR /app
@@ -61,10 +64,10 @@
       pnpm --filter @afribrok/lib build || \
       (echo "ERROR: Failed to build workspace dependencies" && exit 1)
   # Build the app
-  WORKDIR /app/apps/web-admin
+  WORKDIR /app
   ENV NEXT_TELEMETRY_DISABLED=1
   ENV NODE_ENV=production
-  RUN pnpm build
+  RUN pnpm --filter @afribrok/web-admin build
   # Ensure public exists to make COPY robust
   RUN mkdir -p /app/apps/web-admin/public
   
