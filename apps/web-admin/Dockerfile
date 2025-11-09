@@ -1,94 +1,41 @@
 # ---------- base ----------
   FROM node:20-bookworm-slim AS base
   WORKDIR /app
-  RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+  RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+  # use pnpm via corepack
   RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+  ENV NEXT_TELEMETRY_DISABLED=1
+  ENV CI=1
   
-  # ---------- deps (monorepo-aware) ----------
+  # ---------- deps (monorepo-aware, filtered install) ----------
   FROM base AS deps
-  # Copy workspace manifests (repo root)
+  # copy root manifests for pnpm workspaces
   COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-  # Copy workspace package.json files so pnpm can resolve workspace dependencies
-  COPY packages/config/env/package.json packages/config/env/
-  COPY packages/config/design-tokens/package.json packages/config/design-tokens/
-  COPY packages/lib/package.json packages/lib/
-  COPY packages/ui/package.json packages/ui/
-  # Copy the app manifest so pnpm can filter-install
+  # copy only web-admin manifest first for better cache hits
   COPY apps/web-admin/package.json apps/web-admin/
-  # Install deps for the app (includes workspace dependencies)
-  # Use --include-workspace-root to ensure all dependencies are installed
-  # Install with devDependencies to ensure TypeScript is available for building workspace packages
-  # Note: TypeScript is a devDependency of @afribrok/env and @afribrok/lib, so we need to install devDependencies
-  # Install all dependencies including devDependencies for the entire workspace
-  RUN pnpm install --frozen-lockfile
-  # Verify TypeScript was installed (needed for building workspace packages)
-  RUN echo "=== Verifying TypeScript installation ===" && \
-      (test -f /app/node_modules/.bin/tsc && echo "Found TypeScript in root node_modules" || \
-       test -f /app/apps/web-admin/node_modules/.bin/tsc && echo "Found TypeScript in app node_modules" || \
-       (find /app -path "*/node_modules/.bin/tsc" 2>/dev/null | head -1 && echo "Found TypeScript via search")) && \
-      echo "TypeScript binary verified" || \
-      (echo "WARNING: TypeScript binary not found after install" && \
-       echo "Checking root node_modules..." && \
-       ls -la /app/node_modules/.bin/ 2>/dev/null | head -10 || true)
+  # IMPORTANT: install only the web-admin workspace deps
+  RUN pnpm -F @afribrok/web-admin install --frozen-lockfile
   
   # ---------- build ----------
   FROM deps AS build
-  # Copy the full repo so workspace packages are available
+  # now copy the rest of the repo
   COPY . .
-  # Avoid any workspace-level postinstall from firing too early
-  ENV PRISMA_SKIP_POSTINSTALL=1
-  # Reinstall dependencies after copying full repo to ensure all dependencies are available
-  # This ensures Next.js and other dependencies are properly installed
-  RUN pnpm install --frozen-lockfile
-  # Build workspace dependencies first (they need to be compiled before web-admin can use them)
-  # Note: design-tokens and ui don't have build scripts, only env and lib need building
-  WORKDIR /app
-  # Verify workspace packages' source files are present
-  RUN echo "=== Verifying workspace packages ===" && \
-      test -f packages/config/env/schema.ts && echo "✅ @afribrok/env source found" || \
-      (echo "❌ @afribrok/env source not found" && ls -la packages/config/env/ && exit 1) && \
-      test -f packages/lib/index.ts && echo "✅ @afribrok/lib source found" || \
-      (echo "❌ @afribrok/lib source not found" && ls -la packages/lib/ && exit 1)
-  # Verify TypeScript is available before building
-  # TypeScript is in package node_modules, so we use --filter to access it
-  RUN echo "=== Verifying TypeScript before build ===" && \
-      (pnpm --filter @afribrok/env exec tsc --version || \
-       pnpm --filter @afribrok/lib exec tsc --version || \
-       (echo "ERROR: TypeScript not found" && \
-        find /app -path "*/node_modules/.bin/tsc" 2>/dev/null | head -5 && \
-        exit 1))
-  # Build workspace dependencies
-  RUN echo "=== Building workspace dependencies ===" && \
-      pnpm --filter @afribrok/env build && \
-      pnpm --filter @afribrok/lib build || \
-      (echo "ERROR: Failed to build workspace dependencies" && exit 1)
-  # Build the app
   WORKDIR /app/apps/web-admin
-  ENV NEXT_TELEMETRY_DISABLED=1
-  ENV NODE_ENV=production
+  # if you need env during build, set them via CapRover build args or here
   RUN pnpm build
-  # Ensure public exists to make COPY robust
-  RUN mkdir -p /app/apps/web-admin/public
   
   # ---------- runtime ----------
-  FROM node:20-bookworm-slim AS production
-  WORKDIR /app
+  FROM base AS runner
   ENV NODE_ENV=production
-  ENV PORT=3000
-  RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+  WORKDIR /app/apps/web-admin
   
-  # Next.js standalone output
-  # Standalone output structure: standalone/ contains server.js and node_modules
-  COPY --from=build /app/apps/web-admin/.next/standalone ./
-  COPY --from=build /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
-  COPY --from=build /app/apps/web-admin/public ./apps/web-admin/public
-  # Copy root node_modules for any hoisted dependencies (like styled-jsx)
-  COPY --from=build /app/node_modules ./node_modules
+  # copy runtime artifacts only
+  COPY --from=build /app/apps/web-admin/.next ./.next
+  COPY --from=build /app/apps/web-admin/public ./public
+  COPY --from=deps  /app/apps/web-admin/node_modules ./node_modules
+  COPY --from=build /app/apps/web-admin/package.json ./
   
   EXPOSE 3000
-  # server.js is in apps/web-admin/ directory in standalone output
-  # Change working directory to where server.js is located
-  WORKDIR /app/apps/web-admin
-  CMD ["node", "server.js"]
+  ENV PORT=3000
+  CMD ["pnpm", "start"]

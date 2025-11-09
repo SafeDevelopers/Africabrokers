@@ -49,13 +49,11 @@ async function PendingVerificationsContent() {
   }
   
   // Show error banner only for 404/Network errors
-  const isNetworkOrNotFound = error && (
+  if (error && (
     error.status === 0 || 
     error.status === 404 || 
     error.code === 'NETWORK_ERROR'
-  );
-  
-  if (isNetworkOrNotFound) {
+  )) {
     return (
       <div className="px-6 py-8">
         <ErrorBanner error={error} route="/v1/admin/verifications/pending" />

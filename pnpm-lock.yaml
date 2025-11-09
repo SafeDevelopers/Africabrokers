@@ -123,6 +123,9 @@ importers:
       react-hook-form:
         specifier: ^7.48.2
         version: 7.66.0(react@18.2.0)
+      styled-jsx:
+        specifier: ^5.1.1
+        version: 5.1.7(react@18.2.0)
       zod:
         specifier: ^3.22.4
         version: 3.25.76
@@ -145,9 +148,6 @@ importers:
       postcss:
         specifier: ^8.4.33
         version: 8.5.6
-      styled-jsx:
-        specifier: ^5.1.1
-        version: 5.1.7(react@18.2.0)
       tailwindcss:
         specifier: ^3.4.1
         version: 3.4.18
@@ -4982,6 +4982,7 @@ packages:
 
   /client-only@0.0.1:
     resolution: {integrity: sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA==}
+    dev: false
 
   /cliui@6.0.0:
     resolution: {integrity: sha512-t6wbgtoCXvAzst7QgXxJYqPt0usEfbgQdftEPbLL/cvv6HPE5VgvqCuAIDR0NgU52ds6rFwqrgakNLrHEjCbrQ==}
@@ -9375,6 +9376,7 @@ packages:
     engines: {node: '>=0.10.0'}
     dependencies:
       loose-envify: 1.4.0
+    dev: false
 
   /read-cache@1.0.0:
     resolution: {integrity: sha512-Owdv/Ft7IjOgm/i0xvNDZ1LrRANRfew4b2prF3OWMQLxLfu3bS8FVhCsrSCMK4lR56Y9ya+AThoTpDCTxCmpRA==}
@@ -10010,7 +10012,7 @@ packages:
     dependencies:
       client-only: 0.0.1
       react: 18.2.0
-    dev: true
+    dev: false
 
   /sucrase@3.35.0:
     resolution: {integrity: sha512-8EbVDiu9iN/nESwxeSxDKe0dunta1GOlHufmSSXxMD2z2/tMZpDMpvXQGsc+ajGo8y2uYUmixaSRUc/QPoQ0GA==}

@@ -109,7 +109,7 @@ async function BrokersContent() {
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-gray-700">
-                  Showing {brokers.length} of {data.total} brokers
+                  Showing {brokers.length} of {data?.total ?? 0} brokers
                 </p>
               </div>
             </div>
@@ -194,6 +194,8 @@ async function BrokersContent() {
               </table>
             </div>
           </div>
+        )}
+      </main>
     </div>
   );
 }
