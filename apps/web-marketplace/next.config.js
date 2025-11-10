@@ -21,6 +21,20 @@ if (process.env.SKIP_ENV_VALIDATION !== 'true') {
 const nextConfig = {
   output: 'standalone',
   transpilePackages: ['@afribrok/lib', '@afribrok/env', '@afribrok/design-tokens', '@afribrok/ui'],
+  webpack: (config, { isServer }) => {
+    // Exclude server-only code from client bundles
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+        os: false,
+        util: false,
+      };
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig;
