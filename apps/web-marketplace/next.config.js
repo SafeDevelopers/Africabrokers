@@ -1,18 +1,9 @@
 // Validate environment variables at build time
 // Gate it so it doesn't run at build time in Docker
-if (process.env.SKIP_ENV_VALIDATION !== 'true') {
+if (typeof window === 'undefined' && process.env.NODE_ENV !== 'test' && process.env.SKIP_ENV_VALIDATION !== 'true') {
   try {
-    // Try to require ts-node if available (for local development)
-    require('ts-node/register');
-    require('./lib/validate-env.ts');
-  } catch (e) {
-    // If ts-node is not available (Docker build), skip validation
-    // Environment variables will be validated at runtime
-    if (process.env.NODE_ENV !== 'production' || process.env.DOCKER_BUILD === 'true') {
-      console.warn('⚠️  Skipping environment variable validation in Docker build.');
-      console.warn('   Environment variables will be validated at runtime.');
-    }
-  }
+    require('./lib/validate-env');
+  } catch {}
 }
 
 /** @type {import('next').NextConfig} */
