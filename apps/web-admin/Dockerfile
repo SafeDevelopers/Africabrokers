@@ -50,8 +50,8 @@
   COPY --from=build /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
   # Copy public directory
   COPY --from=build /app/apps/web-admin/public ./apps/web-admin/public
-  # The standalone output should include all necessary dependencies
-  # If @swc/helpers is missing, it should be in the standalone's node_modules
+  # Copy hoisted dependencies from deps stage to ensure @swc/helpers is available
+  COPY --from=deps /app/node_modules /app/node_modules
   # Set working directory to the app location
   WORKDIR /app/apps/web-admin
   EXPOSE 3000
