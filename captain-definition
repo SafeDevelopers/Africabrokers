@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
-  "dockerfilePath": "./services/core-api/Dockerfile",
+  "dockerfilePath": "./apps/web-marketplace/Dockerfile",
   "contextPath": "/",
   "envVars": {
-    "PORT": "8080"
+    "PORT": "3000"
   }
 }
