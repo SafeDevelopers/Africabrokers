@@ -5,25 +5,12 @@
 
 import { getTenant } from './tenant';
 
-// Import validation (runs at module load time in server context only)
-// Skip during build if SKIP_ENV_VALIDATION is set
-if (typeof window === 'undefined' && typeof require !== 'undefined' && process.env.SKIP_ENV_VALIDATION !== 'true') {
-  try {
-    require('./validate-env');
-  } catch (e) {
-    // Ignore if validation file doesn't exist (e.g., in client bundle)
-  }
-}
-
 // Enforce baseURL from NEXT_PUBLIC_API_BASE_URL (required)
-// Only check in server context to avoid client bundle errors
-const baseURL = typeof window === 'undefined' 
-  ? process.env.NEXT_PUBLIC_API_BASE_URL 
-  : (process.env.NEXT_PUBLIC_API_BASE_URL || '');
+// Use environment variable - will be available at runtime
+const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
-if (typeof window === 'undefined' && !baseURL) {
-  throw new Error('NEXT_PUBLIC_API_BASE_URL is required but not configured. Please set it in your .env.local file.');
-}
+// Validation is handled in next.config.js and at runtime
+// No server-only code here to avoid client bundle errors
 
 export type NetworkError = {
   kind: 'NetworkError';
