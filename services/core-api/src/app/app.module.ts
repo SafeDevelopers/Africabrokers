@@ -112,7 +112,7 @@ export class AppModule implements NestModule {
     // Note: Middleware is provided by InquiriesModule with DI
     consumer
       .apply(InquiryRateLimitMiddleware)
-      .forRoutes('/v1/public/inquiries');
+      .forRoutes('/v1/public/inquiries', '/v1/marketplace/listings/*/inquiries');
     
     // Apply rate limiting to public leads (after tenant context)
     // Note: Middleware is provided by PublicModule with DI

@@ -38,8 +38,11 @@ export class InquiryRateLimitMiddleware implements NestMiddleware {
   }
 
   async use(req: Request, res: Response, next: NextFunction) {
-    // Only apply to POST /v1/public/inquiries
-    if (req.method !== 'POST' || !req.path.includes('/public/inquiries')) {
+    // Only apply to POST /v1/public/inquiries or POST /v1/marketplace/listings/:id/inquiries
+    const isPublicInquiry = req.method === 'POST' && req.path.includes('/public/inquiries');
+    const isMarketplaceInquiry = req.method === 'POST' && req.path.includes('/marketplace/listings/') && req.path.endsWith('/inquiries');
+    
+    if (!isPublicInquiry && !isMarketplaceInquiry) {
       return next();
     }
 

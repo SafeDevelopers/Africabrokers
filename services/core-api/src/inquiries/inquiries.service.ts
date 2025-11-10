@@ -224,5 +224,44 @@ export class InquiriesService {
       },
     };
   }
+
+  async createInquiryFromListing(
+    tenant: string,
+    listingId: string,
+    body: { name: string; email?: string; phone?: string; message: string; },
+  ) {
+    // Validate required fields
+    if (!body.name || !body.message) {
+      throw new BadRequestException('Name and message are required');
+    }
+
+    if (!body.email && !body.phone) {
+      throw new BadRequestException('Either email or phone is required');
+    }
+
+    // Get listing and broker info
+    const listingInfo = await this.getListingWithBroker(listingId, tenant);
+
+    // Create inquiry
+    const inquiry = await this.createInquiry({
+      tenantId: tenant,
+      listingId: listingId,
+      brokerUserId: listingInfo.brokerUserId,
+      fullName: body.name,
+      email: body.email || '',
+      phone: body.phone,
+      message: body.message,
+      source: 'MARKETPLACE',
+    });
+
+    // TODO: Send notification to broker (email/n8n webhook)
+    // await sendInquiryNotification({
+    //   inquiryId: inquiry.id,
+    //   brokerEmail: listingInfo.broker.email,
+    //   inquiryData: body,
+    // });
+
+    return { id: inquiry.id };
+  }
 }
 

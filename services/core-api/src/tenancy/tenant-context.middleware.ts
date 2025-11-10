@@ -9,6 +9,8 @@ declare global {
   }
 }
 
+const DEFAULT_TENANT = process.env.DEFAULT_TENANT || 'dev';
+
 @Injectable()
 export class TenantContextMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
@@ -19,7 +21,11 @@ export class TenantContextMiddleware implements NestMiddleware {
     }
 
     const user = req.user;
-    const tenantHeader = req.headers['x-tenant'] || req.headers['x-tenant-id'];
+    const tenantHeader = req.headers['x-tenant'] || req.headers['x-tenant-id'] || req.headers['X-Tenant'];
+
+    // Check if this is a public marketplace route
+    const isPublicMarketplaceRoute = req.path.startsWith('/v1/marketplace/listings') || 
+                                      req.path.startsWith('/marketplace/listings');
 
     let tenantId: string;
 
@@ -47,13 +53,18 @@ export class TenantContextMiddleware implements NestMiddleware {
         tenantId = user.tenantId;
       }
     } else {
-      // Unauthenticated request (public routes) - X-Tenant header is required
-      if (!tenantHeader || typeof tenantHeader !== 'string') {
+      // Unauthenticated request (public routes)
+      if (isPublicMarketplaceRoute && !tenantHeader) {
+        // For public marketplace routes, use default tenant if no header provided
+        tenantId = DEFAULT_TENANT;
+      } else if (!tenantHeader || typeof tenantHeader !== 'string') {
+        // For other public routes, X-Tenant header is required
         throw new ForbiddenException(
           'X-Tenant header is required for this request',
         );
+      } else {
+        tenantId = tenantHeader;
       }
-      tenantId = tenantHeader;
     }
 
     // Set tenantId on request object

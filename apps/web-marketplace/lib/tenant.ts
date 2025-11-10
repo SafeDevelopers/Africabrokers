@@ -21,10 +21,13 @@ export const DEFAULT_TENANT: TenantInfo = {
 };
 
 /**
- * Get current tenant from cookie or localStorage
+ * Get current tenant from cookie, localStorage, or env variable
  */
 export function getTenant(): string {
-  if (typeof window === 'undefined') return DEFAULT_TENANT.slug;
+  // On server side, use env variable or default
+  if (typeof window === 'undefined') {
+    return process.env.NEXT_PUBLIC_TENANT_KEY || DEFAULT_TENANT.slug;
+  }
   
   // Try cookie first (for SSR compatibility)
   const cookies = document.cookie.split(';').reduce((acc, cookie) => {
@@ -41,6 +44,11 @@ export function getTenant(): string {
   const stored = localStorage.getItem(TENANT_STORAGE_KEY);
   if (stored) {
     return stored;
+  }
+  
+  // Fallback to env variable (for client-side)
+  if (process.env.NEXT_PUBLIC_TENANT_KEY) {
+    return process.env.NEXT_PUBLIC_TENANT_KEY;
   }
   
   return DEFAULT_TENANT.slug;
