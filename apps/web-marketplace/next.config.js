@@ -20,7 +20,6 @@ if (process.env.SKIP_ENV_VALIDATION !== 'true') {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  transpilePackages: ['@afribrok/lib', '@afribrok/env', '@afribrok/design-tokens', '@afribrok/ui'],
 };
 
 module.exports = nextConfig;
