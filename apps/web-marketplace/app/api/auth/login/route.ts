@@ -111,9 +111,6 @@ export async function POST(request: NextRequest) {
     // Development: only use demo accounts if NEXT_PUBLIC_ENABLE_MOCKS=true
     let brokerStatus: string | null = null;
     
-    const isProduction = process.env.NODE_ENV === "production";
-    const mocksEnabled = process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true";
-    
     if (isProduction || process.env.CHECK_BROKER_STATUS === "true" || !mocksEnabled) {
       // Production or mocks disabled: always call backend API
       try {
