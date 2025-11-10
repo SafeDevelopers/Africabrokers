@@ -50,8 +50,10 @@
   COPY --from=build /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
   # Copy public directory
   COPY --from=build /app/apps/web-admin/public ./apps/web-admin/public
-  # Copy hoisted dependencies from deps stage to ensure @swc/helpers is available
-  COPY --from=deps /app/node_modules /app/node_modules
+  # Copy hoisted dependencies from build stage to ensure @swc/helpers and @next/env are available
+  # The build stage has Next.js installed, so @next/env should be there
+  COPY --from=build /app/node_modules/@swc ./node_modules/@swc
+  COPY --from=build /app/node_modules/@next ./node_modules/@next
   # Set working directory to the app location
   WORKDIR /app/apps/web-admin
   EXPOSE 3000
