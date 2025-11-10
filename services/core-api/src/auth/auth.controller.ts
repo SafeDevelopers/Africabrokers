@@ -1,5 +1,7 @@
-import { Controller, Post, Body, Get, Req } from '@nestjs/common';
+import { Controller, Post, Body, Get, Req, BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { KeycloakService } from './keycloak.service';
+import { Public } from './public.decorator';
 
 export class AuthCallbackDto {
   code!: string;
@@ -15,9 +17,16 @@ export class EmailLoginDto {
   role?: string;
 }
 
+export class PasswordResetDto {
+  email!: string;
+}
+
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly keycloakService: KeycloakService,
+  ) {}
 
   @Post('login')
   async login(@Body() dto: EmailLoginDto) {
@@ -37,5 +46,27 @@ export class AuthController {
   @Get('profile')
   async getProfile(@Req() req: any) {
     return this.authService.getUserProfile(req.user.id);
+  }
+
+  @Public()
+  @Post('password-reset')
+  async requestPasswordReset(@Body() dto: PasswordResetDto) {
+    if (!dto.email) {
+      throw new BadRequestException('Email is required');
+    }
+
+    try {
+      await this.keycloakService.sendPasswordResetEmail(dto.email);
+      return {
+        success: true,
+        message: 'Password reset email sent. Please check your inbox.',
+      };
+    } catch (error) {
+      // Don't reveal if user exists or not (security best practice)
+      return {
+        success: true,
+        message: 'If an account exists with this email, a password reset link has been sent.',
+      };
+    }
   }
 }

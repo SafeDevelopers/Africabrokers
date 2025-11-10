@@ -1,13 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { KeycloakService } from '../auth/keycloak.service';
 import { BrokerApplicationStatus } from '@prisma/client';
 
 @Injectable()
 export class SuperAdminService {
+  private readonly logger = new Logger(SuperAdminService.name);
+
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
+    private keycloakService: KeycloakService,
   ) {}
 
   // Get all agent applications (these are BrokerApplications with special flag or type)
@@ -162,12 +166,30 @@ export class SuperAdminService {
       },
     );
 
-    // Optionally, update user role to AGENT if needed
-    // For now, we'll leave the user role as-is, but you might want to:
-    // await this.prisma.user.update({
-    //   where: { id: application.userId },
-    //   data: { role: 'AGENT' },
-    // });
+    // Create Keycloak user for approved agent
+    try {
+      const user = application.user;
+      const payload = application.payload as any;
+      const firstName = payload?.primaryContact?.name?.split(' ')[0] || 
+                       payload?.organizationName?.split(' ')[0] || 
+                       user.email.split('@')[0];
+      const lastName = payload?.primaryContact?.name?.split(' ').slice(1).join(' ') || '';
+
+      await this.keycloakService.createUser(
+        user.email,
+        'AGENT',
+        firstName,
+        lastName,
+      );
+
+      // Send password reset email so user can set their password
+      await this.keycloakService.sendPasswordResetEmail(user.email);
+
+      this.logger.log(`Keycloak user created and password reset email sent for agent: ${user.email}`);
+    } catch (error) {
+      // Log error but don't fail the approval if Keycloak is unavailable
+      this.logger.error(`Failed to create Keycloak user for agent ${application.user.email}:`, error);
+    }
 
     return {
       id: updated.id,

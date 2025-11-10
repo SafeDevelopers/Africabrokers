@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlatformSettingsHelper } from '../super-platform-settings/platform-settings.helper';
+import { KeycloakService } from '../auth/keycloak.service';
 
 export interface PaginationQuery {
   page?: number;
@@ -16,9 +17,12 @@ export interface ReviewDecisionDto {
 
 @Injectable()
 export class ReviewsService {
+  private readonly logger = new Logger(ReviewsService.name);
+
   constructor(
     private prisma: PrismaService,
     private settingsHelper: PlatformSettingsHelper,
+    private keycloakService: KeycloakService,
   ) {}
 
   async getPendingReviews(query: PaginationQuery) {
@@ -140,6 +144,37 @@ export class ReviewsService {
 
       // Generate QR code
       await this.generateQrCode(review.brokerId, review.broker.tenantId);
+
+      // Create Keycloak user for approved broker
+      try {
+        const user = review.broker.user;
+        const application = await this.prisma.brokerApplication.findFirst({
+          where: {
+            userId: user.id,
+            status: 'APPROVED',
+          },
+          orderBy: { submittedAt: 'desc' },
+        });
+
+        const payload = application?.payload as any;
+        const firstName = payload?.fullName?.split(' ')[0] || user.email.split('@')[0];
+        const lastName = payload?.fullName?.split(' ').slice(1).join(' ') || '';
+
+        await this.keycloakService.createUser(
+          user.email,
+          'BROKER',
+          firstName,
+          lastName,
+        );
+
+        // Send password reset email so user can set their password
+        await this.keycloakService.sendPasswordResetEmail(user.email);
+
+        this.logger.log(`Keycloak user created and password reset email sent for broker: ${user.email}`);
+      } catch (error) {
+        // Log error but don't fail the approval if Keycloak is unavailable
+        this.logger.error(`Failed to create Keycloak user for broker ${review.broker.user.email}:`, error);
+      }
     } else if (dto.decision === 'denied') {
       await this.prisma.broker.update({
         where: { id: review.brokerId },

@@ -14,6 +14,8 @@ export const serverEnvSchema = z.object({
   OIDC_ISSUER_URL: z.string().url(),
   OIDC_CLIENT_ID: z.string(),
   OIDC_CLIENT_SECRET: z.string(),
+  KEYCLOAK_ADMIN: z.string().optional(), // Optional: Keycloak admin username (defaults to 'admin')
+  KEYCLOAK_ADMIN_PASSWORD: z.string().optional(), // Optional: Keycloak admin password (required for automatic user creation)
   TELEBIRR_SANDBOX_API_KEY: z.string(),
   TELEBIRR_SANDBOX_SECRET: z.string()
 });
