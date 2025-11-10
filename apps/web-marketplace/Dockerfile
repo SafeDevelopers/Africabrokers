@@ -22,15 +22,15 @@ FROM deps AS build
 COPY . .
 # Build workspace packages first
 WORKDIR /app
-ENV DOCKER_BUILD=true
-ENV SKIP_ENV_VALIDATION=true
-ENV NODE_ENV=production
+  ENV DOCKER_BUILD=true
+  ENV SKIP_ENV_VALIDATION=true
+  ENV NODE_ENV=production
   # Set required env vars for build (use placeholder values if not provided)
   ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
   ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
   ARG NEXT_PUBLIC_TENANT_KEY=default
   ENV NEXT_PUBLIC_TENANT_KEY=$NEXT_PUBLIC_TENANT_KEY
-# Limit Node.js memory to prevent Jest worker errors
+  # Limit Node.js memory to prevent Jest worker errors
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm -F @afribrok/lib build
