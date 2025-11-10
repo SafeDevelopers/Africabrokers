@@ -21,7 +21,7 @@ if (process.env.SKIP_ENV_VALIDATION !== 'true') {
 const nextConfig = {
   output: 'standalone',
   transpilePackages: ['@afribrok/lib', '@afribrok/env', '@afribrok/design-tokens', '@afribrok/ui'],
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, webpack }) => {
     // Exclude server-only code from client bundles
     if (!isServer) {
       config.resolve.fallback = {
@@ -32,6 +32,13 @@ const nextConfig = {
         os: false,
         util: false,
       };
+      // Ignore server-only files in client bundles
+      config.plugins = config.plugins || [];
+      config.plugins.push(
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^\.\/validate-env$/,
+        })
+      );
     }
     return config;
   },
