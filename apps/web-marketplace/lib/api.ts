@@ -5,8 +5,9 @@
 
 import { getTenant } from './tenant';
 
-// Import validation (runs at module load time in server context)
-if (typeof window === 'undefined') {
+// Import validation (runs at module load time in server context only)
+// Skip during build if SKIP_ENV_VALIDATION is set
+if (typeof window === 'undefined' && typeof require !== 'undefined' && process.env.SKIP_ENV_VALIDATION !== 'true') {
   try {
     require('./validate-env');
   } catch (e) {
