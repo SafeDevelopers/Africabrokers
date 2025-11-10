@@ -16,9 +16,12 @@ if (typeof window === 'undefined' && typeof require !== 'undefined' && process.e
 }
 
 // Enforce baseURL from NEXT_PUBLIC_API_BASE_URL (required)
-const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL;
+// Only check in server context to avoid client bundle errors
+const baseURL = typeof window === 'undefined' 
+  ? process.env.NEXT_PUBLIC_API_BASE_URL 
+  : (process.env.NEXT_PUBLIC_API_BASE_URL || '');
 
-if (!baseURL) {
+if (typeof window === 'undefined' && !baseURL) {
   throw new Error('NEXT_PUBLIC_API_BASE_URL is required but not configured. Please set it in your .env.local file.');
 }
 
