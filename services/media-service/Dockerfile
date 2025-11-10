@@ -34,25 +34,27 @@ RUN pnpm build
 
 # -------- runtime (no installs) --------
 FROM base AS runtime
+# Ensure pnpm is available for workspace resolution
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 ENV NODE_ENV=production
 ENV PORT=3000
 WORKDIR /app
 
-# Copy root package files (needed for module resolution)
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
-COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+# Copy workspace configuration files (needed for pnpm workspace resolution)
+COPY --from=build /app/package.json ./
+COPY --from=build /app/pnpm-workspace.yaml ./
+COPY --from=build /app/pnpm-lock.yaml ./
 
-# Copy compiled output
-COPY --from=build /app/services/media-service/dist ./dist
-# Copy full node_modules from build (includes Nest + any workspace-linked deps)
-# pnpm uses symlinks and a content-addressable store (.pnpm), so we need to copy both
+# Copy built workspace packages with full structure (package.json + dist)
+COPY --from=build /app/packages/config/env ./packages/config/env
+
+# Copy node_modules from build stage (includes Nest + any workspace-linked deps)
+# This is critical: pnpm uses symlinks, so we need node_modules from build stage
 COPY --from=build /app/node_modules ./node_modules
-# Minimal manifest (handy for tooling)
-COPY --from=build /app/services/media-service/package.json ./package.json
 
-# Set NODE_PATH to ensure module resolution works correctly
-ENV NODE_PATH=/app/node_modules
+# Copy built service
+WORKDIR /app/services/media-service
+COPY --from=build /app/services/media-service ./
 
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
