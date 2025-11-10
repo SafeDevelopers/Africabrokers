@@ -1,7 +1,5 @@
 // Validate environment variables at build time
-// Note: validate-env.ts is TypeScript, so we skip it in Docker builds
-// Environment variables are validated at runtime instead
-// This prevents build failures when env vars are not set during Docker build
+// Gate it so it doesn't run at build time in Docker
 if (process.env.SKIP_ENV_VALIDATION !== 'true') {
   try {
     // Try to require ts-node if available (for local development)
