@@ -19,17 +19,7 @@ if (process.env.SKIP_ENV_VALIDATION !== 'true') {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // App directory is stable in Next.js 13.4+
   output: 'standalone',
-  // Ensure standalone output is always generated
-  experimental: {
-    externalDir: true,
-    outputFileTracingIncludes: {
-      '/': ['**/*'],
-      '/node_modules/@swc/helpers': ['**/*'],
-    },
-  },
-  transpilePackages: ['@afribrok/lib'],
 };
 
-export default nextConfig;
+module.exports = nextConfig;

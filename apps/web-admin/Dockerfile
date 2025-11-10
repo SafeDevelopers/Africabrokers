@@ -44,21 +44,12 @@
   FROM base AS runner
   ENV NODE_ENV=production
   WORKDIR /app
-  # Copy standalone output from Next.js build (includes server.js and node_modules)
+  # Copy standalone output from Next.js build (includes server.js and all required node_modules)
   COPY --from=build /app/apps/web-admin/.next/standalone ./
   # Copy static files to the correct location
   COPY --from=build /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
   # Copy public directory
   COPY --from=build /app/apps/web-admin/public ./apps/web-admin/public
-  # Copy hoisted dependencies from deps stage to ensure @swc/helpers and @next/env are available
-  # This ensures all dependencies are available even if standalone output misses some
-  COPY --from=deps /app/node_modules /app/node_modules
-  # Ensure @next/env is available in the app's node_modules if standalone output is missing it
-  # Copy @next/env to the app's node_modules location if it doesn't exist there
-  RUN if [ -d /app/node_modules/@next/env ] && [ ! -d /app/apps/web-admin/node_modules/@next/env ]; then \
-      mkdir -p /app/apps/web-admin/node_modules/@next && \
-      cp -r /app/node_modules/@next/env /app/apps/web-admin/node_modules/@next/env; \
-    fi
   # Set working directory to the app location
   WORKDIR /app/apps/web-admin
   EXPOSE 3000
