@@ -155,7 +155,14 @@ export default function LoginPage() {
     setForgotPasswordLoading(true);
 
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_CORE_API_BASE_URL || 'http://localhost:4000';
+      // Use the same API base URL as the rest of the app
+      const apiBaseUrl = process.env.NEXT_PUBLIC_CORE_API_BASE_URL;
+      if (!apiBaseUrl) {
+        setForgotPasswordError('API configuration error. Please contact support.');
+        setForgotPasswordLoading(false);
+        return;
+      }
+      
       const response = await fetch(`${apiBaseUrl}/v1/auth/password-reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
