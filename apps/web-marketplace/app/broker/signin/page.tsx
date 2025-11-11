@@ -3,7 +3,7 @@
 import { useState, FormEvent, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { LogIn, Eye, EyeOff, AlertCircle, ArrowLeft } from "lucide-react";
+import { LogIn, Eye, EyeOff, AlertCircle, ArrowLeft, X, CheckCircle } from "lucide-react";
 
 export default function BrokerSignInPage() {
   const router = useRouter();
@@ -13,6 +13,11 @@ export default function BrokerSignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
+  const [forgotPasswordError, setForgotPasswordError] = useState<string | null>(null);
   const hasCheckedAuthRef = useRef(false);
   const redirectToRef = useRef<string | null>(null);
 
@@ -80,6 +85,40 @@ export default function BrokerSignInPage() {
       const errorMessage = err instanceof Error ? err.message : "An error occurred during login";
       setError(errorMessage);
       setIsLoading(false);
+    }
+  };
+
+  // Handle forgot password
+  const handleForgotPassword = async (e: FormEvent) => {
+    e.preventDefault();
+    setForgotPasswordError(null);
+    setForgotPasswordSuccess(false);
+    setForgotPasswordLoading(true);
+
+    try {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_CORE_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+      const response = await fetch(`${apiBaseUrl}/v1/auth/password-reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotPasswordEmail }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setForgotPasswordSuccess(true);
+        setTimeout(() => {
+          setShowForgotPassword(false);
+          setForgotPasswordEmail("");
+          setForgotPasswordSuccess(false);
+        }, 3000);
+      } else {
+        setForgotPasswordError(data.message || 'Failed to send password reset email');
+      }
+    } catch (err) {
+      setForgotPasswordError('An error occurred. Please try again.');
+    } finally {
+      setForgotPasswordLoading(false);
     }
   };
 
@@ -153,9 +192,13 @@ export default function BrokerSignInPage() {
                   <input type="checkbox" className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500" />
                   <span className="text-sm text-gray-600">Remember me</span>
                 </label>
-                <a href="#" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                >
                   Forgot password?
-                </a>
+                </button>
               </div>
 
               <button
@@ -188,6 +231,87 @@ export default function BrokerSignInPage() {
           </div>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 md:p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-900">Reset Password</h3>
+              <button
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setForgotPasswordEmail("");
+                  setForgotPasswordError(null);
+                  setForgotPasswordSuccess(false);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {forgotPasswordSuccess ? (
+              <div className="text-center py-8">
+                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                <p className="text-gray-700 mb-2 font-semibold">Email sent!</p>
+                <p className="text-sm text-gray-600">
+                  Please check your inbox for password reset instructions.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <p className="text-gray-600 text-sm mb-4">
+                  Enter your email address and we'll send you a link to reset your password.
+                </p>
+
+                {forgotPasswordError && (
+                  <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                    <p className="text-sm text-red-800">{forgotPasswordError}</p>
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="forgot-email" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    id="forgot-email"
+                    type="email"
+                    value={forgotPasswordEmail}
+                    onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
+                    placeholder="Enter your email"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForgotPassword(false);
+                      setForgotPasswordEmail("");
+                      setForgotPasswordError(null);
+                    }}
+                    className="flex-1 px-4 py-3 border border-slate-300 rounded-lg text-gray-700 font-semibold hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={forgotPasswordLoading}
+                    className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {forgotPasswordLoading ? 'Sending...' : 'Send Reset Link'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
