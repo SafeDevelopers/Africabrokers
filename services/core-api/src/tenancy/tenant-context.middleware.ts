@@ -15,7 +15,7 @@ const DEFAULT_TENANT = process.env.DEFAULT_TENANT || 'dev';
 export class TenantContextMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     // Skip tenant context for public auth routes and verify endpoint
-    const publicAuthRoutes = ['/auth/login', '/auth/callback', '/health', '/healthz', '/readiness', '/verify'];
+    const publicAuthRoutes = ['/auth/login', '/auth/callback', '/auth/password-reset', '/health', '/healthz', '/readiness', '/verify'];
     if (publicAuthRoutes.some(route => req.path.startsWith(`/v1${route}`) || req.path.startsWith(route))) {
       return next();
     }

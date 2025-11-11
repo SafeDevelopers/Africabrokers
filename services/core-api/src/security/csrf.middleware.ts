@@ -22,7 +22,7 @@ export class CsrfMiddleware implements NestMiddleware {
     }
 
     // Skip CSRF for public routes
-    const publicRoutes = ['/health', '/auth/callback', '/verify'];
+    const publicRoutes = ['/health', '/auth/callback', '/auth/password-reset', '/auth/login', '/verify'];
     if (publicRoutes.some(route => req.path.startsWith(`/v1${route}`) || req.path.startsWith(route))) {
       return next();
     }

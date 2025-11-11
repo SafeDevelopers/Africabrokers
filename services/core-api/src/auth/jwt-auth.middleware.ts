@@ -31,7 +31,7 @@ export class JwtAuthMiddleware implements NestMiddleware {
 
   async use(req: Request, res: Response, next: NextFunction) {
     // Skip auth for public routes
-    const publicRoutes = ['/health', '/healthz', '/readiness', '/auth/callback'];
+    const publicRoutes = ['/health', '/healthz', '/readiness', '/auth/callback', '/auth/password-reset', '/auth/login'];
     if (publicRoutes.some(route => req.path.startsWith(`/v1${route}`) || req.path.startsWith(route))) {
       return next();
     }
