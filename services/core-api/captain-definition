@@ -3,6 +3,11 @@
   "dockerfilePath": "./Dockerfile",
   "contextPath": "/",
   "envVars": {
-    "PORT": "8080"
+    "PORT": "8080",
+    "KEYCLOAK_REALM": "afribrok",
+    "KEYCLOAK_CLIENT_ID": "core-api",
+    "KEYCLOAK_ISSUER": "https://keycloak.afribrok.com/realms/afribrok",
+    "KEYCLOAK_JWKS_URI": "https://keycloak.afribrok.com/realms/afribrok/protocol/openid-connect/certs",
+    "KEYCLOAK_AUDIENCE": "core-api"
   }
 }

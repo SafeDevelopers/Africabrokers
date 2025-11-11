@@ -32,21 +32,26 @@ export class KeycloakService {
   constructor(private configService: ConfigService) {}
 
   private getKeycloakBaseUrl(): string {
-    const issuerUrl = this.configService.get<string>('OIDC_ISSUER_URL');
+    const issuerUrl = this.configService.get<string>('KEYCLOAK_ISSUER');
     if (!issuerUrl) {
-      throw new BadRequestException('OIDC_ISSUER_URL is not configured');
+      throw new BadRequestException('KEYCLOAK_ISSUER is not configured');
     }
-    // Extract base URL from issuer (e.g., https://keycloak.my.afribrok.com/realms/afribrok -> https://keycloak.my.afribrok.com)
+    // Extract base URL from issuer (e.g., https://keycloak.afribrok.com/realms/afribrok -> https://keycloak.afribrok.com)
     const url = new URL(issuerUrl);
     return `${url.protocol}//${url.host}`;
   }
 
   private getRealm(): string {
-    const issuerUrl = this.configService.get<string>('OIDC_ISSUER_URL');
-    if (!issuerUrl) {
-      throw new BadRequestException('OIDC_ISSUER_URL is not configured');
+    const realm = this.configService.get<string>('KEYCLOAK_REALM');
+    if (realm) {
+      return realm;
     }
-    // Extract realm from issuer URL (e.g., https://keycloak.my.afribrok.com/realms/afribrok -> afribrok)
+    // Fallback: Extract realm from issuer URL if KEYCLOAK_REALM is not set
+    const issuerUrl = this.configService.get<string>('KEYCLOAK_ISSUER');
+    if (!issuerUrl) {
+      throw new BadRequestException('KEYCLOAK_ISSUER or KEYCLOAK_REALM is not configured');
+    }
+    // Extract realm from issuer URL (e.g., https://keycloak.afribrok.com/realms/afribrok -> afribrok)
     const match = issuerUrl.match(/\/realms\/([^/]+)/);
     return match ? match[1] : 'master';
   }

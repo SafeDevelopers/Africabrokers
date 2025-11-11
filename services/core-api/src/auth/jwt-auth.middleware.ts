@@ -54,8 +54,8 @@ export class JwtAuthMiddleware implements NestMiddleware {
     try {
       // Verify JWT token
       const jwtSecret = process.env.JWT_SECRET || 'dev-secret-change-in-production';
-      const jwtIssuer = process.env.JWT_ISSUER;
-      const jwtAudience = process.env.JWT_AUDIENCE;
+      const jwtIssuer = process.env.KEYCLOAK_ISSUER || process.env.JWT_ISSUER;
+      const jwtAudience = process.env.KEYCLOAK_AUDIENCE || process.env.JWT_AUDIENCE;
       
       // Build verification options
       const verifyOptions: jwt.VerifyOptions = {};

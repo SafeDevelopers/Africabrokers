@@ -30,7 +30,12 @@ case "$APP_NAME" in
   "dockerfilePath": "./services/core-api/Dockerfile",
   "contextPath": "/",
   "envVars": {
-    "PORT": "8080"
+    "PORT": "8080",
+    "KEYCLOAK_REALM": "afribrok",
+    "KEYCLOAK_CLIENT_ID": "core-api",
+    "KEYCLOAK_ISSUER": "https://keycloak.afribrok.com/realms/afribrok",
+    "KEYCLOAK_JWKS_URI": "https://keycloak.afribrok.com/realms/afribrok/protocol/openid-connect/certs",
+    "KEYCLOAK_AUDIENCE": "core-api"
   }
 }
 EOF
@@ -94,7 +99,12 @@ cat > services/core-api/captain-definition <<EOF
   "dockerfilePath": "./Dockerfile",
   "contextPath": "/",
   "envVars": {
-    "PORT": "8080"
+    "PORT": "8080",
+    "KEYCLOAK_REALM": "afribrok",
+    "KEYCLOAK_CLIENT_ID": "core-api",
+    "KEYCLOAK_ISSUER": "https://keycloak.afribrok.com/realms/afribrok",
+    "KEYCLOAK_JWKS_URI": "https://keycloak.afribrok.com/realms/afribrok/protocol/openid-connect/certs",
+    "KEYCLOAK_AUDIENCE": "core-api"
   }
 }
 EOF

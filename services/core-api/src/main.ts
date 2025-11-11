@@ -5,17 +5,17 @@ import { loadServerEnv } from "@afribrok/env/server";
 
 async function bootstrap() {
   // Validate required environment variables at startup
-  // Check critical envs: DATABASE_URL, REDIS_URL, JWT_ISSUER, JWT_AUDIENCE, OIDC_ISSUER_URL, CORS_ALLOWED_ORIGINS
-  // Note: JWT_ISSUER and JWT_AUDIENCE are optional but recommended for production
+  // Check critical envs: DATABASE_URL, REDIS_URL, KEYCLOAK_ISSUER, KEYCLOAK_AUDIENCE, CORS_ALLOWED_ORIGINS
+  // Note: KEYCLOAK_ISSUER and KEYCLOAK_AUDIENCE are optional but recommended for production
   const requiredEnvVars = [
     'DATABASE_URL',
     'REDIS_URL',
-    'OIDC_ISSUER_URL',
   ];
   
   const recommendedEnvVars = [
-    'JWT_ISSUER',
-    'JWT_AUDIENCE',
+    'KEYCLOAK_ISSUER',
+    'KEYCLOAK_AUDIENCE',
+    'KEYCLOAK_REALM',
     'CORS_ALLOWED_ORIGINS',
   ];
   
