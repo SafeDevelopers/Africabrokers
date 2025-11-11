@@ -11,11 +11,18 @@ export const serverEnvSchema = z.object({
   AWS_ACCESS_KEY_ID: z.string().min(1),
   AWS_SECRET_ACCESS_KEY: z.string().min(1),
   S3_PUBLIC_BASE_URL: z.string().url().optional(), // Optional: Public base URL for generating file URLs
-  OIDC_ISSUER_URL: z.string().url(),
-  OIDC_CLIENT_ID: z.string(),
-  OIDC_CLIENT_SECRET: z.string(),
+  KEYCLOAK_REALM: z.string().min(1),
+  KEYCLOAK_CLIENT_ID: z.string().min(1),
+  KEYCLOAK_CLIENT_SECRET: z.string().min(1),
+  KEYCLOAK_ISSUER: z.string().url(),
+  KEYCLOAK_JWKS_URI: z.string().url().optional(), // Optional: JWKS URI for token verification
+  KEYCLOAK_AUDIENCE: z.string().min(1),
   KEYCLOAK_ADMIN: z.string().optional(), // Optional: Keycloak admin username (defaults to 'admin')
   KEYCLOAK_ADMIN_PASSWORD: z.string().optional(), // Optional: Keycloak admin password (required for automatic user creation)
+  // Legacy OIDC variables (optional, for backward compatibility)
+  OIDC_ISSUER_URL: z.string().url().optional(),
+  OIDC_CLIENT_ID: z.string().optional(),
+  OIDC_CLIENT_SECRET: z.string().optional(),
   TELEBIRR_SANDBOX_API_KEY: z.string(),
   TELEBIRR_SANDBOX_SECRET: z.string()
 });
