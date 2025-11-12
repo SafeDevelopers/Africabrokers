@@ -6,6 +6,17 @@ import KeycloakProvider from "next-auth/providers/keycloak";
  * Uses Keycloak OIDC provider with PKCE (automatic)
  * Public client: no client secret required
  */
+
+// Validate required environment variables
+if (!process.env.NEXTAUTH_SECRET) {
+  console.error("❌ NEXTAUTH_SECRET is required but not set");
+}
+
+if (!process.env.NEXTAUTH_URL) {
+  console.warn("⚠️  NEXTAUTH_URL is not set. This may cause OAuth callback errors.");
+  console.warn("   Set NEXTAUTH_URL to your app's public URL (e.g., https://admin.afribrok.com)");
+}
+
 const authOptions: NextAuthOptions = {
   providers: [
     KeycloakProvider({
@@ -13,9 +24,25 @@ const authOptions: NextAuthOptions = {
       clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || "", // Optional for public clients (empty string if not provided)
       issuer: process.env.KEYCLOAK_ISSUER || "https://keycloak.afribrok.com/realms/afribrok",
       // PKCE is automatically enabled for Keycloak provider
+      authorization: {
+        params: {
+          scope: "openid email profile",
+        },
+      },
     }),
   ],
   callbacks: {
+    async signIn({ user, account, profile }) {
+      // Log sign-in attempts for debugging
+      if (process.env.NODE_ENV === "development") {
+        console.log("[NextAuth] Sign-in attempt:", { 
+          userId: user?.id, 
+          email: user?.email,
+          provider: account?.provider 
+        });
+      }
+      return true;
+    },
     async jwt({ token, account }) {
       // Store access_token on JWT for API calls
       if (account?.access_token) {
@@ -67,6 +94,7 @@ const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === "development",
 };
 
 const handler = NextAuth(authOptions);
