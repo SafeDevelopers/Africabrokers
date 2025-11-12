@@ -22,14 +22,26 @@ if (typeof window === 'undefined') {
 const getBaseUrl = (): string => {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   
+  // During Docker build, allow placeholder values
   if (!baseUrl) {
+    // In build context, use placeholder if DOCKER_BUILD is set
+    if (process.env.DOCKER_BUILD === 'true' || process.env.SKIP_ENV_VALIDATION === 'true') {
+      return 'http://localhost:8080';
+    }
     throw new Error('NEXT_PUBLIC_API_BASE_URL is required but not configured. Please set it in your .env.local file.');
   }
   
   return baseUrl;
 };
 
-const BASE_URL = getBaseUrl();
+// Lazy-load BASE_URL to avoid issues during build
+let BASE_URL: string | null = null;
+const getBaseUrlLazy = (): string => {
+  if (!BASE_URL) {
+    BASE_URL = getBaseUrl();
+  }
+  return BASE_URL;
+};
 
 /**
  * Standard API response types
@@ -152,7 +164,7 @@ async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${BASE_URL}${normalizeEndpoint(endpoint)}`;
+  const url = `${getBaseUrlLazy()}${normalizeEndpoint(endpoint)}`;
   const headers = await buildHeaders();
   
   try {

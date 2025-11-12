@@ -10,7 +10,7 @@ export const authOptions: NextAuthOptions = {
   providers: [
     KeycloakProvider({
       clientId: process.env.KEYCLOAK_CLIENT_ID || "web-admin",
-      clientSecret: process.env.KEYCLOAK_CLIENT_SECRET, // Optional for public clients
+      clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || "", // Optional for public clients (empty string if not provided)
       issuer: process.env.KEYCLOAK_ISSUER || "https://keycloak.afribrok.com/realms/afribrok",
       // PKCE is automatically enabled for Keycloak provider
     }),
