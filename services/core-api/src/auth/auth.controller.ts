@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Get, Req, BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { KeycloakService } from './keycloak.service';
+import { KeycloakAdminService } from './keycloakAdmin.service';
 import { Public } from './public.decorator';
 
 export class AuthCallbackDto {
@@ -26,6 +27,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly keycloakService: KeycloakService,
+    private readonly keycloakAdminService: KeycloakAdminService,
   ) {}
 
   @Post('login')
@@ -56,7 +58,16 @@ export class AuthController {
     }
 
     try {
-      await this.keycloakService.sendPasswordResetEmail(dto.email);
+      const user = await this.keycloakAdminService.findUserByEmail(dto.email);
+      if (!user?.id) {
+        // Don't reveal if user exists or not (security best practice)
+        return {
+          success: true,
+          message: 'If an account exists with this email, a password reset link has been sent.',
+        };
+      }
+
+      await this.keycloakAdminService.executeActionsEmail(user.id, ['UPDATE_PASSWORD']);
       return {
         success: true,
         message: 'Password reset email sent. Please check your inbox.',

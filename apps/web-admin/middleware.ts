@@ -31,6 +31,31 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Redirect unauthenticated /admin/* routes to Keycloak signin
+  if (pathname.startsWith("/admin")) {
+    try {
+      const token = await getToken({ 
+        req: request, 
+        secret: process.env.NEXTAUTH_SECRET 
+      });
+
+      if (!token) {
+        // No session - redirect to Keycloak signin with callback
+        const callbackUrl = encodeURIComponent(pathname);
+        url.pathname = `/api/auth/signin/keycloak`;
+        url.search = `?callbackUrl=${callbackUrl}`;
+        return NextResponse.redirect(url);
+      }
+    } catch (error) {
+      // Error getting token - redirect to Keycloak signin with callback
+      console.error("Middleware error checking /admin route:", error);
+      const callbackUrl = encodeURIComponent(pathname);
+      url.pathname = `/api/auth/signin/keycloak`;
+      url.search = `?callbackUrl=${callbackUrl}`;
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Hard separation: If somehow the admin app got a /broker/* path, force to signin
   // NEVER redirect to marketplace - this is the admin app!
   if (pathname.startsWith("/broker")) {

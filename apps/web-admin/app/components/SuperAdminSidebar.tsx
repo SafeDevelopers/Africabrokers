@@ -17,6 +17,7 @@ import {
   CreditCard,
   Package,
   FileText,
+  CheckSquare,
 } from "lucide-react";
 import { ServiceStatus } from "./ServiceStatus";
 
@@ -38,6 +39,11 @@ const superAdminNavigation: NavItem[] = [
     name: "Agent Applications",
     href: "/super/agents",
     icon: <Users className="w-5 h-5" />,
+  },
+  {
+    name: "Approvals",
+    href: "/approvals",
+    icon: <CheckSquare className="w-5 h-5" />,
   },
   {
     name: "All Tenants",

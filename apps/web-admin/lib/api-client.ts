@@ -252,6 +252,27 @@ class ApiClient {
 
     return response.json();
   }
+
+  // User management methods
+  async inviteBroker(email: string): Promise<{ success: boolean; message: string; userId: string }> {
+    return this.post('/invite/broker', { email });
+  }
+
+  async inviteTenantAdmin(email: string): Promise<{ success: boolean; message: string; userId: string }> {
+    return this.post('/invite/tenant-admin', { email });
+  }
+
+  async toggleUserEnabled(userId: string): Promise<{ success: boolean; message: string; enabled: boolean }> {
+    return this.post(`/users/${userId}/disable`);
+  }
+
+  async deleteUser(userId: string): Promise<{ success: boolean; message: string }> {
+    return this.delete(`/users/${userId}`);
+  }
+
+  async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+    return this.post('/auth/password-reset', { email }, { includeTenant: false });
+  }
 }
 
 // Export singleton instance

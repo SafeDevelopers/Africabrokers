@@ -83,6 +83,11 @@ const tenantAdminNavigation: NavItem[] = [
     icon: <User className="w-5 h-5" />
   },
   {
+    name: "Approvals",
+    href: "/approvals",
+    icon: <CheckSquare className="w-5 h-5" />
+  },
+  {
     name: "Billing",
     href: "/billing/payment-methods",
     icon: <CreditCard className="w-5 h-5" />,
