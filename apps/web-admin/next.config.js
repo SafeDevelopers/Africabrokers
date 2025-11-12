@@ -20,6 +20,10 @@ if (process.env.SKIP_ENV_VALIDATION !== 'true') {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  // Reduce build concurrency to prevent worker errors
+  swcMinify: true,
+  // Disable source maps in production to reduce memory usage
+  productionBrowserSourceMaps: false,
 };
 
 module.exports = nextConfig;

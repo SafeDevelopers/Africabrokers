@@ -36,17 +36,21 @@ ARG NEXT_PUBLIC_VERIFY_BASE_URL=http://localhost:3000
 ENV NEXT_PUBLIC_VERIFY_BASE_URL=$NEXT_PUBLIC_VERIFY_BASE_URL
 ARG NEXT_PUBLIC_TENANT_KEY=et-addis
 ENV NEXT_PUBLIC_TENANT_KEY=$NEXT_PUBLIC_TENANT_KEY
-# Limit Node.js memory to prevent Jest worker errors
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+# Limit Node.js memory and workers to prevent Jest worker errors
+ENV NODE_OPTIONS="--max-old-space-size=6144"
 ENV NEXT_TELEMETRY_DISABLED=1
+# Limit Next.js build workers
+ENV NODE_ENV=production
+ENV CI=1
 RUN pnpm -F @afribrok/lib build
 RUN pnpm -F @afribrok/env build
 # Build web-admin
 WORKDIR /app/apps/web-admin
 # Create public directory if it doesn't exist (Next.js requires it)
 RUN mkdir -p public
-# Build with limited concurrency to avoid worker errors
-RUN pnpm build
+# Build with increased memory and limited thread pool to avoid worker errors
+# UV_THREADPOOL_SIZE limits libuv thread pool, reducing concurrent operations
+RUN UV_THREADPOOL_SIZE=4 NODE_OPTIONS="--max-old-space-size=6144" pnpm build
 
 # ---------- runtime ----------
 FROM base AS runner
