@@ -36,6 +36,12 @@ ARG NEXT_PUBLIC_VERIFY_BASE_URL=http://localhost:3000
 ENV NEXT_PUBLIC_VERIFY_BASE_URL=$NEXT_PUBLIC_VERIFY_BASE_URL
 ARG NEXT_PUBLIC_TENANT_KEY=et-addis
 ENV NEXT_PUBLIC_TENANT_KEY=$NEXT_PUBLIC_TENANT_KEY
+# Set placeholder values for NextAuth/Keycloak (validation is skipped in Docker builds)
+# These will be set at runtime via environment variables
+ENV NEXTAUTH_URL=http://localhost:3000
+ENV NEXTAUTH_SECRET=docker-build-placeholder-secret
+ENV KEYCLOAK_ISSUER=https://keycloak.afribrok.com/realms/afribrok
+ENV KEYCLOAK_CLIENT_ID=web-admin
 # Build environment variables
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV CI=1

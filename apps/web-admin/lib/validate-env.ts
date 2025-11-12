@@ -36,12 +36,15 @@ export function validateEnv(): void {
   }
 
   // Check recommended env vars (warn in dev, error in production)
-  for (const key of RECOMMENDED_ENV_VARS) {
-    if (!process.env[key]) {
-      if (process.env.NODE_ENV === 'production') {
-        missing.push(key);
-      } else {
-        warnings.push(`Recommended env var ${key} is not set. This may cause issues in production.`);
+  // Skip if SKIP_ENV_VALIDATION or DOCKER_BUILD is set
+  if (process.env.SKIP_ENV_VALIDATION !== 'true' && process.env.DOCKER_BUILD !== 'true') {
+    for (const key of RECOMMENDED_ENV_VARS) {
+      if (!process.env[key]) {
+        if (process.env.NODE_ENV === 'production') {
+          missing.push(key);
+        } else {
+          warnings.push(`Recommended env var ${key} is not set. This may cause issues in production.`);
+        }
       }
     }
   }
@@ -106,7 +109,14 @@ export function validateEnv(): void {
 
 // Auto-validate in non-test environments (only in Node.js context)
 // This runs at build time via next.config.js
-if (process.env.NODE_ENV !== 'test' && typeof window === 'undefined' && typeof require !== 'undefined') {
+// Skip validation if SKIP_ENV_VALIDATION or DOCKER_BUILD is set
+if (
+  process.env.NODE_ENV !== 'test' && 
+  typeof window === 'undefined' && 
+  typeof require !== 'undefined' &&
+  process.env.SKIP_ENV_VALIDATION !== 'true' &&
+  process.env.DOCKER_BUILD !== 'true'
+) {
   validateEnv();
 }
 
