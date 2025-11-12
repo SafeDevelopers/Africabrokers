@@ -31,17 +31,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Hard separation: If somehow the admin app got a /broker/* path, force to /login
+  // Hard separation: If somehow the admin app got a /broker/* path, force to signin
   // NEVER redirect to marketplace - this is the admin app!
   if (pathname.startsWith("/broker")) {
-    url.pathname = "/login";
+    const callbackUrl = encodeURIComponent(pathname);
+    url.pathname = `/api/auth/signin/keycloak`;
+    url.search = `?callbackUrl=${callbackUrl}`;
     return NextResponse.redirect(url);
   }
 
   // Check for broker-specific cookies (ab_broker_session) and clear them
   const brokerSessionCookie = request.cookies.get("ab_broker_session");
   if (brokerSessionCookie) {
-    const resp = NextResponse.redirect(new URL("/login", request.url));
+    const callbackUrl = encodeURIComponent(pathname);
+    const resp = NextResponse.redirect(new URL(`/api/auth/signin/keycloak?callbackUrl=${callbackUrl}`, request.url));
     BROKER_SPECIFIC_COOKIES.forEach((name) => {
       resp.cookies.set(name, "", { 
         maxAge: 0, 
@@ -61,8 +64,10 @@ export async function middleware(request: NextRequest) {
     });
 
     if (!token) {
-      // No session - redirect to login
-      url.pathname = "/login";
+      // No session - redirect to Keycloak signin with callback
+      const callbackUrl = encodeURIComponent(pathname);
+      url.pathname = `/api/auth/signin/keycloak`;
+      url.search = `?callbackUrl=${callbackUrl}`;
       return NextResponse.redirect(url);
     }
 
@@ -71,7 +76,7 @@ export async function middleware(request: NextRequest) {
     
     // Check if user has required admin role
     if (!hasRole(userRoles, ADMIN_ALLOWED_ROLES)) {
-      // Not authorized - redirect to forbidden or login
+      // Not authorized - redirect to forbidden
       url.pathname = "/auth/forbidden";
       return NextResponse.redirect(url);
     }
@@ -79,9 +84,11 @@ export async function middleware(request: NextRequest) {
     // All good - admin authenticated with valid role
     return NextResponse.next();
   } catch (error) {
-    // Error getting token - redirect to login
+    // Error getting token - redirect to Keycloak signin with callback
     console.error("Middleware error:", error);
-    url.pathname = "/login";
+    const callbackUrl = encodeURIComponent(pathname);
+    url.pathname = `/api/auth/signin/keycloak`;
+    url.search = `?callbackUrl=${callbackUrl}`;
     return NextResponse.redirect(url);
   }
 }
