@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "start": "next start -p 3000"
+    "start": "next start -p 3000",
+    "test:api:market": "node scripts/test-api-market.js",
+    "test:env": "node ../../scripts/test-env.js"
   },
   "dependencies": {
     "@afribrok/design-tokens": "workspace:*",

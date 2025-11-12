@@ -8,14 +8,23 @@ const REQUIRED_ENV_VARS = [
   'NEXT_PUBLIC_TENANT_KEY',
 ] as const;
 
+const RECOMMENDED_ENV_VARS = [
+  'NEXTAUTH_URL',
+  'NEXTAUTH_SECRET',
+  'KEYCLOAK_ISSUER',
+  'KEYCLOAK_CLIENT_ID',
+] as const;
+
 const OPTIONAL_ENV_VARS = [
   'NEXT_PUBLIC_CORE_API_BASE_URL',
   'NEXT_PUBLIC_API_URL',
   'NEXT_PUBLIC_APP_URL',
   'NEXT_PUBLIC_APP_BASE_URL',
+  'NEXT_PUBLIC_DEFAULT_TENANT',
   'CORE_API_BASE_URL',
   'CHECK_BROKER_STATUS',
   'NEXT_PUBLIC_ENABLE_MOCKS',
+  'KEYCLOAK_CLIENT_SECRET',
   'NODE_ENV',
 ] as const;
 
@@ -27,6 +36,17 @@ export function validateEnv(): void {
   for (const key of REQUIRED_ENV_VARS) {
     if (!process.env[key]) {
       missing.push(key);
+    }
+  }
+
+  // Check recommended env vars (warn in dev, error in production)
+  for (const key of RECOMMENDED_ENV_VARS) {
+    if (!process.env[key]) {
+      if (process.env.NODE_ENV === 'production') {
+        missing.push(key);
+      } else {
+        warnings.push(`Recommended env var ${key} is not set. This may cause issues in production.`);
+      }
     }
   }
 
@@ -49,6 +69,29 @@ export function validateEnv(): void {
     warnings.push(
       `NEXT_PUBLIC_API_URL is deprecated. Please use NEXT_PUBLIC_API_BASE_URL instead.`
     );
+  }
+
+  // Check NEXTAUTH_URL matches current origin (dev warning only)
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    const nextAuthUrl = process.env.NEXTAUTH_URL;
+    const currentOrigin = window.location.origin;
+    if (nextAuthUrl && nextAuthUrl !== currentOrigin) {
+      console.warn(
+        `⚠️  NEXTAUTH_URL (${nextAuthUrl}) does not match current origin (${currentOrigin}). ` +
+        `This may cause redirect issues.`
+      );
+    }
+  }
+
+  // Check KEYCLOAK_ISSUER matches expected format (dev warning only)
+  if (process.env.KEYCLOAK_ISSUER && process.env.NODE_ENV === 'development') {
+    const issuer = process.env.KEYCLOAK_ISSUER;
+    if (!issuer.includes('/realms/')) {
+      warnings.push(
+        `KEYCLOAK_ISSUER (${issuer}) should include /realms/ path. ` +
+        `Expected format: https://keycloak.afribrok.com/realms/afribrok`
+      );
+    }
   }
 
   // Print errors

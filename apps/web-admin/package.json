@@ -7,21 +7,24 @@
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:auth:admin": "node scripts/test-auth-admin.js",
+    "test:env": "node ../../scripts/test-env.js"
   },
   "dependencies": {
     "@afribrok/design-tokens": "workspace:*",
     "@afribrok/env": "workspace:*",
     "@afribrok/lib": "workspace:*",
     "@afribrok/ui": "workspace:*",
+    "@hookform/resolvers": "^3.3.2",
+    "@swc/helpers": "^0.5.3",
     "lucide-react": "^0.552.0",
     "next": "14.1.0",
+    "next-auth": "^4.24.13",
     "qrcode": "^1.5.4",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-hook-form": "^7.48.2",
-    "@hookform/resolvers": "^3.3.2",
-    "@swc/helpers": "^0.5.3",
     "styled-jsx": "^5.1.1",
     "zod": "^3.22.4"
   },
@@ -34,6 +37,5 @@
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3"
-
   }
 }

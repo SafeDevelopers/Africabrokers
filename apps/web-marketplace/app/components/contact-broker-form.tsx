@@ -51,13 +51,18 @@ export function ContactBrokerForm({ listingId, listingTitle, brokerName }: Conta
       setPhone("");
       setMessage("");
       setCaptchaToken(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to submit inquiry:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to send inquiry. Please try again.",
-      );
+      // Handle 401/403 with friendly message
+      if (err?.status === 401 || err?.status === 403) {
+        setError("Please sign in to contact brokers. Some features require authentication.");
+      } else {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to send inquiry. Please try again.",
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }

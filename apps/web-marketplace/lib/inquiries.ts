@@ -61,12 +61,22 @@ export interface UpdateInquiryPayload {
 
 /**
  * Create a new inquiry (public endpoint)
+ * This is a public endpoint - no Authorization header should be added
+ * If it returns 401/403, show a friendly message to the user
  */
 export async function createInquiry(payload: CreateInquiryPayload): Promise<{ id: string }> {
-  return api('/v1/public/inquiries', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  try {
+    return await api('/v1/public/inquiries', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  } catch (error: any) {
+    // Handle 401/403 with friendly message
+    if (error?.status === 401 || error?.status === 403) {
+      throw new Error('Please sign in to contact brokers. Some features require authentication.');
+    }
+    throw error;
+  }
 }
 
 /**

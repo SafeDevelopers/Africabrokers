@@ -52,20 +52,41 @@ class ApiClient {
   /**
    * Build request headers
    */
-  private buildHeaders(config?: ApiClientConfig): HeadersInit {
+  private async buildHeaders(config?: ApiClientConfig): Promise<HeadersInit> {
     const { role, tenantId } = this.getUserContext(config?.cookies);
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
       ...config?.headers,
     };
 
     // Only set X-Tenant for non-super-admin requests
-    if (config?.includeTenant !== false && tenantId && role !== 'SUPER_ADMIN') {
-      headers['X-Tenant'] = tenantId;
-      headers['x-tenant-id'] = tenantId;
+    // Use NEXT_PUBLIC_DEFAULT_TENANT if tenantId not present
+    const defaultTenant = process.env.NEXT_PUBLIC_DEFAULT_TENANT;
+    if (config?.includeTenant !== false) {
+      if (tenantId && role !== 'SUPER_ADMIN') {
+        headers['X-Tenant'] = tenantId;
+        headers['x-tenant-id'] = tenantId;
+      } else if (defaultTenant && role !== 'SUPER_ADMIN') {
+        headers['X-Tenant'] = defaultTenant;
+      }
     }
 
-    // Include Authorization header if present in cookies
+    // For authenticated areas, try to get access_token from NextAuth session
+    // First try NextAuth session (server-side)
+    if (typeof window === 'undefined' && config?.cookies) {
+      try {
+        const { getToken } = await import('next-auth/jwt');
+        const { cookies } = await import('next/headers');
+        const cookieStore = await cookies();
+        // Note: getToken requires a request object, so we'll use a workaround
+        // For now, fall back to cookie-based token
+      } catch (e) {
+        // NextAuth not available, fall through to cookie-based auth
+      }
+    }
+
+    // Include Authorization header if present in cookies (legacy support)
     const cookies = config?.cookies 
       ? this.getUserContext(config.cookies)
       : (typeof window !== 'undefined' ? this.getUserContext() : { role: null, tenantId: null });
@@ -109,13 +130,18 @@ class ApiClient {
     const normalizedEndpoint = endpoint.startsWith('/v1/') ? endpoint : `/v1${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
     const url = `${this.baseUrl}${normalizedEndpoint}`;
     
+    // Hard-fail in dev if NEXT_PUBLIC_API_BASE_URL is missing
+    if (!this.baseUrl && process.env.NODE_ENV === 'development') {
+      throw new Error('NEXT_PUBLIC_API_BASE_URL is not configured');
+    }
+    
     // Debug logging in development
     if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       console.log('[ApiClient] GET', url, { baseUrl: this.baseUrl, endpoint });
     }
     
     try {
-      const headers = this.buildHeaders(config);
+      const headers = await this.buildHeaders(config);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -149,7 +175,7 @@ class ApiClient {
     const url = `${this.baseUrl}${normalizedEndpoint}`;
     const response = await fetch(url, {
       method: 'POST',
-      headers: this.buildHeaders(config),
+      headers: await this.buildHeaders(config),
       body: data ? JSON.stringify(data) : undefined,
       credentials: 'include',
       cache: 'no-store',
@@ -171,7 +197,7 @@ class ApiClient {
     const url = `${this.baseUrl}${normalizedEndpoint}`;
     const response = await fetch(url, {
       method: 'PUT',
-      headers: this.buildHeaders(config),
+      headers: await this.buildHeaders(config),
       body: data ? JSON.stringify(data) : undefined,
       credentials: 'include',
       cache: 'no-store',
@@ -193,7 +219,7 @@ class ApiClient {
     const url = `${this.baseUrl}${normalizedEndpoint}`;
     const response = await fetch(url, {
       method: 'PATCH',
-      headers: this.buildHeaders(config),
+      headers: await this.buildHeaders(config),
       body: data ? JSON.stringify(data) : undefined,
       credentials: 'include',
       cache: 'no-store',
@@ -215,7 +241,7 @@ class ApiClient {
     const url = `${this.baseUrl}${normalizedEndpoint}`;
     const response = await fetch(url, {
       method: 'DELETE',
-      headers: this.buildHeaders(config),
+      headers: await this.buildHeaders(config),
       credentials: 'include',
       cache: 'no-store',
     });

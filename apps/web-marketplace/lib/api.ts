@@ -45,10 +45,20 @@ export async function api<T = any>(
   };
 
   // Add X-Tenant header unless explicitly skipped
+  // Use NEXT_PUBLIC_DEFAULT_TENANT if tenant not present
   if (!skipTenantHeader) {
-    const tenant = getTenant();
+    const tenant = getTenant() || process.env.NEXT_PUBLIC_DEFAULT_TENANT || 'et-addis';
     (headers as Record<string, string>)['X-Tenant'] = tenant;
   }
+
+  // Hard-fail in dev if NEXT_PUBLIC_API_BASE_URL is missing
+  if (!baseURL && process.env.NODE_ENV === 'development') {
+    throw new Error('NEXT_PUBLIC_API_BASE_URL is not configured');
+  }
+
+  // NOTE: Public marketplace endpoints should NOT include Authorization header
+  // Only authenticated broker endpoints should add Authorization
+  // This is handled by the caller (e.g., broker pages add auth, public listings don't)
 
   const url = path.startsWith('http') ? path : new URL(path, baseURL).toString();
 
