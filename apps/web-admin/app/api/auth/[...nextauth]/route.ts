@@ -6,7 +6,7 @@ import KeycloakProvider from "next-auth/providers/keycloak";
  * Uses Keycloak OIDC provider with PKCE (automatic)
  * Public client: no client secret required
  */
-export const authOptions: NextAuthOptions = {
+const authOptions: NextAuthOptions = {
   providers: [
     KeycloakProvider({
       clientId: process.env.KEYCLOAK_CLIENT_ID || "web-admin",
