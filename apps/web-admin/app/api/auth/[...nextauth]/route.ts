@@ -1,95 +1,90 @@
+// apps/web-admin/app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth";
 import KeycloakProvider from "next-auth/providers/keycloak";
 
-/**
- * NextAuth configuration for web-admin (App Router)
- * Uses Keycloak OIDC provider with PKCE (automatic)
- * Public client: no client secret required
- */
+export const runtime = "nodejs"; // ensure Node APIs (Buffer) are available in App Router
 
-// Validate required environment variables
-if (!process.env.NEXTAUTH_SECRET) {
-  console.error("❌ NEXTAUTH_SECRET is required but not set");
+const issuer = process.env.KEYCLOAK_ISSUER ?? "https://keycloak.afribrok.com/realms/afribrok";
+const clientId = process.env.KEYCLOAK_CLIENT_ID ?? "web-admin";
+const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET ?? ""; // public client ok
+
+// Prefer AUTH_* on NextAuth v5 but keep NEXTAUTH_* for compatibility
+const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+if (!authSecret) {
+  console.error("❌ AUTH_SECRET/NEXTAUTH_SECRET is required.");
 }
-
-if (!process.env.NEXTAUTH_URL) {
-  console.warn("⚠️  NEXTAUTH_URL is not set. This may cause OAuth callback errors.");
-  console.warn("   Set NEXTAUTH_URL to your app's public URL (e.g., https://admin.afribrok.com)");
+if (!process.env.AUTH_URL && !process.env.NEXTAUTH_URL) {
+  console.warn("⚠️  AUTH_URL/NEXTAUTH_URL not set. Set to https://admin.afribrok.com");
 }
 
 export const { GET, POST } = NextAuth({
-  // @ts-expect-error - trustHost is valid in NextAuth v4.21+ but not in TypeScript types yet
-  trustHost: true,
+  // helpful during bring-up; disable later
+  debug: process.env.AUTH_DEBUG === "true" || process.env.NEXTAUTH_DEBUG === "true",
+
+  secret: authSecret,
+
   providers: [
     KeycloakProvider({
-      issuer: process.env.KEYCLOAK_ISSUER || "https://keycloak.afribrok.com/realms/afribrok",
-      clientId: process.env.KEYCLOAK_CLIENT_ID || "web-admin",
-      clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || "",
+      issuer,
+      clientId,
+      clientSecret,
+      // ensure standard scopes; PKCE & state are handled automatically in v5
+      authorization: { params: { scope: "openid profile email" } },
     }),
   ],
-  callbacks: {
-    async signIn({ user, account, profile }) {
-      // Log sign-in attempts for debugging
-      if (process.env.NODE_ENV === "development") {
-        console.log("[NextAuth] Sign-in attempt:", { 
-          userId: user?.id, 
-          email: user?.email,
-          provider: account?.provider 
-        });
-      }
-      return true;
+
+  // Centralized error visibility
+  logger: {
+    error(code, metadata) {
+      console.error("[NextAuth][error]", code, metadata);
     },
-    async jwt({ token, account }) {
-      // Store access_token on JWT for API calls
-      if (account?.access_token) {
-        token.accessToken = account.access_token;
-      }
-      
-      // Decode realm_access.roles from access_token
-      if (account?.access_token) {
-        try {
-          // Decode JWT without verification (we trust Keycloak)
-          const base64Url = account.access_token.split('.')[1];
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = decodeURIComponent(
-            Buffer.from(base64, 'base64')
-              .toString()
-              .split('')
-              .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-              .join('')
-          );
-          const payload = JSON.parse(jsonPayload);
-          
-          // Extract roles from realm_access
-          if (payload.realm_access?.roles) {
-            token.roles = payload.realm_access.roles as string[];
-          }
-        } catch (error) {
-          console.error("Failed to decode access_token:", error);
-        }
-      }
-      
-      return token;
+    warn(code) {
+      console.warn("[NextAuth][warn]", code);
     },
-    async session({ session, token }) {
-      // Expose roles on session
-      if (token.roles) {
-        (session as any).roles = token.roles;
+    debug(code, metadata) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[NextAuth][debug]", code, metadata);
       }
-      if (token.accessToken) {
-        (session as any).accessToken = token.accessToken;
-      }
-      return session;
     },
   },
+
   pages: {
     signIn: "/auth/signin",
     error: "/auth/signin",
   },
-  session: {
-    strategy: "jwt",
-  },
-  secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === "development",
-});
 
+  session: { strategy: "jwt" },
+
+  callbacks: {
+    async signIn({ user, account }) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[NextAuth] signIn", { email: user?.email, provider: account?.provider });
+      }
+      return true;
+    },
+
+    async jwt({ token, account }) {
+      // persist access token
+      if (account?.access_token) token.accessToken = account.access_token;
+
+      // decode roles on first login AND subsequent requests
+      const raw = (token as any).accessToken ?? account?.access_token;
+      if (raw && !(token as any).roles) {
+        try {
+          const payloadJson = Buffer.from(raw.split(".")[1], "base64").toString("utf8");
+          const payload = JSON.parse(payloadJson);
+          (token as any).roles = payload?.realm_access?.roles ?? [];
+        } catch (e) {
+          console.error("[NextAuth] failed to decode roles from access_token", e);
+        }
+      }
+      return token;
+    },
+
+    async session({ session, token }) {
+      if ((token as any).roles) (session as any).roles = (token as any).roles;
+      if ((token as any).accessToken) (session as any).accessToken = (token as any).accessToken;
+      return session;
+    },
+  },
+});
