@@ -39,6 +39,8 @@ ENV NEXT_PUBLIC_TENANT_KEY=$NEXT_PUBLIC_TENANT_KEY
 # Limit Node.js memory and workers to prevent Jest worker errors
 ENV NODE_OPTIONS="--max-old-space-size=6144"
 ENV NEXT_TELEMETRY_DISABLED=1
+# Limit Next.js build workers - set thread pool size to reduce concurrent operations
+ENV UV_THREADPOOL_SIZE=4
 # Limit Next.js build workers
 ENV NODE_ENV=production
 ENV CI=1
@@ -48,9 +50,8 @@ RUN pnpm -F @afribrok/env build
 WORKDIR /app/apps/web-admin
 # Create public directory if it doesn't exist (Next.js requires it)
 RUN mkdir -p public
-# Build with increased memory and limited thread pool to avoid worker errors
-# UV_THREADPOOL_SIZE limits libuv thread pool, reducing concurrent operations
-RUN UV_THREADPOOL_SIZE=4 NODE_OPTIONS="--max-old-space-size=6144" pnpm build
+# Build with environment variables already set
+RUN pnpm build
 
 # ---------- runtime ----------
 FROM base AS runner
