@@ -1,8 +1,8 @@
-import NextAuth, { NextAuthOptions } from "next-auth";
+import NextAuth from "next-auth";
 import KeycloakProvider from "next-auth/providers/keycloak";
 
 /**
- * NextAuth configuration for web-admin
+ * NextAuth configuration for web-admin (App Router)
  * Uses Keycloak OIDC provider with PKCE (automatic)
  * Public client: no client secret required
  */
@@ -17,18 +17,14 @@ if (!process.env.NEXTAUTH_URL) {
   console.warn("   Set NEXTAUTH_URL to your app's public URL (e.g., https://admin.afribrok.com)");
 }
 
-const authOptions: NextAuthOptions = {
+export const { GET, POST } = NextAuth({
+  // @ts-expect-error - trustHost is valid in NextAuth v4.21+ but not in TypeScript types yet
+  trustHost: true,
   providers: [
     KeycloakProvider({
-      clientId: process.env.KEYCLOAK_CLIENT_ID || "web-admin",
-      clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || "", // Optional for public clients (empty string if not provided)
       issuer: process.env.KEYCLOAK_ISSUER || "https://keycloak.afribrok.com/realms/afribrok",
-      // PKCE is automatically enabled for Keycloak provider
-      authorization: {
-        params: {
-          scope: "openid email profile",
-        },
-      },
+      clientId: process.env.KEYCLOAK_CLIENT_ID || "web-admin",
+      clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || "",
     }),
   ],
   callbacks: {
@@ -95,9 +91,5 @@ const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
-};
-
-const handler = NextAuth(authOptions);
-
-export { handler as GET, handler as POST };
+});
 
