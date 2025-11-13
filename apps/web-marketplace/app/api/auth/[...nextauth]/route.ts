@@ -5,16 +5,87 @@ import KeycloakProvider from "next-auth/providers/keycloak";
  * NextAuth configuration for web-marketplace
  * Uses Keycloak OIDC provider with PKCE (automatic)
  * Public client: no client secret required
+ * 
+ * NOTE: Marketplace pages are PUBLIC - authentication is optional for browsing listings.
+ * Brokers can sign in later (with BROKER role), but listing browsing does not require auth.
  */
+
+// Validate required environment variables
+const nextAuthUrl = process.env.NEXTAUTH_URL;
+if (!nextAuthUrl) {
+  const error = "NEXTAUTH_URL is required. Set to http://localhost:3001 (dev) or https://market.afribrok.com (prod)";
+  if (process.env.NODE_ENV === "development") {
+    console.error(`❌ ${error}`);
+    throw new Error(error);
+  }
+  console.warn(`⚠️  ${error}`);
+}
+
+const issuer = process.env.KEYCLOAK_ISSUER;
+if (!issuer) {
+  const error = "KEYCLOAK_ISSUER is required. Set to https://keycloak.afribrok.com/realms/afribrok";
+  if (process.env.NODE_ENV === "development") {
+    console.error(`❌ ${error}`);
+    throw new Error(error);
+  }
+  console.warn(`⚠️  ${error}`);
+}
+
+const clientId = process.env.KEYCLOAK_CLIENT_ID;
+if (!clientId) {
+  const error = "KEYCLOAK_CLIENT_ID is required. For web-marketplace, set to 'web-marketplace'";
+  if (process.env.NODE_ENV === "development") {
+    console.error(`❌ ${error}`);
+    throw new Error(error);
+  }
+  console.warn(`⚠️  ${error}`);
+}
+
+const authSecret = process.env.NEXTAUTH_SECRET;
+if (!authSecret) {
+  const error = "NEXTAUTH_SECRET is required";
+  if (process.env.NODE_ENV === "development") {
+    console.error(`❌ ${error}`);
+    throw new Error(error);
+  }
+  console.warn(`⚠️  ${error}`);
+}
+
+// Use validated values with fallbacks only for production
+const validatedIssuer = issuer || "https://keycloak.afribrok.com/realms/afribrok";
+const validatedClientId = clientId || "web-marketplace";
+const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET; // Optional for public clients
+
 export const authOptions: NextAuthOptions = {
+  // Enable debug in development to surface OAuth errors
+  debug: process.env.NODE_ENV === "development" || process.env.AUTH_DEBUG === "true",
+
+  secret: authSecret || "placeholder-secret-change-in-production",
+
   providers: [
     KeycloakProvider({
-      clientId: process.env.KEYCLOAK_CLIENT_ID || "web-marketplace",
-      clientSecret: process.env.KEYCLOAK_CLIENT_SECRET, // Optional for public clients
-      issuer: process.env.KEYCLOAK_ISSUER || "https://keycloak.afribrok.com/realms/afribrok",
+      clientId: validatedClientId,
+      clientSecret: clientSecret || undefined, // Use undefined for public client
+      issuer: validatedIssuer,
       // PKCE is automatically enabled for Keycloak provider
+      authorization: { params: { scope: "openid profile email" } },
     }),
   ],
+
+  // Add events.error handler to catch OAuth callback errors with full details
+  events: {
+    error({ error }) {
+      console.error("[NextAuth] error event - Full error object:", error);
+      console.error("[NextAuth] error event - Error name:", error?.name);
+      console.error("[NextAuth] error event - Error message:", error?.message);
+      console.error("[NextAuth] error event - Error stack:", error?.stack);
+      if ((error as any)?.cause) {
+        console.error("[NextAuth] error event - Error cause:", (error as any).cause);
+      }
+      // Log the entire error object to see all properties
+      console.error("[NextAuth] error event - Full error JSON:", JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    },
+  },
   callbacks: {
     async jwt({ token, account }) {
       // Store access_token on JWT for API calls

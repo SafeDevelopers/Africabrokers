@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
-import { getUserContext } from '../../lib/auth';
+import { headers } from 'next/headers';
+import { getToken } from 'next-auth/jwt';
 import TenantAdminSidebar from '../components/TenantAdminSidebar';
 
 export default async function TenantAdminLayout({
@@ -7,62 +8,55 @@ export default async function TenantAdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  let userContext;
+  // Get NextAuth token instead of cookies
+  const headersList = await headers();
+  let token;
   try {
-    userContext = await getUserContext();
+    token = await getToken({ 
+      req: {
+        headers: Object.fromEntries(headersList.entries()),
+      } as any,
+      secret: process.env.NEXTAUTH_SECRET 
+    });
   } catch (error) {
-    // If there's an error reading cookies, log it but don't redirect immediately
-    // The middleware should handle auth checks
-    console.error('[TenantAdminLayout] Error getting user context:', error);
-    // Return a minimal layout that shows an error instead of redirecting
-    // This prevents infinite redirect loops
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Authentication Error</h1>
-          <p className="text-gray-600 mb-4">Unable to verify authentication. Please try logging in again.</p>
-          <a href="/login" className="text-indigo-600 hover:text-indigo-700 font-medium">
-            Go to Login
-          </a>
-        </div>
-      </div>
-    );
+    console.error('[TenantAdminLayout] Error getting token:', error);
+    redirect('/auth/signin');
   }
+
+  if (!token) {
+    // No session - redirect to sign in
+    redirect('/auth/signin');
+  }
+
+  // Get roles from token
+  const roles = (token.roles as string[]) || [];
+  const isSuperAdmin = roles.includes('SUPER_ADMIN');
+  const isTenantAdmin = roles.includes('TENANT_ADMIN');
+  const isAgent = roles.includes('AGENT');
 
   // Debug logging in development
   if (process.env.NODE_ENV === 'development') {
-    console.log('[TenantAdminLayout] User context:', {
-      role: userContext.role,
-      tenantId: userContext.tenantId,
-      userId: userContext.userId,
-      isTenantAdmin: userContext.isTenantAdmin,
-      isAgent: userContext.isAgent,
-      isSuperAdmin: userContext.isSuperAdmin,
+    console.log('[TenantAdminLayout] Token info:', {
+      email: token.email,
+      roles: roles,
+      isSuperAdmin,
+      isTenantAdmin,
+      isAgent,
     });
-  }
-
-  // Redirect if not tenant admin or agent
-  if (!userContext.isTenantAdmin && !userContext.isAgent && !userContext.isSuperAdmin) {
-    console.warn('[TenantAdminLayout] Redirecting to login: Not tenant admin or agent');
-    redirect('/login');
   }
 
   // Super admin should use super layout
-  if (userContext.isSuperAdmin) {
+  if (isSuperAdmin) {
     redirect('/super');
   }
 
-  // Ensure tenant context exists for tenant admin and agent
-  // Forbid cross-tenant access: tenant must be set and match user's assigned tenant
-  if ((userContext.isTenantAdmin || userContext.isAgent) && !userContext.tenantId) {
-    console.warn('[TenantAdminLayout] Redirecting to login: Missing tenantId', {
-      role: userContext.role,
-      tenantId: userContext.tenantId,
-    });
-    redirect('/login');
+  // Redirect if not tenant admin or agent
+  if (!isTenantAdmin && !isAgent) {
+    console.warn('[TenantAdminLayout] Redirecting to signin: Not tenant admin or agent');
+    redirect('/auth/signin');
   }
-  
-  // Note: Cross-tenant access is enforced by API middleware (tenant-context.middleware.ts)
+
+  // Note: Tenant context and cross-tenant access is enforced by API middleware
   // which validates X-Tenant header matches JWT tenantId
 
   return (

@@ -1,13 +1,15 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { Shield, LogIn } from "lucide-react";
+import { Shield, LogIn, AlertCircle } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import Link from "next/link";
 
 function SignInContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const error = searchParams.get("error");
 
   const handleKeycloakSignIn = () => {
     signIn("keycloak", { callbackUrl });
@@ -55,6 +57,31 @@ function SignInContent() {
                 </div>
 
                 <div className="space-y-6">
+                  {error && (
+                    <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-red-900">Authentication Error</p>
+                          <p className="text-xs text-red-700 mt-1">
+                            {error === "Configuration" && "Server configuration error. Please check your environment variables."}
+                            {error === "AccessDenied" && "Access denied. Please contact your administrator."}
+                            {error === "Verification" && "Verification failed. Please try again."}
+                            {error === "keycloak" && "Keycloak returned an error. This usually means the redirect URI doesn't match or the client configuration is incorrect. Check Keycloak client settings."}
+                            {!["Configuration", "AccessDenied", "Verification", "keycloak"].includes(error || "") && 
+                              `Error: ${error}. Check the server logs for details.`}
+                          </p>
+                          <Link 
+                            href={`/auth/error?error=${error}`}
+                            className="text-xs text-red-600 hover:text-red-700 underline mt-2 inline-block"
+                          >
+                            View detailed error
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   <button
                     onClick={handleKeycloakSignIn}
                     className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold py-3.5 px-6 rounded-lg shadow-lg hover:shadow-xl hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
