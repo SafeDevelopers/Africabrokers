@@ -77,20 +77,6 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
-  // Add events.error handler to catch OAuth callback errors with full details
-  events: {
-    error({ error }) {
-      console.error("[NextAuth] error event - Full error object:", error);
-      console.error("[NextAuth] error event - Error name:", error?.name);
-      console.error("[NextAuth] error event - Error message:", error?.message);
-      console.error("[NextAuth] error event - Error stack:", error?.stack);
-      if ((error as any)?.cause) {
-        console.error("[NextAuth] error event - Error cause:", (error as any).cause);
-      }
-      // Log the entire error object to see all properties
-      console.error("[NextAuth] error event - Full error JSON:", JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-    },
-  },
   callbacks: {
     async jwt({ token, account }) {
       // Store access_token on JWT for API calls
