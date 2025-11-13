@@ -63,26 +63,12 @@ const authOptions: NextAuthOptions = {
     Keycloak({
       issuer: validatedIssuer,
       clientId: validatedClientId,
-      clientSecret: clientSecret || undefined, // Use undefined instead of empty string for public client
+      clientSecret: clientSecret || undefined, // Use undefined for public client
       // ensure standard scopes; PKCE & state are handled automatically in v5
       authorization: { params: { scope: "openid profile email" } },
-    }),
+    } as any), // Type assertion needed for public clients (clientSecret can be undefined)
   ],
 
-  // Add events.error handler to catch OAuth callback errors with full details
-  events: {
-    error({ error }) {
-      console.error("[NextAuth] error event - Full error object:", error);
-      console.error("[NextAuth] error event - Error name:", error?.name);
-      console.error("[NextAuth] error event - Error message:", error?.message);
-      console.error("[NextAuth] error event - Error stack:", error?.stack);
-      if ((error as any)?.cause) {
-        console.error("[NextAuth] error event - Error cause:", (error as any).cause);
-      }
-      // Log the entire error object to see all properties
-      console.error("[NextAuth] error event - Full error JSON:", JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-    },
-  },
 
   // Centralized error visibility
   logger: {
@@ -92,16 +78,17 @@ const authOptions: NextAuthOptions = {
       
       // Log common OAuth errors with more detail
       if (code === "OAUTH_CALLBACK_ERROR" || code === "OAUTH_CALLBACK_HANDLER_ERROR" || code === "OAuthCallbackError") {
+        const meta = metadata as any;
         console.error("[NextAuth] OAuth Callback Error Details:", {
           code,
-          error: metadata?.error,
-          errorDescription: metadata?.errorDescription,
-          provider: metadata?.provider,
-          providerId: (metadata as any)?.providerId,
-          url: metadata?.url,
-          message: metadata?.message,
-          stack: metadata?.stack,
-          cause: metadata?.cause,
+          error: meta?.error,
+          errorDescription: meta?.errorDescription,
+          provider: meta?.provider,
+          providerId: meta?.providerId,
+          url: meta?.url,
+          message: meta?.message,
+          stack: meta?.stack,
+          cause: meta?.cause,
           // Log the entire metadata object to see what's actually there
           fullMetadata: metadata,
         });
@@ -117,7 +104,7 @@ const authOptions: NextAuthOptions = {
         }
         
         // Check if metadata has providerId but no other details
-        if ((metadata as any)?.providerId === 'keycloak' && !metadata?.error) {
+        if (meta?.providerId === 'keycloak' && !meta?.error) {
           console.error("[NextAuth] Keycloak OAuth callback failed but no error details available.");
           console.error("[NextAuth] This usually means:");
           console.error("  1. Check NEXTAUTH_URL is set correctly");
