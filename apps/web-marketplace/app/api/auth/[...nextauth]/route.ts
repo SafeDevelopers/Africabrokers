@@ -10,11 +10,15 @@ import KeycloakProvider from "next-auth/providers/keycloak";
  * Brokers can sign in later (with BROKER role), but listing browsing does not require auth.
  */
 
-// Validate required environment variables
+// Skip validation during Docker builds
+const skipValidation = process.env.SKIP_ENV_VALIDATION === "true" || process.env.DOCKER_BUILD === "true";
+const isDevelopment = process.env.NODE_ENV === "development" && !skipValidation;
+
+// Validate required environment variables (skip during Docker builds)
 const nextAuthUrl = process.env.NEXTAUTH_URL;
-if (!nextAuthUrl) {
+if (!nextAuthUrl && !skipValidation) {
   const error = "NEXTAUTH_URL is required. Set to http://localhost:3001 (dev) or https://market.afribrok.com (prod)";
-  if (process.env.NODE_ENV === "development") {
+  if (isDevelopment) {
     console.error(`❌ ${error}`);
     throw new Error(error);
   }
@@ -22,9 +26,9 @@ if (!nextAuthUrl) {
 }
 
 const issuer = process.env.KEYCLOAK_ISSUER;
-if (!issuer) {
+if (!issuer && !skipValidation) {
   const error = "KEYCLOAK_ISSUER is required. Set to https://keycloak.afribrok.com/realms/afribrok";
-  if (process.env.NODE_ENV === "development") {
+  if (isDevelopment) {
     console.error(`❌ ${error}`);
     throw new Error(error);
   }
@@ -32,9 +36,9 @@ if (!issuer) {
 }
 
 const clientId = process.env.KEYCLOAK_CLIENT_ID;
-if (!clientId) {
+if (!clientId && !skipValidation) {
   const error = "KEYCLOAK_CLIENT_ID is required. For web-marketplace, set to 'web-marketplace'";
-  if (process.env.NODE_ENV === "development") {
+  if (isDevelopment) {
     console.error(`❌ ${error}`);
     throw new Error(error);
   }
@@ -42,25 +46,26 @@ if (!clientId) {
 }
 
 const authSecret = process.env.NEXTAUTH_SECRET;
-if (!authSecret) {
+if (!authSecret && !skipValidation) {
   const error = "NEXTAUTH_SECRET is required";
-  if (process.env.NODE_ENV === "development") {
+  if (isDevelopment) {
     console.error(`❌ ${error}`);
     throw new Error(error);
   }
   console.warn(`⚠️  ${error}`);
 }
 
-// Use validated values with fallbacks only for production
+// Use validated values with fallbacks (required for Docker builds)
 const validatedIssuer = issuer || "https://keycloak.afribrok.com/realms/afribrok";
 const validatedClientId = clientId || "web-marketplace";
+const validatedSecret = authSecret || "docker-build-placeholder-secret"; // Will be replaced at runtime
 const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET; // Optional for public clients
 
 export const authOptions: NextAuthOptions = {
   // Enable debug in development to surface OAuth errors
   debug: process.env.NODE_ENV === "development" || process.env.AUTH_DEBUG === "true",
 
-  secret: authSecret || "placeholder-secret-change-in-production",
+  secret: validatedSecret,
 
   providers: [
     KeycloakProvider({
