@@ -1,12 +1,5 @@
-// apps/web-admin/app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth";
-import KeycloakProvider from "next-auth/providers/keycloak";
-
-export const runtime = "nodejs"; // ensure Node APIs (Buffer) are available in App Router
-
-const issuer = process.env.KEYCLOAK_ISSUER ?? "https://keycloak.afribrok.com/realms/afribrok";
-const clientId = process.env.KEYCLOAK_CLIENT_ID ?? "web-admin";
-const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET ?? ""; // public client ok
+import Keycloak from "next-auth/providers/keycloak";
 
 // Prefer AUTH_* on NextAuth v5 but keep NEXTAUTH_* for compatibility
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
@@ -17,6 +10,10 @@ if (!process.env.AUTH_URL && !process.env.NEXTAUTH_URL) {
   console.warn("⚠️  AUTH_URL/NEXTAUTH_URL not set. Set to https://admin.afribrok.com");
 }
 
+const issuer = process.env.KEYCLOAK_ISSUER ?? "https://keycloak.afribrok.com/realms/afribrok";
+const clientId = process.env.KEYCLOAK_CLIENT_ID ?? "web-admin";
+const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET ?? ""; // public client ok
+
 export const { GET, POST } = NextAuth({
   // helpful during bring-up; disable later
   debug: process.env.AUTH_DEBUG === "true" || process.env.NEXTAUTH_DEBUG === "true",
@@ -24,7 +21,7 @@ export const { GET, POST } = NextAuth({
   secret: authSecret,
 
   providers: [
-    KeycloakProvider({
+    Keycloak({
       issuer,
       clientId,
       clientSecret,
@@ -48,10 +45,10 @@ export const { GET, POST } = NextAuth({
     },
   },
 
-  pages: {
-    signIn: "/auth/signin",
-    error: "/auth/signin",
-  },
+  // pages: {
+  //   signIn: "/auth/signin",
+  //   error: "/auth/signin",
+  // },
 
   session: { strategy: "jwt" },
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "dockerfilePath": "./apps/web-marketplace/Dockerfile",
+  "dockerfilePath": "./apps/web-admin/Dockerfile",
   "contextPath": "/",
   "envVars": {
     "PORT": "3000"
